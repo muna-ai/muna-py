@@ -5,13 +5,20 @@
 
 from ...services import PredictionService
 from ..remote.remote import RemotePredictionService
-from .completions import ChatCompletionsService
+from .chat import ChatService
 
-class ChatService:
+class OpenAIService:
+    """
+    Experimental client mimicking the official OpenAI client.
+
+    Members:
+        chat (ChatService): Chat service.
+    """
+    chat: ChatService
 
     def __init__(
         self,
         predictions: PredictionService,
         remote_predictions: RemotePredictionService
     ):
-        self.completions = ChatCompletionsService(predictions, remote_predictions)
+        self.chat = ChatService(predictions, remote_predictions)

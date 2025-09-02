@@ -13,6 +13,9 @@ from ..remote.remote import RemotePredictionService
 from .types import ChatCompletion, ChatCompletionChunk, Message, _MessageDict
 
 class ChatCompletionsService:
+    """
+    Create chat completions.
+    """
 
     def __init__(
         self,

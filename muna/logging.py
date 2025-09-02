@@ -142,15 +142,32 @@ class CustomProgressTask:
         progress = current_progress.get()
         if progress is not None and self.task_id is not None:
             current_task = progress._tasks[self.task_id]
+            final_status = "error" if exc_type is not None else current_task.fields.get("status")
+            final_description = self.done_text or current_task.description
             progress.update(
                 self.task_id,
-                description=self.done_text or current_task.description,
+                description=final_description,
                 completed=current_task.total,
-                status="error" if exc_type is not None else current_task.fields.get("status")
+                status=final_status
             )
             current_stack = progress_task_stack.get()
             if current_stack:
                 progress_task_stack.set(current_stack[:-1])
+            # Print a finalized line for the completed task so history persists
+            # in the terminal scrollback, then remove it from the live region.
+            try:
+                indent_level = current_task.fields.get("indent_level", 0)
+                indicator = "└── "
+                indent = "" if indent_level == 0 else (" " * len(indicator) * (indent_level - 1) + indicator)
+                is_error = final_status == "error"
+                icon = "[bright_red]✘[/bright_red]" if is_error else "[bold green]✔[/bold green]"
+                message = f"{icon} {indent}{final_description}"
+                if is_error:
+                    message = f"[bright_red]{message}[/bright_red]"
+                progress.console.print(message)
+                progress.remove_task(self.task_id)
+            except Exception:
+                pass
         self.task_id = None
         return False
 

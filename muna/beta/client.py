@@ -10,7 +10,7 @@ from typing import get_origin, Callable, Generator, Iterator, TypeVar
 from ..client import MunaClient
 from ..services import PredictionService as EdgePredictionService
 from ..types import Acceleration
-from .llm import ChatService
+from .openai import OpenAIService
 from .remote import PredictionService, RemoteAcceleration
 
 F = TypeVar("F", bound=Callable[..., object])
@@ -20,7 +20,7 @@ class BetaClient:
     Client for incubating features.
     """
     predictions: PredictionService
-    chat: ChatService
+    openai: OpenAIService
     
     def __init__(
         self,
@@ -29,7 +29,7 @@ class BetaClient:
         predictions: EdgePredictionService
     ):
         self.predictions = PredictionService(client)
-        self.chat = ChatService(predictions, self.predictions.remote)
+        self.openai = OpenAIService(predictions, self.predictions.remote)
         self.__edge_predictions = predictions
 
     def predict( # INCOMPLETE # Preload

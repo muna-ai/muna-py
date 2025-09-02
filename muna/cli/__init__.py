@@ -15,8 +15,8 @@ from .predictions import create_prediction
 from .predictors import archive_predictor, delete_predictor, retrieve_predictor
 from .resources import app as resources_app
 from .sources import retrieve_source
-from ..beta.llm.cli import app as llm_app
 from ..beta.mcp.cli import app as mcp_app
+from ..beta.openai.cli import app as llm_app
 
 # Define CLI
 typer.main.console_stderr = TracebackMarkupConsole()
