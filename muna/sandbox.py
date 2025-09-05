@@ -64,6 +64,10 @@ class AptInstallCommand(BaseModel):
     kind: Literal["apt_install"] = "apt_install"
     packages: list[str]
 
+class RunCommandsCommand(BaseModel):
+    kind: Literal["run_commands"] = "run_commands"
+    commands: list[str]
+
 Command = (
     WorkdirCommand          |
     EnvCommand              |
@@ -71,6 +75,7 @@ Command = (
     UploadDirectoryCommand  |
     PipInstallCommand       |
     AptInstallCommand       |
+    RunCommandsCommand      |
     EntrypointCommand
 )
 
@@ -100,7 +105,7 @@ class Sandbox(BaseModel):
     def upload_file(
         self,
         from_path: str | Path,
-        to_path: str | Path = "./"
+        to_path: str | Path = None
     ) -> Sandbox:
         """
         Upload a file to the sandbox.
@@ -112,7 +117,7 @@ class Sandbox(BaseModel):
         from_path = from_path if isinstance(from_path, Path) else Path(from_path)
         command = UploadFileCommand(
             from_path=str(from_path.resolve()),
-            to_path=str(to_path)
+            to_path=to_path and str(to_path)
         )
         return Sandbox(commands=self.commands + [command])
 
@@ -164,6 +169,16 @@ class Sandbox(BaseModel):
             packages (list): Packages to install.
         """
         command = AptInstallCommand(packages=packages)
+        return Sandbox(commands=self.commands + [command])
+    
+    def run_commands(self, *commands: str) -> Sandbox:
+        """
+        Run shell commands.
+
+        Parameters:
+            commands (list): Shell commands to run.
+        """
+        command = RunCommandsCommand(commands=commands)
         return Sandbox(commands=self.commands + [command])
 
     def populate(self, muna: Muna=None) -> Sandbox: # CHECK # In place
