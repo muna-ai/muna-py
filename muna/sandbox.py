@@ -105,7 +105,7 @@ class Sandbox(BaseModel):
     def upload_file(
         self,
         from_path: str | Path,
-        to_path: str | Path = None
+        to_path: str | Path
     ) -> Sandbox:
         """
         Upload a file to the sandbox.
@@ -117,14 +117,14 @@ class Sandbox(BaseModel):
         from_path = from_path if isinstance(from_path, Path) else Path(from_path)
         command = UploadFileCommand(
             from_path=str(from_path.resolve()),
-            to_path=to_path and str(to_path)
+            to_path=str(to_path)
         )
         return Sandbox(commands=self.commands + [command])
 
     def upload_directory(
         self,
         from_path: str | Path,
-        to_path: str | Path = "."
+        to_path: str | Path
     ) -> Sandbox:
         """
         Upload a directory to the sandbox.
@@ -208,8 +208,11 @@ class Sandbox(BaseModel):
                 ) as task:
                     manifest = { }
                     for idx, file in enumerate(files):
-                        rel_file_path = file.relative_to(from_path) if from_path.is_dir() else file.name
-                        dst_path = to_path / rel_file_path
+                        dst_path = (
+                            to_path / file.relative_to(from_path)
+                            if from_path.is_dir()
+                            else to_path
+                        )
                         checksum = self.__upload_file(file, muna=muna)
                         manifest[str(dst_path)] = checksum
                         task.update(total=len(files), completed=idx+1)
