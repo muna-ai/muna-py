@@ -1,5 +1,7 @@
 ## 0.0.59
 + Added `muna.Sandbox.run_commands` function to run shell commands when setting up the compiler sandbox.
++ Updated `muna.Sandbox.upload_file` function to require a `to_path` destination in the compiler sandbox.
++ Updated `muna.Sandbox.upload_directory` function to require a `to_path` destination in the compiler sandbox.
 + Fixed CLI prediction inputs with hyphen characters not being parsed correctly.
 
 ## 0.0.58

@@ -66,7 +66,11 @@ async def _compile_predictor_async(
         # Load
         with CustomProgressTask(loading_text="Loading predictor...") as task:
             func = _load_predictor_func(path)
-            entrypoint = EntrypointCommand(from_path=str(path), to_path="./", name=func.__name__)
+            entrypoint = EntrypointCommand(
+                from_path=str(path),
+                to_path=f"./{path.name}",
+                name=func.__name__
+            )
             spec: PredictorSpec = func.__predictor_spec
             task.finish(f"Loaded prediction function: [bold cyan]{spec.tag}[/bold cyan]")
         # Populate

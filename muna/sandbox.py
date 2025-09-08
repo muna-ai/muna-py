@@ -186,15 +186,15 @@ class Sandbox(BaseModel):
         Populate all metadata.
         """
         muna = muna or Muna()
-        entrypoint = next(cmd for cmd in self.commands if isinstance(cmd, EntrypointCommand))
-        entry_path = Path(entrypoint.from_path).resolve()
+        entrypoint_cmd = next(cmd for cmd in self.commands if isinstance(cmd, EntrypointCommand))
+        entrypoint_path = Path(entrypoint_cmd.from_path).resolve()
         for command in self.commands:
             if isinstance(command, UploadableCommand):
                 cwd = Path.cwd()
                 from_path = Path(command.from_path)
                 to_path = Path(command.to_path)
                 if not from_path.is_absolute():
-                    from_path = (entry_path / from_path).resolve()
+                    from_path = (entrypoint_path / from_path).resolve()
                     command.from_path = str(from_path)
                 files = command.get_files()
                 name = from_path.relative_to(cwd) if from_path.is_relative_to(cwd) else from_path.resolve()
