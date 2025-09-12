@@ -1,5 +1,5 @@
 ## 0.0.60
-*INCOMPLETE*
++ Updated `muna.Parameter.range` to have one-sided bounds.
 
 ## 0.0.59
 + Added `muna.Sandbox.run_commands` function to run shell commands when setting up the compiler sandbox.

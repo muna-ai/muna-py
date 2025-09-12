@@ -41,7 +41,7 @@ class Parameter(BaseModel):
     type: Dtype | None = Field(default=None, description="Parameter type. This is `None` if the type is unknown or unsupported by Muna.")
     description: str | None = Field(default=None, description="Parameter description.")
     optional: bool | None = Field(default=None, description="Whether the parameter is optional.")
-    range: tuple[float, float] | None = Field(default=None, description="Parameter value range for numeric parameters.")
+    range: tuple[float | None, float | None] | None = Field(default=None, description="Parameter value range for numeric parameters.")
     enumeration: list[EnumerationMember] | None = Field(default=None, description="Parameter value choices for enumeration parameters.")
     value_schema: dict[str, Any] | None = Field(default=None, description="Parameter JSON schema. This is only populated for `list` and `dict` parameters.", serialization_alias="schema", validation_alias=AliasChoices("schema", "value_schema"))
     model_config = ConfigDict(arbitrary_types_allowed=True)
