@@ -4,9 +4,7 @@
 #
 
 from .dtype import Dtype
+from .parameter import EnumerationMember, Modality, Parameter
 from .prediction import Acceleration, Prediction, PredictionResource
-from .predictor import (
-    EnumerationMember, Parameter, Predictor,
-    PredictorAccess, PredictorStatus, Signature
-)
+from .predictor import Predictor, PredictorAccess, PredictorStatus, Signature
 from .user import User
