@@ -11,6 +11,7 @@ class Dtype(str, Enum):
     This follows `numpy` dtypes.
     """
     null = "null"
+    bfloat16 = "bfloat16"
     float16 = "float16"
     float32 = "float32"
     float64 = "float64"

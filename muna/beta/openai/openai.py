@@ -6,8 +6,9 @@
 from ...services import PredictionService
 from ..remote.remote import RemotePredictionService
 from .chat import ChatService
+from .embeddings import EmbeddingsService
 
-class OpenAIService:
+class OpenAIClient:
     """
     Experimental client mimicking the official OpenAI client.
 
@@ -15,6 +16,7 @@ class OpenAIService:
         chat (ChatService): Chat service.
     """
     chat: ChatService
+    embeddings: EmbeddingsService
 
     def __init__(
         self,
@@ -22,3 +24,4 @@ class OpenAIService:
         remote_predictions: RemotePredictionService
     ):
         self.chat = ChatService(predictions, remote_predictions)
+        self.embeddings = EmbeddingsService(predictions, remote_predictions)

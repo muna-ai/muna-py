@@ -1,5 +1,6 @@
 ## 0.0.61
-*INCOMPLETE*
++ Added `Dtype.bfloat16` data type.
++ Added `muna.beta.openai.embeddings.create` method to create embeddings using the mock OpenAI client.
 
 ## 0.0.60
 + Added `Parameter.modality` field to specify the modality of a given function parameter.
