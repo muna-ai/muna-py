@@ -95,7 +95,7 @@ async def _compile_predictor_async(
                 async for event in muna.client.stream(
                     method="POST",
                     path=f"/predictors/{spec.tag}/compile",
-                    body={ },
+                    body=spec.model_dump(mode="json", exclude=spec.model_extra.keys(), by_alias=True),
                     response_type=_LogEvent | _ErrorEvent
                 ):
                     if isinstance(event, _LogEvent):

@@ -233,7 +233,12 @@ class Sandbox(BaseModel):
                 response_type=_Resource
             )
             with path.open("rb") as f:
-                put(resource.url, data=f).raise_for_status()
+                file_size = path.stat().st_size
+                put(
+                    resource.url,
+                    data=f if file_size > 0 else b"",
+                    headers={ "Content-Length": f"{file_size}" }
+                ).raise_for_status()
         return hash
     
     def __compute_hash(self, path: Path) -> str:
