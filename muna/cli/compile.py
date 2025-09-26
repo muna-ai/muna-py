@@ -81,25 +81,20 @@ async def _compile_predictor_async(
         # Compile
         with CustomProgressTask(loading_text="Running codegen...", done_text="Completed codegen"):
             with CustomProgressTask(loading_text="Creating predictor..."):
-                if overwrite:
-                    try:
-                        muna.client.request(
-                            method="DELETE",
-                            path=f"/predictors/{spec.tag}"
-                        )
-                    except MunaAPIError as error:
-                        if error.status_code != 404:
-                            raise
-                predictor = muna.client.request(
-                    method="POST",
-                    path="/predictors",
-                    body=spec.model_dump(mode="json", exclude=spec.model_extra.keys(), by_alias=True),
-                    response_type=_Predictor
-                )
+                try:
+                    muna.client.request(
+                        method="POST",
+                        path="/predictors",
+                        body=spec.model_dump(mode="json", exclude=spec.model_extra.keys(), by_alias=True),
+                        response_type=_Predictor
+                    )
+                except MunaAPIError as ex:
+                    if ex.status_code != 409 or not overwrite:
+                        raise
             with ProgressLogQueue() as task_queue:
                 async for event in muna.client.stream(
                     method="POST",
-                    path=f"/predictors/{predictor.tag}/compile",
+                    path=f"/predictors/{spec.tag}/compile",
                     body={ },
                     response_type=_LogEvent | _ErrorEvent
                 ):
