@@ -3,7 +3,7 @@
 #   Copyright © 2025 NatML Inc. All Rights Reserved.
 #
 
-from ...services import PredictionService
+from ...services import PredictorService, PredictionService
 from ..remote.remote import RemotePredictionService
 from .chat import ChatService
 from .embeddings import EmbeddingsService
@@ -14,14 +14,16 @@ class OpenAIClient:
 
     Members:
         chat (ChatService): Chat service.
+        embeddings (EmbeddingsService): Embeddings service.
     """
     chat: ChatService
     embeddings: EmbeddingsService
 
     def __init__(
         self,
+        predictors: PredictorService,
         predictions: PredictionService,
         remote_predictions: RemotePredictionService
     ):
         self.chat = ChatService(predictions, remote_predictions)
-        self.embeddings = EmbeddingsService(predictions, remote_predictions)
+        self.embeddings = EmbeddingsService(predictors, predictions, remote_predictions)

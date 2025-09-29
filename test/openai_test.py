@@ -7,9 +7,11 @@ from muna import Muna
 from muna.beta.openai import ChatCompletionChunk, Message
 from typing import Iterator
 
+from openai import OpenAI
+
 def test_create_chat_completion():
-    muna = Muna()
-    response = muna.beta.openai.chat.completions.create(
+    openai = Muna().beta.openai
+    response = openai.chat.completions.create(
         model="@yusuf/llama-stream",
         messages=[
             { "role": "user", "content": "What is the capital of France?" },
@@ -20,8 +22,8 @@ def test_create_chat_completion():
     print(response.model_dump_json(indent=2))
 
 def test_stream_chat_completion():
-    muna = Muna()
-    chunks = muna.beta.openai.chat.completions.create(
+    openai = Muna().beta.openai
+    chunks = openai.chat.completions.create(
         model="@yusuf/llama-stream",
         messages=[
             { "role": "user", "content": "What is the capital of France?" },
@@ -32,3 +34,11 @@ def test_stream_chat_completion():
     assert(isinstance(chunks, Iterator))
     for chunk in chunks:
         assert isinstance(chunk, ChatCompletionChunk)
+
+def test_create_embedding():
+    openai = Muna().beta.openai
+    response = openai.embeddings.create(
+        input="Hello world",
+        model="@google/embedding-gemma"
+    )
+    pass

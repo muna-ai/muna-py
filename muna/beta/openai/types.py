@@ -44,6 +44,17 @@ class DeltaMessage(BaseModel):
     role: Literal["assistant", "user", "system"] | None = None
     content: str | None = None
 
+class Embedding(BaseModel):
+    object: Literal["embedding"]
+    embedding: list[float] | str
+    index: int
+
+class CreateEmbeddingResponse(BaseModel):
+    object: Literal["list"]
+    model: str
+    data: list[Embedding]
+    usage: Usage
+
 class Usage(BaseModel):
     prompt_tokens: int
     completion_tokens: int
