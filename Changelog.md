@@ -1,3 +1,7 @@
+## 0.0.62
++ Fix `Muna` constructor failing with error.
++ Removed `@muna.beta.predict` decorator.
+
 ## 0.0.61
 + Added `Dtype.bfloat16` data type.
 
