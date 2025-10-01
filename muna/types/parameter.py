@@ -63,7 +63,8 @@ class Parameter(BaseModel):
         cls,
         *,
         description: str,
-        range: tuple[float, float]=None,
+        min: float=None,
+        max: float=None,
         **kwargs
     ) -> Parameter:
         """
@@ -72,7 +73,7 @@ class Parameter(BaseModel):
         return Parameter(
             name="",
             description=description,
-            range=range,
+            range=(min, max) if min is not None and max is not None else None,
             **kwargs
         )
 
