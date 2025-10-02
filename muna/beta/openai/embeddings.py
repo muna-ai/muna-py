@@ -74,31 +74,44 @@ class EmbeddingsService:
         signature = predictor.signature
         # Check that there is only one required input parameter
         if sum(param for param in signature.inputs if not param.optional) != 1:
-            raise ValueError(f"{tag} cannot be used with OpenAI embedding API because it has more than one required input parameter.")
+            raise ValueError(
+                f"{tag} cannot be used with OpenAI embedding API because "
+                "it has more than one required input parameter."
+            )
         # Check that the input parameter is `list[str]`
-        input_param = next(
-            (param for param in signature.inputs if param.type == Dtype.list),
-            None
-        )
+        input_param = next((
+            param
+            for param in signature.inputs
+            if param.type == Dtype.list
+        ), None)
         if input_param is None:
-            raise ValueError(f"{tag} cannot be used with OpenAI embedding API because it does not have a valid text embedding input parameter.")
+            raise ValueError(
+                f"{tag} cannot be used with OpenAI embedding API because "
+                "it does not have a valid text embedding input parameter."
+            )
         # Get the Matryoshka dim parameter (optional)
-        matryoshka_param = next(
-            (param for param in signature.inputs if "int" in param.type and param.denotation == "embedding.dims"),
-            None
-        )
+        matryoshka_param = next((
+            param
+            for param in signature.inputs
+            if "int" in param.type and param.denotation == "embedding.dims"
+        ), None)
         # Get the index of the embedding output
-        embedding_param_idx = next(
-            (idx for idx, param in enumerate(signature.outputs) if param.type == Dtype.float32 and param.denotation == "embedding"),
-            None
-        )
+        embedding_param_idx = next((
+            idx
+            for idx, param in enumerate(signature.outputs)
+            if param.type == Dtype.float32 and param.denotation == "embedding"
+        ), None)
         if embedding_param_idx is None:
-            raise ValueError(f"{tag} cannot be used with OpenAI embedding API because it has no outputs with an `embedding` denotation.")
+            raise ValueError(
+                f"{tag} cannot be used with OpenAI embedding API because "
+                "it has no outputs with an `embedding` denotation."
+            )
         # Get the index of the usage output (optional)
-        usage_param_idx = next(
-            (idx for idx, param in enumerate(signature.outputs) if param.denotation == "openai.embedding.usage"),
-            None
-        )
+        usage_param_idx = next((
+            idx
+            for idx, param in enumerate(signature.outputs)
+            if param.type == Dtype.dict and param.denotation == "openai.embedding.usage"
+        ), None)
         # Define delegate
         def create_embedding_func(
             *,
@@ -116,21 +129,26 @@ class EmbeddingsService:
             )
             # Build prediction input map
             prediction_inputs = { [input_param.name]: input }
-            if matryoshka_param is not None:
+            if dimensions is not None and matryoshka_param is not None:
                 prediction_inputs[matryoshka_param.name] = dimensions
             # Create prediction
             prediction = create_prediction_func(
                 tag=model,
                 inputs=prediction_inputs,
                 acceleration=acceleration
-            )
+            )   
             # Check for error
             if prediction.error:
                 raise RuntimeError(prediction.error)
-            # Create embedding response
-            embedding_matrix: ndarray = prediction.results[embedding_param_idx] # (N,D)
-            if len(embedding_matrix.shape) != 2:
+            # Check embedding return type
+            embedding_matrix = prediction.results[embedding_param_idx] # (N,D)
+            if not isinstance(embedding_matrix, ndarray):
+                raise RuntimeError(f"{tag} returned object of type {type(embedding_matrix)} instead of an embedding matrix")
+            if embedding_matrix.dtype != "float32":
+                raise RuntimeError(f"{tag} returned embedding matrix with invalid data type: {embedding_matrix.dtype}")
+            if embedding_matrix.ndim != 2:
                 raise RuntimeError(f"{tag} returned embedding matrix with invalid shape: {embedding_matrix.shape}")
+            # Create embedding response
             usage = (
                 CreateEmbeddingResponse.Usage(**prediction.results[usage_param_idx])
                 if usage_param_idx is not None
