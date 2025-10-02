@@ -74,7 +74,7 @@ class EmbeddingsService:
         signature = predictor.signature
         # Check that there is only one required input parameter
         if sum(param for param in predictor.signature.inputs if not param.optional) != 1:
-            raise ValueError(f"{tag} cannot be used with OpenAI embedding API because it has more than one required input parameters.")
+            raise ValueError(f"{tag} cannot be used with OpenAI embedding API because it has more than one required input parameter.")
         # Check that the input parameter is `list[str]`
         input_param = next(
             (param for param in signature.inputs if param.type == Dtype.list),
