@@ -73,7 +73,7 @@ class EmbeddingsService:
         predictor = self.__predictors.retrieve(tag)
         signature = predictor.signature
         # Check that there is only one required input parameter
-        if sum(param for param in predictor.signature.inputs if not param.optional) != 1:
+        if sum(param for param in signature.inputs if not param.optional) != 1:
             raise ValueError(f"{tag} cannot be used with OpenAI embedding API because it has more than one required input parameter.")
         # Check that the input parameter is `list[str]`
         input_param = next(
@@ -84,19 +84,19 @@ class EmbeddingsService:
             raise ValueError(f"{tag} cannot be used with OpenAI embedding API because it does not have a valid text embedding input parameter.")
         # Get the Matryoshka dim parameter (optional)
         matryoshka_param = next(
-            (param for param in predictor.signature.inputs if "int" in param.type and param.denotation == "embedding.dims"),
+            (param for param in signature.inputs if "int" in param.type and param.denotation == "embedding.dims"),
             None
         )
         # Get the index of the embedding output
         embedding_param_idx = next(
-            (idx for idx, param in enumerate(predictor.signature.outputs) if param.type == Dtype.float32 and param.denotation == "embedding"),
+            (idx for idx, param in enumerate(signature.outputs) if param.type == Dtype.float32 and param.denotation == "embedding"),
             None
         )
         if embedding_param_idx is None:
             raise ValueError(f"{tag} cannot be used with OpenAI embedding API because it has no outputs with an `embedding` denotation.")
         # Get the index of the usage output (optional)
         usage_param_idx = next(
-            (idx for idx, param in enumerate(predictor.signature.outputs) if param.denotation == "openai.embedding.usage"),
+            (idx for idx, param in enumerate(signature.outputs) if param.denotation == "openai.embedding.usage"),
             None
         )
         # Define delegate
