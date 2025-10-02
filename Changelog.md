@@ -1,5 +1,6 @@
 ## 0.0.62
 + Fix `Muna` constructor failing with error.
++ Renamed `muna --learn` CLI option to `muna --docs`.
 + Removed `@muna.beta.predict` decorator.
 
 ## 0.0.61
