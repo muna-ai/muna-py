@@ -9,7 +9,7 @@ from typing import Literal
 
 from .dtype import Dtype
 
-Modality = Literal["audio", "embedding"]
+ParameterDenotation = Literal["audio", "embedding", "embedding.dims"]
 
 class Parameter(BaseModel):
     """
@@ -19,7 +19,7 @@ class Parameter(BaseModel):
         name (str): Parameter name.
         type (Dtype): Parameter type. This is `None` if the type is unknown or unsupported by Muna.
         description (str): Parameter description.
-        modality (Modality): Parameter modality for specialized data types.
+        denotation (ParameterDenotation): Parameter denotation for specialized data types.
         optional (bool): Whether the parameter is optional.
         range (tuple): Parameter value range for numeric parameters.
         enumeration (list): Parameter value choices for enumeration parameters.
@@ -29,7 +29,7 @@ class Parameter(BaseModel):
     name: str = Field(description="Parameter name.")
     type: Dtype | None = Field(default=None, description="Parameter type. This is `None` if the type is unknown or unsupported by Muna.")
     description: str | None = Field(default=None, description="Parameter description.")
-    modality: Modality | None = Field(default=None, description="Parameter modality for specialized data types.")
+    denotation: ParameterDenotation | None = Field(default=None, description="Parameter denotation for specialized data types.")
     optional: bool | None = Field(default=None, description="Whether the parameter is optional.")
     range: tuple[float, float] | None = Field(default=None, description="Parameter value range for numeric parameters.")
     enumeration: list[EnumerationMember] | None = Field(default=None, description="Parameter value choices for enumeration parameters.")
@@ -91,7 +91,7 @@ class Parameter(BaseModel):
         return Parameter(
             name="",
             description=description,
-            modality="audio",
+            denotation="audio",
             sample_rate=sample_rate,
             **kwargs
         )
@@ -104,12 +104,29 @@ class Parameter(BaseModel):
         **kwargs
     ) -> Parameter:
         """
-        Embedding parameter.
+        Embedding matrix parameter.
         """
         return Parameter(
             name="",
             description=description,
-            modality="embedding",
+            denotation="embedding",
+            **kwargs
+        )
+    
+    @classmethod
+    def EmbeddingDims(
+        cls,
+        *,
+        description: str,
+        **kwargs
+    ) -> Parameter:
+        """
+        Embedding Matryoshka dimensions parameter.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="embedding.dims",
             **kwargs
         )
 

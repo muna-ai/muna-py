@@ -55,7 +55,6 @@ class PredictorSpec(BaseModel):
     metadata: list[object] = Field(default=[], description="Metadata to use while compiling the function.")
     access: PredictorAccess = Field(description="Predictor access.")
     card: str | None = Field(default=None, description="Predictor card (markdown).")
-    media: str | None = Field(default=None, description="Predictor media URL.")
     license: str | None = Field(default=None, description="Predictor license URL. This is required for public predictors.")
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow", frozen=True)
 
@@ -69,7 +68,6 @@ def compile(
     metadata: list[CompileMetadata]=[],
     access: PredictorAccess="private",
     card: str | Path=None,
-    media: Path=None,
     license: str=None,
     **kwargs
 ) -> Callable[[Callable[P, R]], Callable[P, R]]:
@@ -85,7 +83,6 @@ def compile(
         metadata (list): Metadata to use while compiling the function.
         access (PredictorAccess): Predictor access.
         card (str | Path): Predictor card markdown string or path to card.
-        media (Path): Predictor thumbnail image (jpeg or png) path.
         license (str): Predictor license URL. This is required for public predictors.
     """
     def decorator(func: Callable):
@@ -102,7 +99,6 @@ def compile(
             targets=targets,
             access=access,
             card=card.read_text() if isinstance(card, Path) else card,
-            media=None, # INCOMPLETE
             license=license,
             trace_modules=trace_modules,
             metadata=metadata,

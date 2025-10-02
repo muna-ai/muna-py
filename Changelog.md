@@ -1,4 +1,7 @@
 ## 0.0.63
++ Added `muna.beta.openai.embeddings.create` method for creating embeddings with text embedding predictors using the OpenAI API.
++ Added `Parameter.EmbeddingDims` annotation method to specify embedding Matryoshka dimension parameters.
++ Refactored `Parameter.modality` field to `Parameter.denotation`.
 + Renamed `muna --learn` CLI option to `muna --docs`.
 
 ## 0.0.62
@@ -11,10 +14,10 @@
 ## 0.0.60
 + Added `Parameter.modality` field to specify the modality of a given function parameter.
 + Added `Parameter.sample_rate` field to specify the audio sample rate of audio input or output data.
-+ Added `Parameter.Numeric` annotation method to annotate numeric input or return types.
-+ Added `Parameter.Audio` annotation method to annotate audio input or return types.
-+ Added `Parameter.Embedding` annotation method to annotate embedding input or return types.
-+ Added `Parameter.Generic` annotation method to annotate generic input or return types.
++ Added `Parameter.Numeric` annotation method to specify numeric input or return types.
++ Added `Parameter.Audio` annotation method to specify audio input or return types.
++ Added `Parameter.Embedding` annotation method to specify embedding input or return types.
++ Added `Parameter.Generic` annotation method to specify generic input or return types.
 
 ## 0.0.59
 + Added `muna.Sandbox.run_commands` function to run shell commands when setting up the compiler sandbox.

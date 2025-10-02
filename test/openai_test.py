@@ -7,8 +7,6 @@ from muna import Muna
 from muna.beta.openai import ChatCompletionChunk, Message
 from typing import Iterator
 
-from openai import OpenAI
-
 def test_create_chat_completion():
     openai = Muna().beta.openai
     response = openai.chat.completions.create(

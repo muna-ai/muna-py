@@ -8,6 +8,10 @@ from pydantic import BaseModel
 from typing import Literal, TypedDict
 
 class ChatCompletion(BaseModel):
+    class Usage(BaseModel):
+        prompt_tokens: int
+        completion_tokens: int
+        total_tokens: int
     id: str
     object: Literal["chat.completion"] = "chat.completion"
     created: int
@@ -50,12 +54,10 @@ class Embedding(BaseModel):
     index: int
 
 class CreateEmbeddingResponse(BaseModel):
+    class Usage(BaseModel):
+        prompt_tokens: int
+        total_tokens: int
     object: Literal["list"]
     model: str
     data: list[Embedding]
     usage: Usage
-
-class Usage(BaseModel):
-    prompt_tokens: int
-    completion_tokens: int
-    total_tokens: int
