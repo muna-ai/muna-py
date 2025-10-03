@@ -179,6 +179,24 @@ class Parameter(BaseModel):
         )
 
     @classmethod
+    def BoundingBox(
+        cls,
+        *,
+        description: str,
+        **kwargs
+    ) -> Parameter:
+        """
+        Bounding box parameter.
+        NOTE: The box MUST be specified in normalized coordinates.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="bounding_box",
+            **kwargs
+        )
+    
+    @classmethod
     def BoundingBoxes(
         cls,
         *,
@@ -187,12 +205,10 @@ class Parameter(BaseModel):
     ) -> Parameter:
         """
         Bounding box collection parameter.
-        NOTE: The box MUST be specified in normalized coordinates.
+        NOTE: The boxes MUST be specified in normalized coordinates.
         """
-        return Parameter(
-            name="",
+        return Parameter.BoundingBox(
             description=description,
-            denotation="bounding_box",
             **kwargs
         )
 

@@ -3,7 +3,7 @@
 + Added `Parameter.EmbeddingDims` annotation method to specify embedding Matryoshka dimension parameters in embedding predictors.
 + Added `Parameter.AudioSpeed` annotation method to specify audio speed parameters in audio generation predictors.
 + Added `Parameter.AudioVoice` annotation method to specify audio voice parameters in audio generation predictors.
-+ Added `Parameter.BoundingBoxes` annotation method to specify bounding box parameters in object detection predictors.
++ Added `Parameter.BoundingBox` annotation method to specify bounding box parameters in object detection predictors.
 + Refactored `Parameter.modality` field to `Parameter.denotation`.
 + Renamed `muna --learn` CLI option to `muna --docs`.
 
