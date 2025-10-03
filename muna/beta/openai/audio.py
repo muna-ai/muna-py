@@ -5,13 +5,13 @@
 
 from ...services import PredictorService, PredictionService
 from ..remote.remote import RemotePredictionService
-from .completion import ChatCompletionService
+from .speech import SpeechService
 
-class ChatService:
+class AudioService:
     """
-    Chat service.
+    Audio service.
     """
-    completions: ChatCompletionService
+    speech: SpeechService
 
     def __init__(
         self,
@@ -19,4 +19,4 @@ class ChatService:
         predictions: PredictionService,
         remote_predictions: RemotePredictionService
     ):
-        self.completions = ChatCompletionService(predictors, predictions, remote_predictions)
+        self.speech = SpeechService(predictors, predictions, remote_predictions)

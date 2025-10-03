@@ -5,8 +5,9 @@
 
 from ...services import PredictorService, PredictionService
 from ..remote.remote import RemotePredictionService
+from .audio import AudioService
 from .chat import ChatService
-from .embeddings import EmbeddingsService
+from .embeddings import EmbeddingService
 
 class OpenAIClient:
     """
@@ -17,7 +18,8 @@ class OpenAIClient:
         embeddings (EmbeddingsService): Embeddings service.
     """
     chat: ChatService
-    embeddings: EmbeddingsService
+    embeddings: EmbeddingService
+    audio: AudioService
 
     def __init__(
         self,
@@ -25,5 +27,6 @@ class OpenAIClient:
         predictions: PredictionService,
         remote_predictions: RemotePredictionService
     ):
-        self.chat = ChatService(predictions, remote_predictions)
-        self.embeddings = EmbeddingsService(predictors, predictions, remote_predictions)
+        self.chat = ChatService(predictors, predictions, remote_predictions)
+        self.embeddings = EmbeddingService(predictors, predictions, remote_predictions)
+        self.audio = AudioService(predictors, predictions, remote_predictions)

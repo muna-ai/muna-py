@@ -9,7 +9,10 @@ from typing import Literal
 
 from .dtype import Dtype
 
-ParameterDenotation = Literal["audio", "embedding", "embedding.dims"]
+ParameterDenotation = Literal[
+    "audio", "audio.speed", "audio.voice",
+    "embedding", "embedding.dims"
+]
 
 class Parameter(BaseModel):
     """
@@ -39,7 +42,12 @@ class Parameter(BaseModel):
         serialization_alias="schema",
         validation_alias=AliasChoices("schema", "value_schema")
     )
-    sample_rate: int | None = Field(default=None, description="Audio sample rate in Hertz.")
+    sample_rate: int | None = Field(
+        default=None,
+        description="Audio sample rate in Hertz.",
+        serialization_alias="sampleRate",
+        validation_alias=AliasChoices("sample_rate", "sampleRate")
+    )
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @classmethod
@@ -93,6 +101,43 @@ class Parameter(BaseModel):
             description=description,
             denotation="audio",
             sample_rate=sample_rate,
+            **kwargs
+        )
+
+    @classmethod
+    def AudioSpeed(
+        cls,
+        *,
+        description: str,
+        min: float=None,
+        max: float=None,
+        **kwargs
+    ) -> Parameter:
+        """
+        Audio speed parameter.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="audio.speed",
+            range=(min, max) if min is not None and max is not None else None,
+            **kwargs
+        )
+
+    @classmethod
+    def AudioVoice(
+        cls,
+        *,
+        description: str,
+        **kwargs
+    ) -> Parameter:
+        """
+        Audio voice parameter.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="audio.voice",
             **kwargs
         )
 

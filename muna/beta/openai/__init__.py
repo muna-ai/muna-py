@@ -6,5 +6,5 @@
 from .openai import OpenAIClient
 from .types import (
     ChatCompletion, ChatCompletionChunk, Choice, CreateEmbeddingResponse,
-    Embedding, StreamChoice, Message, DeltaMessage, Usage
+    Embedding, StreamChoice, Message, DeltaMessage
 )

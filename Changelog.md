@@ -1,6 +1,8 @@
 ## 0.0.63
 + Added `muna.beta.openai.embeddings.create` method for using text embedding predictors via the OpenAI API.
-+ Added `Parameter.EmbeddingDims` annotation method to specify embedding Matryoshka dimension parameters.
++ Added `Parameter.EmbeddingDims` annotation method to specify embedding Matryoshka dimension parameters in embedding predictors.
++ Added `Parameter.AudioSpeed` annotation method to specify audio speed parameters in audio gemeration predictors.
++ Added `Parameter.AudioVoice` annotation method to specify audio voice parameters in audio gemeration predictors.
 + Refactored `Parameter.modality` field to `Parameter.denotation`.
 + Renamed `muna --learn` CLI option to `muna --docs`.
 

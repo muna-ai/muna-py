@@ -14,11 +14,11 @@ from ..remote import RemoteAcceleration
 from ..remote.remote import RemotePredictionService
 from .types import CreateEmbeddingResponse, Embedding
 
-PredictorEmbeddingDelegate = Callable[..., CreateEmbeddingResponse]
+EmbeddingDelegate = Callable[..., CreateEmbeddingResponse]
 
-class EmbeddingsService:
+class EmbeddingService:
     """
-    Embeddings service.
+    Embedding service.
     """
 
     def __init__(
@@ -30,7 +30,7 @@ class EmbeddingsService:
         self.__predictors = predictors
         self.__predictions = predictions
         self.__remote_predictions = remote_predictions
-        self.__cache = dict[str, PredictorEmbeddingDelegate]()
+        self.__cache = dict[str, EmbeddingDelegate]()
 
     def create(
         self,
@@ -68,7 +68,7 @@ class EmbeddingsService:
         # Return
         return result
 
-    def __create_embedding_delegate(self, tag: str) -> PredictorEmbeddingDelegate:
+    def __create_embedding_delegate(self, tag: str) -> EmbeddingDelegate:
         # Retrieve predictor
         predictor = self.__predictors.retrieve(tag)
         signature = predictor.signature

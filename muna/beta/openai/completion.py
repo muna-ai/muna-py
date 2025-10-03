@@ -6,22 +6,24 @@
 from pydantic import TypeAdapter
 from typing import overload, Iterator, Literal
 
-from ...services import PredictionService
+from ...services import PredictorService, PredictionService
 from ...types import Acceleration, Prediction
 from ..remote import RemoteAcceleration
 from ..remote.remote import RemotePredictionService
 from .types import ChatCompletion, ChatCompletionChunk, Message, _MessageDict
 
-class ChatCompletionsService:
+class ChatCompletionService:
     """
     Create chat completions.
     """
 
     def __init__(
         self,
+        predictors: PredictorService,
         predictions: PredictionService,
         remote_predictions: RemotePredictionService
     ):
+        self.__predictors = predictors
         self.__predictions = predictions
         self.__remote_predictions = remote_predictions
 
