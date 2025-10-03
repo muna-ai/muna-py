@@ -11,7 +11,7 @@ from .dtype import Dtype
 
 ParameterDenotation = Literal[
     "audio", "audio.speed", "audio.voice",
-    "embedding", "embedding.dims"
+    "bounding_box", "embedding", "embedding.dims",
 ]
 
 class Parameter(BaseModel):
@@ -183,7 +183,6 @@ class Parameter(BaseModel):
         cls,
         *,
         description: str,
-        format: Literal["xyxy", "xywh", "cxcywh", "xyxyxyxy"],
         **kwargs
     ) -> Parameter:
         """
@@ -193,7 +192,7 @@ class Parameter(BaseModel):
         return Parameter(
             name="",
             description=description,
-            denotation=f"bbox.{format}",
+            denotation="bounding_box",
             **kwargs
         )
 
