@@ -163,8 +163,8 @@ class Parameter(BaseModel):
         cls,
         *,
         description: str,
-        min: float | None=None,
-        max: float | None=None,
+        min: int | None=None,
+        max: int | None=None,
         **kwargs
     ) -> Parameter:
         """
