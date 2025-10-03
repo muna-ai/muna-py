@@ -71,8 +71,8 @@ class Parameter(BaseModel):
         cls,
         *,
         description: str,
-        min: float=None,
-        max: float=None,
+        min: float | None=None,
+        max: float | None=None,
         **kwargs
     ) -> Parameter:
         """
@@ -109,8 +109,8 @@ class Parameter(BaseModel):
         cls,
         *,
         description: str,
-        min: float=None,
-        max: float=None,
+        min: float | None=None,
+        max: float | None=None,
         **kwargs
     ) -> Parameter:
         """
@@ -163,6 +163,8 @@ class Parameter(BaseModel):
         cls,
         *,
         description: str,
+        min: float | None=None,
+        max: float | None=None,
         **kwargs
     ) -> Parameter:
         """
@@ -172,6 +174,7 @@ class Parameter(BaseModel):
             name="",
             description=description,
             denotation="embedding.dims",
+            range=(min, max) if min is not None and max is not None else None,
             **kwargs
         )
 
