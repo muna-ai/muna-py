@@ -178,6 +178,25 @@ class Parameter(BaseModel):
             **kwargs
         )
 
+    @classmethod
+    def BoundingBoxes(
+        cls,
+        *,
+        description: str,
+        format: Literal["xyxy", "xywh", "cxcywh", "xyxyxyxy"],
+        **kwargs
+    ) -> Parameter:
+        """
+        Bounding box collection parameter.
+        NOTE: The box MUST be specified in normalized coordinates.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation=f"bbox.{format}",
+            **kwargs
+        )
+
 class EnumerationMember(BaseModel):
     """
     Prediction parameter enumeration member.
