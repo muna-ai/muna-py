@@ -15,13 +15,6 @@ from .types import Message
 
 app = Typer(no_args_is_help=True)
 
-@app.command(name="compile", help="Create an LLM predictor.", rich_help_panel="Create")
-def compile(
-    path: Annotated[str, Argument(help="LLM model path or URI.")],
-    tag: Annotated[str, Option(help="Predictor tag.")]
-):
-    pass
-
 @app.command(name="chat", help="Start a chat session.", rich_help_panel="Run")
 def chat(
     tag: Annotated[str, Argument(help="LLM predictor tag.")]
