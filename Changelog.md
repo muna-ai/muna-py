@@ -1,3 +1,6 @@
+## 0.0.64
+*INCOMPLETE*
+
 ## 0.0.63
 + Added `muna.beta.openai.embeddings.create` method for using text embedding predictors via the OpenAI API.
 + Added `input_shapes` in inference metadata types to support compiling PyTorch models with dynamic input shapes.
