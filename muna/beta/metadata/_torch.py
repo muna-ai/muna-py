@@ -34,6 +34,11 @@ class PyTorchInferenceMetadataBase(BaseModel):
         description="Positional inputs to the model.",
         exclude=True
     )
+    input_shapes: list[tuple] | None = Field(
+        default=None,
+        description="Model input tensor shapes. Use this to specify dynamic axes.",
+        exclude=True
+    )
     output_keys: list[str] | None = Field(
         default=None,
         description="Model output dictionary keys. Use this if the model returns a dictionary.",

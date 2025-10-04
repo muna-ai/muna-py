@@ -1,5 +1,6 @@
 ## 0.0.63
 + Added `muna.beta.openai.embeddings.create` method for using text embedding predictors via the OpenAI API.
++ Added `input_shapes` in inference metadata types to support compiling PyTorch models with dynamic input shapes.
 + Added `Parameter.EmbeddingDims` annotation method to specify embedding Matryoshka dimension parameters in embedding predictors.
 + Added `Parameter.AudioSpeed` annotation method to specify audio speed parameters in audio generation predictors.
 + Added `Parameter.AudioVoice` annotation method to specify audio voice parameters in audio generation predictors.
