@@ -1,5 +1,5 @@
 ## 0.0.64
-*INCOMPLETE*
++ Added `Parameter.DepthMap` annotation method to specify depth map parameters in depth estimation predictors.
 
 ## 0.0.63
 + Added `muna.beta.openai.embeddings.create` method for using text embedding predictors via the OpenAI API.

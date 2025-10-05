@@ -11,7 +11,8 @@ from .dtype import Dtype
 
 ParameterDenotation = Literal[
     "audio", "audio.speed", "audio.voice",
-    "bounding_box", "embedding", "embedding.dims",
+    "bounding_box", "depth_map",
+    "embedding", "embedding.dims",
 ]
 
 class Parameter(BaseModel):
@@ -209,6 +210,23 @@ class Parameter(BaseModel):
         """
         return Parameter.BoundingBox(
             description=description,
+            **kwargs
+        )
+    
+    @classmethod
+    def DepthMap(
+        cls,
+        *,
+        description: str,
+        **kwargs
+    ) -> Parameter:
+        """
+        Depth map parameter.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="depth_map",
             **kwargs
         )
 
