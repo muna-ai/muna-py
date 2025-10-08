@@ -9,7 +9,6 @@ dynamic = ["version"]
 description = "Run AI models in Python. Register at https://muna.ai."
 readme = "README.md"
 dependencies = [
-    "mcp",
     "numpy",
     "pillow",
     "pydantic>=2.0",

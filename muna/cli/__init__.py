@@ -15,7 +15,6 @@ from .predictions import create_prediction
 from .predictors import archive_predictor, delete_predictor, retrieve_predictor
 from .resources import app as resources_app
 from .sources import retrieve_source
-from ..beta.mcp.cli import app as mcp_app
 from ..beta.openai.cli import app as llm_app
 
 # Define CLI
@@ -78,13 +77,6 @@ app.add_typer(
     name="llm",
     hidden=True,
     help="Work with large language models (LLMs).",
-    rich_help_panel="Beta"
-)
-app.add_typer(
-    mcp_app,
-    name="mcp",
-    hidden=True,
-    help="Provide prediction functions as tools for use by AI assistants.",
     rich_help_panel="Beta"
 )
 
