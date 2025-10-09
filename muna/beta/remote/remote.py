@@ -64,50 +64,44 @@ class RemotePredictionService:
         prediction = Prediction(**{ **prediction.model_dump(), "results": results })
         return prediction
 
-    def __to_value(
-        self,
-        obj: Value,
-        *,
-        name: str,
-        max_data_url_size: int=4 * 1024 * 1024
-    ) -> _RemoteValue:
+    def __to_value(self, obj: Value) -> _RemoteValue:
         obj = self.__try_ensure_serializable(obj)
         if obj is None:
             return _RemoteValue(data=None, type=Dtype.null)
         elif isinstance(obj, float):
             obj = array(obj, dtype=Dtype.float32)
-            return self.__to_value(obj, name=name, max_data_url_size=max_data_url_size)
+            return self.__to_value(obj)
         elif isinstance(obj, bool):
             obj = array(obj, dtype=Dtype.bool)
-            return self.__to_value(obj, name=name, max_data_url_size=max_data_url_size)
+            return self.__to_value(obj)
         elif isinstance(obj, int):
             obj = array(obj, dtype=Dtype.int32)
-            return self.__to_value(obj, name=name, max_data_url_size=max_data_url_size)
+            return self.__to_value(obj)
         elif isinstance(obj, ndarray):
             buffer = BytesIO(obj.tobytes())
-            data = self.__upload(buffer, name=name, max_data_url_size=max_data_url_size)
+            data = self.__upload(buffer)
             return _RemoteValue(data=data, type=obj.dtype.name, shape=list(obj.shape))
         elif isinstance(obj, str):
             buffer = BytesIO(obj.encode())
-            data = self.__upload(buffer, name=name, mime="text/plain", max_data_url_size=max_data_url_size)
+            data = self.__upload(buffer, mime="text/plain")
             return _RemoteValue(data=data, type=Dtype.string)
         elif isinstance(obj, list):
             buffer = BytesIO(dumps(obj).encode())
-            data = self.__upload(buffer, name=name, mime="application/json", max_data_url_size=max_data_url_size)
+            data = self.__upload(buffer, mime="application/json")
             return _RemoteValue(data=data, type=Dtype.list)
         elif isinstance(obj, dict):
             buffer = BytesIO(dumps(obj).encode())
-            data = self.__upload(buffer, name=name, mime="application/json", max_data_url_size=max_data_url_size)
+            data = self.__upload(buffer, mime="application/json")
             return _RemoteValue(data=data, type=Dtype.dict)
         elif isinstance(obj, Image.Image):
             buffer = BytesIO()
             format = "PNG" if obj.mode == "RGBA" else "JPEG"
             mime = f"image/{format.lower()}"
             obj.save(buffer, format=format)
-            data = self.__upload(buffer, name=name, mime=mime, max_data_url_size=max_data_url_size)
+            data = self.__upload(buffer, mime=mime)
             return _RemoteValue(data=data, type=Dtype.image)
         elif isinstance(obj, BytesIO):
-            data = self.__upload(obj, name=name, max_data_url_size=max_data_url_size)
+            data = self.__upload(obj)
             return _RemoteValue(data=data, type=Dtype.binary)
         else:
             raise ValueError(f"Failed to serialize value '{obj}' of type `{type(obj)}` because it is not supported")
@@ -139,25 +133,10 @@ class RemotePredictionService:
         self,
         data: BytesIO,
         *,
-        name: str,
         mime: str="application/octet-stream",
-        max_data_url_size: int=4 * 1024 * 1024
     ) -> str:
-        if data.getbuffer().nbytes <= max_data_url_size:
-            encoded_data = b64encode(data.getvalue()).decode("ascii")
-            return f"data:{mime};base64,{encoded_data}"
-        value = self.client.request(
-            method="POST",
-            path="/values",
-            body={ "name": name },
-            response_type=_CreateValueResponse
-        )
-        put(
-            value.upload_url,
-            data=data,
-            headers={ "Content-Type": mime }
-        ).raise_for_status()
-        return value.download_url
+        encoded_data = b64encode(data.getvalue()).decode("ascii")
+        return f"data:{mime};base64,{encoded_data}"
 
     def __download(self, url: str) -> BytesIO:
         if url.startswith("data:"):
@@ -193,7 +172,3 @@ class _RemotePrediction(BaseModel):
     latency: float | None
     error: str | None
     logs: str | None
-
-class _CreateValueResponse(BaseModel):
-    upload_url: str = Field(validation_alias="uploadUrl")
-    download_url: str = Field(validation_alias="downloadUrl")
