@@ -39,4 +39,19 @@ def test_create_embedding():
         input="Hello world",
         model="@google/embedding-gemma"
     )
-    pass
+    assert response.object == "list"
+    assert len(response.data) > 0
+    assert response.data[0].object == "embedding"
+    assert isinstance(response.data[0].embedding, list) and isinstance(response.data[0].embedding[0], float)
+
+def test_create_embedding_base64():
+    openai = Muna().beta.openai
+    response = openai.embeddings.create(
+        input="Hello world",
+        model="@google/embedding-gemma",
+        encoding_format="base64"
+    )
+    assert response.object == "list"
+    assert len(response.data) > 0
+    assert response.data[0].object == "embedding"
+    assert isinstance(response.data[0].embedding, str)

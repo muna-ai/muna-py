@@ -15,7 +15,6 @@ from .predictions import create_prediction
 from .predictors import archive_predictor, delete_predictor, retrieve_predictor
 from .resources import app as resources_app
 from .sources import retrieve_source
-from ..beta.openai.cli import app as llm_app
 
 # Define CLI
 typer.main.console_stderr = TracebackMarkupConsole()
@@ -71,13 +70,6 @@ app.add_typer(
     name="auth",
     help="Login, logout, and check your authentication status.",
     rich_help_panel="Auth"
-)
-app.add_typer(
-    llm_app,
-    name="llm",
-    hidden=True,
-    help="Work with large language models (LLMs).",
-    rich_help_panel="Beta"
 )
 
 # Insiders

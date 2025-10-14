@@ -52,7 +52,6 @@ class EmbeddingService:
             acceleration (Acceleration | RemoteAcceleration): Prediction acceleration.
         """
         input = [input] if isinstance(input, str) else input
-        encoding_format = encoding_format or "float"
         # Ensure we have a delegate
         if model not in self.__cache:
             self.__cache[model] = self.__create_embedding_delegate(model)
@@ -62,7 +61,7 @@ class EmbeddingService:
             input=input,
             model=model,
             dimensions=dimensions,
-            encoding_format=encoding_format,
+            encoding_format=encoding_format or "float",
             acceleration=acceleration
         )
         # Return
@@ -71,9 +70,15 @@ class EmbeddingService:
     def __create_embedding_delegate(self, tag: str) -> EmbeddingDelegate:
         # Retrieve predictor
         predictor = self.__predictors.retrieve(tag)
-        signature = predictor.signature
+        if not predictor:
+            raise RuntimeError(
+                f"{tag} cannot be used for OpenAI speech API because "
+                "the predictor could not be found. Check that your access key "
+                "is valid and that you have access to the predictor."
+            )
         # Check that there is only one required input parameter
-        if sum(param for param in signature.inputs if not param.optional) != 1:
+        signature = predictor.signature
+        if sum(1 for param in signature.inputs if not param.optional) != 1:
             raise ValueError(
                 f"{tag} cannot be used with OpenAI embedding API because "
                 "it has more than one required input parameter."
@@ -128,7 +133,7 @@ class EmbeddingService:
                 else self.__predictions.create
             )
             # Build prediction input map
-            prediction_inputs = { [input_param.name]: input }
+            prediction_inputs = { input_param.name: input }
             if dimensions is not None and matryoshka_param is not None:
                 prediction_inputs[matryoshka_param.name] = dimensions
             # Create prediction
@@ -136,7 +141,7 @@ class EmbeddingService:
                 tag=model,
                 inputs=prediction_inputs,
                 acceleration=acceleration
-            )   
+            )
             # Check for error
             if prediction.error:
                 raise RuntimeError(prediction.error)
@@ -179,7 +184,7 @@ class EmbeddingService:
     ) -> Embedding:
         data = (
             b64encode(embedding_vector.tobytes()).decode()
-            if encoding_format else
+            if encoding_format == "base64" else
             embedding_vector.tolist()
         )
         embedding = Embedding(
