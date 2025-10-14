@@ -1,3 +1,6 @@
+## 0.0.65
+*INCOMPLETE*
+
 ## 0.0.64
 + Added `Parameter.DepthMap` annotation method to specify depth map parameters in depth estimation predictors.
 + Fixed `muna.beta.openai.embeddings.create` throwing error due to unhashable type.
