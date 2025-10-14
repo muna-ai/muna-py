@@ -72,7 +72,7 @@ class EmbeddingService:
         predictor = self.__predictors.retrieve(tag)
         if not predictor:
             raise RuntimeError(
-                f"{tag} cannot be used for OpenAI speech API because "
+                f"{tag} cannot be used with OpenAI embedding API because "
                 "the predictor could not be found. Check that your access key "
                 "is valid and that you have access to the predictor."
             )
