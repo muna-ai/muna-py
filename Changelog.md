@@ -1,5 +1,5 @@
 ## 0.0.65
-*INCOMPLETE*
++ Fixed `Parameter` annotations throwing Pydantic errors when used.
 
 ## 0.0.64
 + Added `Parameter.DepthMap` annotation method to specify depth map parameters in depth estimation predictors.

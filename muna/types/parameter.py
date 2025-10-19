@@ -15,6 +15,17 @@ ParameterDenotation = Literal[
     "embedding", "embedding.dims",
 ]
 
+class EnumerationMember(BaseModel):
+    """
+    Parameter enumeration member.
+
+    Members:
+        name (str): Enumeration member name.
+        value (str | int): Enumeration member value.
+    """
+    name: str = Field(description="Enumeration member name.")
+    value: str | int = Field(description="Enumeration member value.")
+
 class Parameter(BaseModel):
     """
     Predictor parameter.
@@ -229,14 +240,3 @@ class Parameter(BaseModel):
             denotation="depth_map",
             **kwargs
         )
-
-class EnumerationMember(BaseModel):
-    """
-    Prediction parameter enumeration member.
-
-    Members:
-        name (str): Enumeration member name.
-        value (str | int): Enumeration member value.
-    """
-    name: str = Field(description="Enumeration member name.")
-    value: str | int = Field(description="Enumeration member value.")

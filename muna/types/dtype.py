@@ -3,9 +3,9 @@
 #   Copyright © 2025 NatML Inc. All Rights Reserved.
 #
 
-from enum import Enum
+from enum import StrEnum
 
-class Dtype(str, Enum):
+class Dtype(StrEnum):
     """
     Value type.
     This follows `numpy` dtypes.
