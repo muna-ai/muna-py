@@ -1,5 +1,5 @@
 ## 0.0.66
-+ Added `beta.CoreMLInferenceSession.exporter` field to support TorchScript and Dynamo ONNX export from PyTorch.
++ Added `beta.CoreMLInferenceSession.exporter` field to support TorchScript and Dynamo CoreML export from PyTorch.
 + Added `beta.OnnxRuntimeInferenceSession.exporter` field to support TorchScript and Dynamo ONNX export from PyTorch.
 
 ## 0.0.65
