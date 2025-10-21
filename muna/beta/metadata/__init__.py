@@ -3,6 +3,7 @@
 #   Copyright © 2025 NatML Inc. All Rights Reserved.
 #
 
+from ._torch import TorchExporter
 from .coreml import CoreMLInferenceMetadata
 from .executorch import ExecuTorchInferenceBackend, ExecuTorchInferenceMetadata
 from .iree import IREEInferenceBackend, IREEInferenceMetadata

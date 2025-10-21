@@ -4,7 +4,9 @@
 #
 
 from pydantic import BaseModel, BeforeValidator, Field
-from typing import Annotated
+from typing import Annotated, Literal
+
+TorchExporter = Literal["none", "dynamo", "torchscript"]
 
 def _validate_torch_module(module: "torch.nn.Module") -> "torch.nn.Module": # type: ignore
     try:
@@ -42,5 +44,10 @@ class PyTorchInferenceMetadataBase(BaseModel):
     output_keys: list[str] | None = Field(
         default=None,
         description="Model output dictionary keys. Use this if the model returns a dictionary.",
+        exclude=True
+    )
+    exporter: TorchExporter | None = Field(
+        default=None,
+        description="PyTorch exporter to use.",
         exclude=True
     )
