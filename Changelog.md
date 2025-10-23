@@ -1,5 +1,5 @@
 ## 0.0.67
-*INCOMPLETE*
++ Added support for specifying JSON list and dictionary arguments in `muna predict` CLI command.
 
 ## 0.0.66
 + Added `beta.CoreMLInferenceSession.exporter` field to support TorchScript and Dynamo CoreML export from PyTorch.
@@ -135,7 +135,7 @@
 + Added support for streaming predictions.
 + Added `fxn.predictions.ready` to check whether a predictor has been preloaded.
 + Added `verbose` parameter in `fxn.predictions.create` method to print prediction progress.
-+ Added `--quiet` option in `fxn predict` CLI action to suppress verbose logging.
++ Added `--quiet` option in `fxn predict` CLI command to suppress verbose logging.
 + Fixed prediction errors when making passing in `str`, `list`, or `dict` arguments.
 + Fixed invalid data type error when prediction returns a greyscale image.
 + Fixed prediction error in CLI when passing file path as prediction input value.

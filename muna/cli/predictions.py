@@ -5,6 +5,8 @@
 
 from asyncio import run as run_async
 from io import BytesIO
+from json import loads, JSONDecodeError
+from mimetypes import add_type, guess_type, types_map
 from numpy import array_repr, ndarray
 from pathlib import Path, PurePath
 from PIL import Image
@@ -14,10 +16,11 @@ from typer import Argument, Context, Option
 
 from ..muna import Muna
 from ..logging import CustomProgress, CustomProgressTask
+from ..services import Value
 from ..types import Prediction
 from .auth import get_access_key
 
-def create_prediction (
+def create_prediction(
     tag: str=Argument(..., help="Predictor tag."),
     quiet: bool=Option(False, "--quiet", help="Suppress verbose logging when creating the prediction."),
     context: Context = 0
@@ -42,35 +45,28 @@ async def _predict_async(tag: str, quiet: bool, context: Context):
             prediction = muna.predictions.create(tag, inputs=inputs)
     _log_prediction(prediction)
 
-def _parse_value (value: str) -> float | int | bool | str | Image.Image | BytesIO:
-    # Boolean
-    if value == "true":
-        return True
-    if value == "false":
-        return False
-    # Integer
-    try:
-        return int(value)
-    except ValueError:
-        pass
-    # Float
-    try:
-        return float(value)
-    except ValueError:
-        pass
+def _parse_value(data: str) -> Value: # CHECK # Add YAML and audio support
+    # Add YAML
+    if ".yml" not in types_map or ".yaml" not in types_map: # remove in Python 3.14
+        add_type("application/yaml", ".yml")
+        add_type("application/yaml", ".yaml")
+    # Raw string
+    if data.startswith("\\"):
+        return data[1:]
     # File
-    if value.startswith("@"):
-        path = Path(value[1:]).expanduser().resolve()
-        if path.suffix in [".txt", ".md"]:
-            with open(path) as f:
-                return f.read()
-        elif path.suffix in [".jpg", ".png"]:
-            return Image.open(path)
-        else:
-            with open(path, "rb") as f:
-                return BytesIO(f.read())
-    # String
-    return value
+    if data.startswith("@"):
+        path = Path(data[1:]).expanduser().resolve()
+        mime, _ = guess_type(path, strict=False)
+        match mime:
+            case "application/json":                    return loads(path.read_text())
+            case str() if mime.startswith("image/"):    return Image.open(path)
+            case str() if mime.startswith("text/"):     return path.read_text()
+            case _:                                     return BytesIO(path.read_bytes())
+    # JSON
+    try:
+        return loads(data)
+    except JSONDecodeError:
+        return data
 
 def _log_prediction(prediction: Prediction):
     images = [value for value in prediction.results or [] if isinstance(value, Image.Image)]
