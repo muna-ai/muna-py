@@ -11,7 +11,7 @@ def _validate_ort_inference_session(session: "onnxruntime.InferenceSession") -> 
     try:
         from onnxruntime import InferenceSession
         if not isinstance(session, InferenceSession):
-            raise ValueError(f"Expected `onnxruntime.InferenceSession` model but got `{type(session).__qualname__}`")
+            raise ValueError(f"Expected `onnxruntime.InferenceSession` instance but got `{type(session).__qualname__}`")
         return session
     except ImportError:
         raise ImportError("ONNXRuntime is required to create this metadata but it is not installed.")

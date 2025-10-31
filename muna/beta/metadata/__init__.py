@@ -7,7 +7,7 @@ from ._torch import TorchExporter
 from .coreml import CoreMLInferenceMetadata
 from .executorch import ExecuTorchInferenceBackend, ExecuTorchInferenceMetadata
 from .iree import IREEInferenceBackend, IREEInferenceMetadata
-from .litert import LiteRTInferenceMetadata
+from .litert import LiteRTInferenceMetadata, LiteRTInterpreterMetadata
 from .onnx import OnnxRuntimeInferenceMetadata
 from .onnxruntime import OnnxRuntimeInferenceSessionMetadata
 from .openvino import OpenVINOInferenceMetadata
