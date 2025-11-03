@@ -48,7 +48,7 @@ class LiteRTInterpreterMetadata(BaseModel):
         interpreter (tensorflow.lite.Interpreter | ai_edge_litert.interpreter.Interpreter): LiteRT interpreter.
         model_path (str | Path): TFLite model path. The model must exist at this path in the compiler sandbox.
     """
-    kind: Literal["meta.inference.litert_interpreter"] = Field(default="meta.inference.litert_interpreter", init=False)
+    kind: Literal["meta.inference.tflite"] = Field(default="meta.inference.tflite", init=False)
     interpreter: Annotated[object, BeforeValidator(_validate_litert_interpreter)] = Field(
         description="LiteRT interpreter to apply metadata to.",
         exclude=True

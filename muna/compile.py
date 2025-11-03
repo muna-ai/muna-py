@@ -13,8 +13,9 @@ from typing import Callable, Literal, ParamSpec, TypeVar, cast
 
 from .beta import (
     CoreMLInferenceMetadata, ExecuTorchInferenceMetadata, LiteRTInferenceMetadata,
-    IREEInferenceMetadata, OnnxRuntimeInferenceMetadata, OnnxRuntimeInferenceSessionMetadata,
-    OpenVINOInferenceMetadata, QnnInferenceMetadata, TensorRTInferenceMetadata
+    LiteRTInterpreterMetadata, IREEInferenceMetadata, OnnxRuntimeInferenceMetadata,
+    OnnxRuntimeInferenceSessionMetadata, OpenVINOInferenceMetadata, QnnInferenceMetadata,
+    TensorRTInferenceMetadata
 )
 from .sandbox import Sandbox
 from .types import PredictorAccess
@@ -34,6 +35,7 @@ CompileMetadata = (
     ExecuTorchInferenceMetadata         |
     IREEInferenceMetadata               |
     LiteRTInferenceMetadata             |
+    LiteRTInterpreterMetadata           |
     OnnxRuntimeInferenceMetadata        |
     OnnxRuntimeInferenceSessionMetadata |
     OpenVINOInferenceMetadata           |
