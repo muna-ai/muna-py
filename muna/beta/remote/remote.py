@@ -10,17 +10,15 @@ from io import BytesIO
 from json import dumps, loads
 from numpy import array, frombuffer, ndarray
 from PIL import Image
-from pydantic import BaseModel, Field
-from requests import get, put
-from typing import Literal
+from pydantic import BaseModel
+from requests import get
 from urllib.request import urlopen
 
 from ...c import Configuration
 from ...client import MunaClient
 from ...services import Value
 from ...types import Dtype, Prediction
-
-RemoteAcceleration = Literal["remote_auto", "remote_cpu", "remote_a40", "remote_a100"]
+from .schema import RemoteAcceleration, RemotePrediction, RemoteValue
 
 class RemotePredictionService:
     """
@@ -58,16 +56,16 @@ class RemotePredictionService:
                 "acceleration": acceleration,
                 "clientId": Configuration.get_client_id()
             },
-            response_type=_RemotePrediction
+            response_type=RemotePrediction
         )
         results = list(map(self.__to_object, prediction.results)) if prediction.results is not None else None
         prediction = Prediction(**{ **prediction.model_dump(), "results": results })
         return prediction
 
-    def __to_value(self, obj: Value) -> _RemoteValue:
+    def __to_value(self, obj: Value) -> RemoteValue:
         obj = self.__try_ensure_serializable(obj)
         if obj is None:
-            return _RemoteValue(data=None, type=Dtype.null)
+            return RemoteValue(data=None, type=Dtype.null)
         elif isinstance(obj, float):
             obj = array(obj, dtype=Dtype.float32)
             return self.__to_value(obj)
@@ -80,33 +78,33 @@ class RemotePredictionService:
         elif isinstance(obj, ndarray):
             buffer = BytesIO(obj.tobytes())
             data = self.__upload(buffer)
-            return _RemoteValue(data=data, type=obj.dtype.name, shape=list(obj.shape))
+            return RemoteValue(data=data, type=obj.dtype.name, shape=list(obj.shape))
         elif isinstance(obj, str):
             buffer = BytesIO(obj.encode())
             data = self.__upload(buffer, mime="text/plain")
-            return _RemoteValue(data=data, type=Dtype.string)
+            return RemoteValue(data=data, type=Dtype.string)
         elif isinstance(obj, list):
             buffer = BytesIO(dumps(obj).encode())
             data = self.__upload(buffer, mime="application/json")
-            return _RemoteValue(data=data, type=Dtype.list)
+            return RemoteValue(data=data, type=Dtype.list)
         elif isinstance(obj, dict):
             buffer = BytesIO(dumps(obj).encode())
             data = self.__upload(buffer, mime="application/json")
-            return _RemoteValue(data=data, type=Dtype.dict)
+            return RemoteValue(data=data, type=Dtype.dict)
         elif isinstance(obj, Image.Image):
             buffer = BytesIO()
             format = "PNG" if obj.mode == "RGBA" else "JPEG"
             mime = f"image/{format.lower()}"
             obj.save(buffer, format=format)
             data = self.__upload(buffer, mime=mime)
-            return _RemoteValue(data=data, type=Dtype.image)
+            return RemoteValue(data=data, type=Dtype.image)
         elif isinstance(obj, BytesIO):
             data = self.__upload(obj)
-            return _RemoteValue(data=data, type=Dtype.binary)
+            return RemoteValue(data=data, type=Dtype.binary)
         else:
             raise ValueError(f"Failed to serialize value '{obj}' of type `{type(obj)}` because it is not supported")
 
-    def __to_object(self, value: _RemoteValue) -> Value:
+    def __to_object(self, value: RemoteValue) -> Value:
         if value.type == Dtype.null:
             return None
         buffer = self.__download(value.data)
@@ -158,17 +156,3 @@ class RemotePredictionService:
         if isinstance(obj, BaseModel):
             return obj.model_dump(mode="json", by_alias=True)
         return obj
-
-class _RemoteValue(BaseModel):
-    data: str | None
-    type: Dtype
-    shape: list[int] | None = None
-
-class _RemotePrediction(BaseModel):
-    id: str
-    tag: str
-    created: str
-    results: list[_RemoteValue] | None
-    latency: float | None
-    error: str | None
-    logs: str | None
