@@ -1,5 +1,5 @@
 ## 0.0.68
-*INCOMPLETE*
++ Added `beta.RemoteValue` class for working with remote values.
 
 ## 0.0.67
 + Added `beta.LiteRTInterpreterMetadata` class to compile LiteRT `Interpreter` instances for inference.
