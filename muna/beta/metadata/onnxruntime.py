@@ -16,7 +16,7 @@ def _validate_ort_inference_session(session: "onnxruntime.InferenceSession") -> 
     except ImportError:
         raise ImportError("ONNXRuntime is required to create this metadata but it is not installed.")
 
-class OnnxRuntimeInferenceSessionMetadata(BaseModel):
+class OnnxRuntimeInferenceSessionMetadata(BaseModel, **ConfigDict(arbitrary_types_allowed=True, frozen=True)):
     """
     Metadata to compile an OnnxRuntime `InferenceSession` for inference.
 
@@ -33,4 +33,3 @@ class OnnxRuntimeInferenceSessionMetadata(BaseModel):
         description="ONNX model path. The model must exist at this path in the compiler sandbox.",
         exclude=True
     )
-    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)

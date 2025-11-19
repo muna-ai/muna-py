@@ -12,10 +12,11 @@ from types import ModuleType
 from typing import Callable, Literal, ParamSpec, TypeVar, cast
 
 from .beta import (
-    CoreMLInferenceMetadata, ExecuTorchInferenceMetadata, LiteRTInferenceMetadata,
-    LiteRTInterpreterMetadata, IREEInferenceMetadata, OnnxRuntimeInferenceMetadata,
-    OnnxRuntimeInferenceSessionMetadata, OpenVINOInferenceMetadata, QnnInferenceMetadata,
-    TensorRTInferenceMetadata
+    CoreMLInferenceMetadata, ExecuTorchInferenceMetadata,
+    LiteRTInferenceMetadata, IREEInferenceMetadata,
+    OnnxRuntimeInferenceMetadata, OnnxRuntimeInferenceSessionMetadata,
+    OpenVINOInferenceMetadata, QnnInferenceMetadata,
+    TensorRTInferenceMetadata, TFLiteInterpreterMetadata
 )
 from .sandbox import Sandbox
 from .types import PredictorAccess
@@ -35,12 +36,12 @@ CompileMetadata = (
     ExecuTorchInferenceMetadata         |
     IREEInferenceMetadata               |
     LiteRTInferenceMetadata             |
-    LiteRTInterpreterMetadata           |
     OnnxRuntimeInferenceMetadata        |
     OnnxRuntimeInferenceSessionMetadata |
     OpenVINOInferenceMetadata           |
     QnnInferenceMetadata                |
-    TensorRTInferenceMetadata
+    TensorRTInferenceMetadata           |
+    TFLiteInterpreterMetadata
 )
 
 P = ParamSpec("P")

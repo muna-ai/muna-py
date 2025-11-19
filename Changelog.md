@@ -1,5 +1,7 @@
 ## 0.0.68
 + Added `beta.RemoteValue` class for working with remote values.
++ Added `beta.OnnxRuntimeInferenceMetadata.optimization` field for optimizing exported ONNX model.
++ Refactored `beta.LiteRTInterpreterMetadata` to `beta.TFLiteInterpreterMetadata`.
 
 ## 0.0.67
 + Added `beta.LiteRTInterpreterMetadata` class to compile LiteRT `Interpreter` instances for inference.

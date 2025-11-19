@@ -3,7 +3,7 @@
 #   Copyright © 2025 NatML Inc. All Rights Reserved.
 #
 
-from pydantic import BaseModel, BeforeValidator, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 from typing import Annotated, Literal
 
 TorchExporter = Literal["none", "dynamo", "torchscript"]
@@ -27,7 +27,7 @@ def _validate_torch_tensor_args(args: list) -> list:
     except ImportError:
         raise ImportError("PyTorch is required to create this metadata but it is not installed.")
 
-class PyTorchInferenceMetadataBase(BaseModel):
+class PyTorchInferenceMetadataBase(BaseModel, **ConfigDict(arbitrary_types_allowed=True, frozen=True)):
     model: Annotated[object, BeforeValidator(_validate_torch_module)] = Field(
         description="PyTorch module to apply metadata to.",
         exclude=True

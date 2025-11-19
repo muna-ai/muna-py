@@ -3,7 +3,7 @@
 #   Copyright © 2025 NatML Inc. All Rights Reserved.
 #
 
-from pydantic import ConfigDict, Field
+from pydantic import Field
 from typing import Literal
 
 from ._torch import PyTorchInferenceMetadataBase
@@ -19,4 +19,3 @@ class CoreMLInferenceMetadata(PyTorchInferenceMetadataBase):
         output_keys (list): Model output dictionary keys. Use this if the model returns a dictionary.
     """
     kind: Literal["meta.inference.coreml"] = Field(default="meta.inference.coreml", init=False)
-    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)

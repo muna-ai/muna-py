@@ -3,10 +3,12 @@
 #   Copyright © 2025 NatML Inc. All Rights Reserved.
 #
 
-from pydantic import ConfigDict, Field
+from pydantic import Field
 from typing import Literal
 
 from ._torch import PyTorchInferenceMetadataBase
+
+OnnxRuntimeOptimizationLevel = Literal["none", "basic", "extended"]
 
 class OnnxRuntimeInferenceMetadata(PyTorchInferenceMetadataBase):
     """
@@ -17,6 +19,12 @@ class OnnxRuntimeInferenceMetadata(PyTorchInferenceMetadataBase):
         model_args (tuple[Tensor,...]): Positional inputs to the model.
         input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
         output_keys (list): Model output dictionary keys. Use this if the model returns a dictionary.
+        exporter (TorchExporter): PyTorch exporter to use.
+        optimization (OnnxRuntimeOptimizationLevel): ONNX model optimization level.
     """
     kind: Literal["meta.inference.onnx"] = Field(default="meta.inference.onnx", init=False)
-    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
+    optimization: OnnxRuntimeOptimizationLevel = Field(
+        default="none",
+        description="ONNX model optimization level. Defaults to `none`.",
+        exclude=True
+    )

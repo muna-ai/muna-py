@@ -3,10 +3,10 @@
 #   Copyright © 2025 NatML Inc. All Rights Reserved.
 #
 
-from pydantic import ConfigDict, Field
+from pydantic import Field
 from typing import Literal
 
-from ._torch import PyTorchInferenceMetadataBase
+from ._torch import PyTorchInferenceMetadataBase, TorchExporter
 
 ExecuTorchInferenceBackend = Literal["xnnpack", "vulkan"]
 
@@ -22,9 +22,9 @@ class ExecuTorchInferenceMetadata(PyTorchInferenceMetadataBase):
         backend (ExecuTorchInferenceBackend): ExecuTorch backend to execute the model.
     """
     kind: Literal["meta.inference.executorch"] = Field(default="meta.inference.executorch", init=False)
+    exporter: TorchExporter | None = Field(default=None, init=False)
     backend: ExecuTorchInferenceBackend = Field(
         default="xnnpack",
         description="ExecuTorch backend to execute the model.",
         exclude=True
     )
-    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
