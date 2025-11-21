@@ -1,5 +1,5 @@
 ## 0.0.69
-*INCOMPLETE*
++ Fixed errors when creating remote predictions with `muna.beta.predictions.remote.create`.
 
 ## 0.0.68
 + Added `beta.RemoteValue` class for working with remote values.
