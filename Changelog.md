@@ -1,4 +1,5 @@
 ## 0.0.69
++ Added `beta.TensorRTRTXInferenceMetadata` class to compile PyTorch models for inference on Nvidia RTX GPUs with TensorRT-RTX.
 + Fixed errors when creating remote predictions with `muna.beta.predictions.remote.create`.
 
 ## 0.0.68
@@ -7,7 +8,7 @@
 + Refactored `beta.LiteRTInterpreterMetadata` to `beta.TFLiteInterpreterMetadata`.
 
 ## 0.0.67
-+ Added `beta.LiteRTInterpreterMetadata` class to compile LiteRT `Interpreter` instances for inference.
++ Added `beta.LiteRTInterpreterMetadata` class to compile TensorFlow Lite `Interpreter` instances for inference.
 + Added support for specifying JSON list and dictionary arguments in `muna predict` CLI command.
 
 ## 0.0.66
