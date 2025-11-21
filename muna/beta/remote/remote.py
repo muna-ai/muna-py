@@ -33,7 +33,7 @@ class RemotePredictionService:
         tag: str,
         *,
         inputs: dict[str, Value],
-        acceleration: RemoteAcceleration="auto"
+        acceleration: RemoteAcceleration="remote_auto"
     ) -> Prediction:
         """
         Create a remote prediction.
@@ -46,7 +46,7 @@ class RemotePredictionService:
         Returns:
             Prediction: Created prediction.
         """
-        input_map = { name: self.__to_value(value, name=name).model_dump(mode="json") for name, value in inputs.items() }
+        input_map = { name: self.__to_value(value).model_dump(mode="json") for name, value in inputs.items() }
         prediction = self.client.request(
             method="POST",
             path="/predictions/remote",
