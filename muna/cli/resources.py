@@ -13,9 +13,9 @@ from tempfile import NamedTemporaryFile
 from typer import Argument, Option, Typer
 from typing_extensions import Annotated
 
-from .auth import get_access_key
 from ..logging import CustomProgress, CustomProgressTask
 from ..muna import Muna
+from .auth import get_access_key
 
 app = Typer(no_args_is_help=True)
 

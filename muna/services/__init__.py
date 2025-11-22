@@ -5,4 +5,4 @@
 
 from .user import UserService
 from .predictor import PredictorService
-from .prediction import PredictionService, Value
+from .prediction import PredictionService

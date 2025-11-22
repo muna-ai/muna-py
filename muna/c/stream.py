@@ -12,13 +12,13 @@ from .prediction import Prediction
 @final
 class PredictionStream:
 
-    def __init__ (self, stream):
+    def __init__(self, stream):
         self.__stream = stream
 
-    def __iter__ (self):
+    def __iter__(self):
         return self
     
-    def __next__ (self) -> Prediction:
+    def __next__(self) -> Prediction:
         prediction = c_void_p()
         status = get_fxnc().FXNPredictionStreamReadNext(self.__stream, byref(prediction))
         if status == FXNStatus.ERROR_INVALID_OPERATION:
@@ -28,13 +28,13 @@ class PredictionStream:
         else:
             return Prediction(prediction)
 
-    def __enter__ (self):
+    def __enter__(self):
         return self
 
-    def __exit__ (self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback):
         self.__release()
 
-    def __release (self):
+    def __release(self):
         if self.__stream:
             get_fxnc().FXNPredictionStreamRelease(self.__stream)
         self.__stream = None

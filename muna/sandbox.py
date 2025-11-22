@@ -46,7 +46,7 @@ class UploadDirectoryCommand(UploadableCommand):
         if not from_path.is_absolute():
             raise ValueError("Cannot upload directory because directory path must be absolute")
         return [file for file in from_path.rglob("*") if file.is_file()]
-    
+
 class EntrypointCommand(UploadableCommand):
     kind: Literal["entrypoint"] = "entrypoint"
     name: str
@@ -170,7 +170,7 @@ class Sandbox(BaseModel):
         """
         command = AptInstallCommand(packages=packages)
         return Sandbox(commands=self.commands + [command])
-    
+
     def run_commands(self, *commands: str) -> Sandbox:
         """
         Run shell commands.
@@ -240,7 +240,7 @@ class Sandbox(BaseModel):
                     headers={ "Content-Length": f"{file_size}" }
                 ).raise_for_status()
         return hash
-    
+
     def __compute_hash(self, path: Path) -> str:
         hash = sha256()
         with path.open("rb") as f:

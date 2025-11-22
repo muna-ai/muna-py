@@ -16,8 +16,7 @@ from typer import Argument, Context, Option
 
 from ..muna import Muna
 from ..logging import CustomProgress, CustomProgressTask
-from ..services import Value
-from ..types import Prediction
+from ..types import Prediction, Value
 from .auth import get_access_key
 
 def create_prediction(

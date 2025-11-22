@@ -4,4 +4,4 @@
 #
 
 from .metadata import *
-from .remote import RemoteAcceleration, RemoteValue
+from .remote import RemoteAcceleration

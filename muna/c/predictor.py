@@ -15,7 +15,7 @@ from .stream import PredictionStream
 @final
 class Predictor:
 
-    def __init__ (self, configuration: Configuration):
+    def __init__(self, configuration: Configuration):
         predictor = c_void_p()
         status = get_fxnc().FXNPredictorCreate(configuration._Configuration__configuration, byref(predictor))
         if status == FXNStatus.OK:
@@ -23,7 +23,7 @@ class Predictor:
         else:
             raise RuntimeError(f"Failed to create predictor with error: {status_to_error(status)}")
 
-    def create_prediction (self, inputs: ValueMap) -> Prediction:
+    def create_prediction(self, inputs: ValueMap) -> Prediction:
         prediction = c_void_p()
         status = get_fxnc().FXNPredictorCreatePrediction(
             self.__predictor,
@@ -35,7 +35,7 @@ class Predictor:
         else:
             raise RuntimeError(f"Failed to create prediction with error: {status_to_error(status)}")
 
-    def stream_prediction (self, inputs: ValueMap) -> PredictionStream:
+    def stream_prediction(self, inputs: ValueMap) -> PredictionStream:
         stream = c_void_p()
         status = get_fxnc().FXNPredictorStreamPrediction(
             self.__predictor,
@@ -47,13 +47,13 @@ class Predictor:
         else:
             raise RuntimeError(f"Failed to stream prediction with error: {status_to_error(status)}")
 
-    def __enter__ (self):
+    def __enter__(self):
         return self
 
-    def __exit__ (self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback):
         self.__release()
 
-    def __release (self):
+    def __release(self):
         if self.__predictor:
             get_fxnc().FXNPredictorRelease(self.__predictor)
         self.__predictor = None

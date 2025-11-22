@@ -14,7 +14,7 @@ current_progress = ContextVar("current_progress", default=None)
 progress_task_stack = ContextVar("progress_task_stack", default=[])
 
 class CustomSpinnerColumn(SpinnerColumn):
-    
+
     def __init__(
         self,
         spinner_name="dots",
@@ -39,7 +39,7 @@ class CustomTextColumn(TextColumn):
     
     def __init__(self, text_format="{task.description}"):
         super().__init__(text_format)
-    
+
     def render(self, task):
         # Indent and color
         description = task.description
@@ -53,7 +53,7 @@ class CustomTextColumn(TextColumn):
         task.description = description        
         # Return
         return text
-    
+
     def __get_indent (self, level: int) -> str:
         if level == 0:
             return ""
@@ -104,7 +104,7 @@ class CustomProgress(Progress):
         current_progress.reset(self._token)
         progress_task_stack.reset(self._stack_token)
         return super().__exit__(exc_type, exc_val, exc_tb)
-    
+
     def get_renderables(self):
         for task in self.tasks:
             task_columns = task.fields.get("columns") or list()

@@ -10,15 +10,16 @@ from io import BytesIO
 from json import dumps, loads
 from numpy import array, frombuffer, ndarray
 from PIL import Image
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from requests import get
+from typing import Literal
 from urllib.request import urlopen
 
 from ...c import Configuration
 from ...client import MunaClient
-from ...services import Value
-from ...types import Dtype, Prediction
-from .schema import RemoteAcceleration, RemotePrediction, RemoteValue
+from ...types import Dtype, Prediction, RemoteValue, Value
+
+RemoteAcceleration = Literal["remote_auto", "remote_cpu", "remote_a40", "remote_a100"]
 
 class RemotePredictionService:
     """
@@ -56,9 +57,13 @@ class RemotePredictionService:
                 "acceleration": acceleration,
                 "clientId": Configuration.get_client_id()
             },
-            response_type=RemotePrediction
+            response_type=_RemotePrediction
         )
-        results = list(map(self.__to_object, prediction.results)) if prediction.results is not None else None
+        results = (
+            list(map(self.__to_object, prediction.results))
+            if prediction.results is not None
+            else None
+        )
         prediction = Prediction(**{ **prediction.model_dump(), "results": results })
         return prediction
 
@@ -156,3 +161,6 @@ class RemotePredictionService:
         if isinstance(obj, BaseModel):
             return obj.model_dump(mode="json", by_alias=True)
         return obj
+
+class _RemotePrediction(Prediction):
+    results: list[RemoteValue] | None = Field(description="Prediction results.")

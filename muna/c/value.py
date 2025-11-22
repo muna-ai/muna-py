@@ -17,19 +17,19 @@ from typing import final, Any
 from ..types import Dtype
 from .fxnc import get_fxnc, status_to_error, FXNStatus
 
-class ValueFlags (IntFlag):
+class ValueFlags(IntFlag):
     NONE = 0
     COPY_DATA = 1
 
 @final
 class Value:
 
-    def __init__ (self, value, *, owner: bool=True):
+    def __init__(self, value, *, owner: bool=True):
         self.__value = value
         self.__owner = owner
 
     @property
-    def data (self):
+    def data(self):
         data = c_void_p()
         status = get_fxnc().FXNValueGetData(self.__value, byref(data))
         if status == FXNStatus.OK:
@@ -38,7 +38,7 @@ class Value:
             raise RuntimeError(f"Failed to get value data with error: {status_to_error(status)}")
 
     @property
-    def type (self) -> Dtype:
+    def type(self) -> Dtype:
         dtype = c_int()
         status = get_fxnc().FXNValueGetType(self.__value, byref(dtype))
         if status == FXNStatus.OK:
@@ -47,7 +47,7 @@ class Value:
             raise RuntimeError(f"Failed to get value data type with error: {status_to_error(status)}")
 
     @property
-    def shape (self) -> list[int] | None:
+    def shape(self) -> list[int] | None:
         if self.type not in _TENSOR_ISH_DTYPES:
             return None
         fxnc = get_fxnc()
@@ -62,7 +62,7 @@ class Value:
         else:
             raise RuntimeError(f"Failed to get value shape with error: {status_to_error(status)}")
 
-    def to_object (self) -> Any:
+    def to_object(self) -> Any:
         type = self.type
         if type == Dtype.null:
             return None
@@ -82,19 +82,19 @@ class Value:
         else:
             raise RuntimeError(f"Failed to convert Function value to object because value has unsupported type: {type}")
 
-    def __enter__ (self):
+    def __enter__(self):
         return self
 
-    def __exit__ (self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback):
         self.__release()
 
-    def __release (self):
+    def __release(self):
         if self.__value and self.__owner:
             get_fxnc().FXNValueRelease(self.__value)
         self.__value = None
 
     @classmethod
-    def create_array (
+    def create_array(
         cls,
         data: ndarray,
         *,
@@ -118,7 +118,7 @@ class Value:
             raise RuntimeError(f"Failed to create array value with error: {status_to_error(status)}")
 
     @classmethod
-    def create_string (cls, data: str) -> Value:
+    def create_string(cls, data: str) -> Value:
         value = c_void_p()
         status = get_fxnc().FXNValueCreateString(data.encode(), byref(value))
         if status == FXNStatus.OK:
@@ -127,7 +127,7 @@ class Value:
             raise RuntimeError(f"Failed to create string value with error: {status_to_error(status)}")
 
     @classmethod
-    def create_list (cls, data: Iterable[Any]) -> Value:
+    def create_list(cls, data: Iterable[Any]) -> Value:
         value = c_void_p()
         status = get_fxnc().FXNValueCreateList(dumps(data).encode(), byref(value))
         if status == FXNStatus.OK:
@@ -136,7 +136,7 @@ class Value:
             raise RuntimeError(f"Failed to create list value with error: {status_to_error(status)}")
     
     @classmethod
-    def create_dict (cls, data: dict[str, Any]) -> Value:
+    def create_dict(cls, data: dict[str, Any]) -> Value:
         value = c_void_p()
         status = get_fxnc().FXNValueCreateDict(dumps(data).encode(), byref(value))
         if status == FXNStatus.OK:
@@ -145,7 +145,7 @@ class Value:
             raise RuntimeError(f"Failed to create dict value with error: {status_to_error(status)}")
 
     @classmethod
-    def create_image (cls, image: Image.Image) -> Value:
+    def create_image(cls, image: Image.Image) -> Value:
         value = c_void_p()
         pixel_buffer = array(image)
         status = get_fxnc().FXNValueCreateImage(
@@ -162,7 +162,7 @@ class Value:
             raise RuntimeError(f"Failed to create image value with error: {status_to_error(status)}")        
 
     @classmethod
-    def create_binary (
+    def create_binary(
         cls,
         data: memoryview,
         *,
@@ -177,7 +177,7 @@ class Value:
             raise RuntimeError(f"Failed to create binary value with error: {status_to_error(status)}")
 
     @classmethod
-    def create_null (cls) -> Value:
+    def create_null(cls) -> Value:
         value = c_void_p()
         status = get_fxnc().FXNValueCreateNull(byref(value))
         if status == FXNStatus.OK:

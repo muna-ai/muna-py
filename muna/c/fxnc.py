@@ -16,16 +16,16 @@ class FXNStatus(IntEnum):
     ERROR_INVALID_OPERATION = 2
     ERROR_NOT_IMPLEMENTED = 3
 
-def get_fxnc () -> CDLL:
+def get_fxnc() -> CDLL:
     global _fxnc
     _fxnc = _fxnc if _fxnc is not None else _load_fxnc()
     return _fxnc
 
-def set_fxnc (fxnc: CDLL):
+def set_fxnc(fxnc: CDLL):
     global _fxnc
     _fxnc = fxnc
 
-def _load_fxnc () -> CDLL:
+def _load_fxnc() -> CDLL:
     os = system().lower()
     os = "macos" if os == "darwin" else os
     arch = machine().lower()
@@ -38,7 +38,7 @@ def _load_fxnc () -> CDLL:
     with resources.path(package, resource) as path:
         return CDLL(str(path))
     
-def status_to_error (status: int) -> str:
+def status_to_error(status: int) -> str:
     if status == FXNStatus.ERROR_INVALID_ARGUMENT:
         return "FXN_ERROR_INVALID_ARGUMENT"
     elif status == FXNStatus.ERROR_INVALID_OPERATION:

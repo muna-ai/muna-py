@@ -16,24 +16,13 @@ from tempfile import gettempdir, NamedTemporaryFile
 from typing import Iterator
 from urllib.parse import urlparse
 
-from ..c import Configuration, Predictor, Prediction as CPrediction, Value as CValue, ValueFlags, ValueMap
+from ..c import (
+    Configuration, Predictor, Prediction as CPrediction,
+    Value as CValue, ValueFlags, ValueMap
+)
 from ..client import MunaClient
 from ..logging import CustomProgressTask
-from ..types import Acceleration, Prediction, PredictionResource
-
-Value = (
-    None                |
-    float               |
-    int                 |
-    bool                |
-    ndarray             |
-    str                 |
-    list[object]        |
-    dict[str, object]   |
-    Image.Image         |
-    BytesIO             |
-    memoryview
-)
+from ..types import Acceleration, Prediction, PredictionResource, Value
 
 class PredictionService:
 
