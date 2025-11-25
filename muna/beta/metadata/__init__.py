@@ -12,6 +12,6 @@ from .onnx import OnnxRuntimeInferenceMetadata, OnnxRuntimeOptimizationLevel
 from .onnxruntime import OnnxRuntimeInferenceSessionMetadata
 from .openvino import OpenVINOInferenceMetadata
 from .qnn import QnnInferenceBackend, QnnInferenceMetadata, QnnInferenceQuantization
-from .tensorrt import CudaArchitecture, TensorRTInferenceMetadata, TensorRTPrecision
+from .tensorrt import CudaArchitecture, TensorRTInferenceMetadata, TensorRTHardwareCompatibility, TensorRTPrecision
 from .tensorrt_rtx import TensorRTRTXInferenceMetadata
 from .tflite import TFLiteInterpreterMetadata

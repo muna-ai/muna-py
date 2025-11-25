@@ -16,6 +16,7 @@ CudaArchitecture = Literal[
 ]
 
 TensorRTPrecision = Literal["fp32", "fp16", "int8", "int4"]
+TensorRTHardwareCompatibility = Literal["none", "same_compatibility", "forward_compatibility"]
 
 class TensorRTInferenceMetadata(PyTorchInferenceMetadataBase):
     """
@@ -29,6 +30,7 @@ class TensorRTInferenceMetadata(PyTorchInferenceMetadataBase):
         exporter (TorchExporter): PyTorch exporter to use.
         cuda_arch (CudaArchitecture): Target CUDA architecture for the TensorRT engine. Defaults to `sm_80` (Ampere).
         precision (TensorRTPrecision): TensorRT engine inference precision. Defaults to `fp16`.
+        hardware_compatibility (TensorRTHardwareCompatibility): TensorRT engine hardware compatibility. Defaults to `none`.
     """
     kind: Literal["meta.inference.tensorrt"] = Field(default="meta.inference.tensorrt", init=False)
     cuda_arch: CudaArchitecture = Field(
@@ -39,5 +41,10 @@ class TensorRTInferenceMetadata(PyTorchInferenceMetadataBase):
     precision: TensorRTPrecision = Field(
         default="fp16",
         description="TensorRT engine inference precision.",
+        exclude=True
+    )
+    hardware_compatibility: TensorRTHardwareCompatibility = Field(
+        default="none",
+        description="TensorRT hardware compatibility mode.",
         exclude=True
     )
