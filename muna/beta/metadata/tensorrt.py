@@ -16,7 +16,7 @@ CudaArchitecture = Literal[
     "sm_100",   # Blackwell (B200)
 ]
 
-TensorRTPrecision = Literal["bf16", "fp8", "fp16", "fp32", "int8"]
+TensorRTPrecision = Literal["bf16", "fp4", "fp8", "fp16", "fp32", "int8"]
 TensorRTHardwareCompatibility = Literal["none", "same_compatibility", "forward_compatibility"]
 
 class TensorRTInferenceMetadata(PyTorchInferenceMetadataBase):
