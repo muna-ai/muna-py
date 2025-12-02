@@ -23,7 +23,7 @@ class TensorRTRTXInferenceMetadata(PyTorchInferenceMetadataBase):
     """
     kind: Literal["meta.inference.tensorrt_rtx"] = Field(default="meta.inference.tensorrt_rtx", init=False)
     precision: TensorRTPrecision = Field(
-        default="fp16",
+        default="fp32",
         description="TensorRT engine inference precision.",
         exclude=True
     )

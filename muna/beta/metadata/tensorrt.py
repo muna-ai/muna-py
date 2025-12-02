@@ -9,10 +9,10 @@ from typing import Literal
 from ._torch import PyTorchInferenceMetadataBase
 
 CudaArchitecture = Literal[
-    "sm_80", "sm_86", "sm_87",  # Ampere (A100)
-    "sm_89",                    # Ada Lovelace (L40)
-    "sm_90",                    # Hopper (H100)
-    "sm_100",                   # Blackwell (B200)
+    "sm_80",    # Ampere (A100)
+    "sm_89",    # Ada Lovelace (L40)
+    "sm_90",    # Hopper (H100)
+    "sm_100",   # Blackwell (B200)
 ]
 
 TensorRTPrecision = Literal["fp32", "fp16", "int8", "int4"]
@@ -39,12 +39,12 @@ class TensorRTInferenceMetadata(PyTorchInferenceMetadataBase):
         exclude=True
     )
     precision: TensorRTPrecision = Field(
-        default="fp16",
+        default="fp32",
         description="TensorRT engine inference precision.",
         exclude=True
     )
     hardware_compatibility: TensorRTHardwareCompatibility = Field(
-        default="none",
+        default="forward_compatibility",
         description="TensorRT hardware compatibility mode.",
         exclude=True
     )
