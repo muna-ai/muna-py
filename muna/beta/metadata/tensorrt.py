@@ -10,6 +10,7 @@ from ._torch import PyTorchInferenceMetadataBase
 
 CudaArchitecture = Literal[
     "sm_80",    # Ampere (A100)
+    "sm_86",    # Ampere (A10)
     "sm_89",    # Ada Lovelace (L40)
     "sm_90",    # Hopper (H100)
     "sm_100",   # Blackwell (B200)
