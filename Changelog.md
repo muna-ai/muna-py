@@ -1,7 +1,5 @@
 ## 0.0.70
-+ Added `example` argument to `Parameter` annotation methods to provide example values for demoing predictors.
 + Added `beta.TensorRTInferenceMetadata.hardware_compatibility` field for specifying TensorRT engine compatibility.
-+ Refactored `muna.beta.RemoteValue` class to `muna.RemoteValue`.
 
 ## 0.0.69
 + Added `beta.TensorRTRTXInferenceMetadata` class to compile PyTorch models for inference on Nvidia RTX GPUs with TensorRT-RTX.

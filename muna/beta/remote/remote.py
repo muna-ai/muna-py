@@ -17,7 +17,7 @@ from urllib.request import urlopen
 
 from ...c import Configuration
 from ...client import MunaClient
-from ...types import Dtype, Prediction, RemoteValue, Value
+from ...types import Dtype, Prediction, Value
 
 RemoteAcceleration = Literal["remote_auto", "remote_cpu", "remote_a40", "remote_a100"]
 
@@ -67,10 +67,10 @@ class RemotePredictionService:
         prediction = Prediction(**{ **prediction.model_dump(), "results": results })
         return prediction
 
-    def __to_value(self, obj: Value) -> RemoteValue:
+    def __to_value(self, obj: Value) -> _RemoteValue:
         obj = self.__try_ensure_serializable(obj)
         if obj is None:
-            return RemoteValue(data=None, type=Dtype.null)
+            return _RemoteValue(data=None, type=Dtype.null)
         elif isinstance(obj, float):
             obj = array(obj, dtype=Dtype.float32)
             return self.__to_value(obj)
@@ -83,33 +83,33 @@ class RemotePredictionService:
         elif isinstance(obj, ndarray):
             buffer = BytesIO(obj.tobytes())
             data = self.__upload(buffer)
-            return RemoteValue(data=data, type=obj.dtype.name, shape=list(obj.shape))
+            return _RemoteValue(data=data, type=obj.dtype.name, shape=list(obj.shape))
         elif isinstance(obj, str):
             buffer = BytesIO(obj.encode())
             data = self.__upload(buffer, mime="text/plain")
-            return RemoteValue(data=data, type=Dtype.string)
+            return _RemoteValue(data=data, type=Dtype.string)
         elif isinstance(obj, list):
             buffer = BytesIO(dumps(obj).encode())
             data = self.__upload(buffer, mime="application/json")
-            return RemoteValue(data=data, type=Dtype.list)
+            return _RemoteValue(data=data, type=Dtype.list)
         elif isinstance(obj, dict):
             buffer = BytesIO(dumps(obj).encode())
             data = self.__upload(buffer, mime="application/json")
-            return RemoteValue(data=data, type=Dtype.dict)
+            return _RemoteValue(data=data, type=Dtype.dict)
         elif isinstance(obj, Image.Image):
             buffer = BytesIO()
             format = "PNG" if obj.mode == "RGBA" else "JPEG"
             mime = f"image/{format.lower()}"
             obj.save(buffer, format=format)
             data = self.__upload(buffer, mime=mime)
-            return RemoteValue(data=data, type=Dtype.image)
+            return _RemoteValue(data=data, type=Dtype.image)
         elif isinstance(obj, BytesIO):
             data = self.__upload(obj)
-            return RemoteValue(data=data, type=Dtype.binary)
+            return _RemoteValue(data=data, type=Dtype.binary)
         else:
             raise ValueError(f"Failed to serialize value '{obj}' of type `{type(obj)}` because it is not supported")
 
-    def __to_object(self, value: RemoteValue) -> Value:
+    def __to_object(self, value: _RemoteValue) -> Value:
         if value.type == Dtype.null:
             return None
         buffer = self.__download(value.data)
@@ -163,4 +163,18 @@ class RemotePredictionService:
         return obj
 
 class _RemotePrediction(Prediction):
-    results: list[RemoteValue] | None = Field(description="Prediction results.")
+    """
+    Remote prediction.
+    """
+    results: list[_RemoteValue] | None = Field(description="Prediction results.")
+
+class _RemoteValue(BaseModel):
+    """
+    Remote value.
+    """
+    data: str | None = Field(description="Value URL. This is a remote or data URL.")
+    type: Dtype = Field(description="Value type.")
+    shape: list[int] | None = Field(
+        default=None,
+        description="Value shape. This is `None` if shape information is not available or applicable."
+    )
