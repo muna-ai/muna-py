@@ -5,7 +5,8 @@
 
 from io import BytesIO
 from json import loads
-from numpy import frombuffer
+from numpy import load as npz_load
+from numpy.lib.npyio import NpzFile
 from PIL import Image
 from requests import get
 from urllib.request import urlopen
@@ -21,13 +22,14 @@ def remote_value_to_object(value: RemoteValue) -> Value:
         return None
     buffer = _download_value(value.data)
     if value.type in [
+        Dtype.float16, Dtype.float32, Dtype.float64,
         Dtype.int8, Dtype.int16, Dtype.int32, Dtype.int64,
         Dtype.uint8, Dtype.uint16, Dtype.uint32, Dtype.uint64,
-        Dtype.float16, Dtype.float32, Dtype.float64, Dtype.bool
+        Dtype.bool
     ]:
-        assert value.shape is not None, "Array value must have a shape specified"
-        array = frombuffer(buffer.getbuffer(), dtype=value.type).reshape(value.shape)
-        return array if len(value.shape) > 0 else array.item()
+        archive: NpzFile = npz_load(buffer)
+        array = next(iter(archive.values()))
+        return array if len(array.shape) else array.item()
     elif value.type == Dtype.string:
         return buffer.getvalue().decode("utf-8")
     elif value.type in [Dtype.list, Dtype.dict]:

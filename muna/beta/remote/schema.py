@@ -8,7 +8,14 @@ from typing import Literal
 
 from ...types import Dtype, Prediction
 
-RemoteAcceleration = Literal["remote_auto", "remote_cpu", "remote_a40", "remote_a100"]
+RemoteAcceleration = Literal[
+    "remote_auto",
+    "remote_cpu",
+    "remote_a10",
+    "remote_a100",
+    "remote_h200",
+    "remote_b200"
+]
 
 class RemoteValue(BaseModel):
     """
@@ -16,10 +23,6 @@ class RemoteValue(BaseModel):
     """
     data: str | None = Field(description="Value URL. This is a remote or data URL.")
     type: Dtype = Field(description="Value type.")
-    shape: list[int] | None = Field(
-        default=None,
-        description="Value shape. This is `None` if shape information is not available or applicable."
-    )
 
 class RemotePrediction(Prediction):
     """
