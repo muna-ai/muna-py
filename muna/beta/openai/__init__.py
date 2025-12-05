@@ -4,7 +4,8 @@
 #
 
 from .openai import OpenAIClient
-from .types import (
-    ChatCompletion, ChatCompletionChunk, Choice, CreateEmbeddingResponse,
-    Embedding, StreamChoice, Message, DeltaMessage
+from .schema import (
+    ChatCompletion, ChatCompletionChunk, Choice, DeltaMessage,
+    EmbeddingCreateResponse, Embedding, Message, SpeechCreateResponse,
+    StreamChoice
 )

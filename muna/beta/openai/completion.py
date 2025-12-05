@@ -10,7 +10,7 @@ from ...services import PredictorService, PredictionService
 from ...types import Acceleration, Prediction
 from ..remote import RemoteAcceleration
 from ..remote.remote import RemotePredictionService
-from .types import ChatCompletion, ChatCompletionChunk, Message, _MessageDict
+from .schema import ChatCompletion, ChatCompletionChunk, Message, _MessageDict
 
 class ChatCompletionService:
     """
@@ -35,7 +35,7 @@ class ChatCompletionService:
         model: str,
         stream: Literal[False]=False,
         max_tokens: int | None=None,
-        acceleration: Acceleration | RemoteAcceleration="auto"
+        acceleration: Acceleration | RemoteAcceleration="remote_auto"
     ) -> ChatCompletion: ...
 
     @overload
@@ -46,7 +46,7 @@ class ChatCompletionService:
         model: str,
         stream: Literal[True],
         max_tokens: int | None=None,
-        acceleration: Acceleration | RemoteAcceleration="auto"
+        acceleration: Acceleration | RemoteAcceleration="remote_auto"
     ) -> Iterator[ChatCompletionChunk]: ...
 
     def create(
@@ -56,7 +56,7 @@ class ChatCompletionService:
         model: str,
         stream: bool = False,
         max_tokens: int | None=None,
-        acceleration: Acceleration | RemoteAcceleration="auto"
+        acceleration: Acceleration | RemoteAcceleration="remote_auto"
     ) -> ChatCompletion | Iterator[ChatCompletionChunk]:
         """
         Create a chat completion.

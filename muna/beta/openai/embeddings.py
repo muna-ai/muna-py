@@ -12,9 +12,9 @@ from ...services import PredictorService, PredictionService
 from ...types import Acceleration, Dtype
 from ..remote import RemoteAcceleration
 from ..remote.remote import RemotePredictionService
-from .types import CreateEmbeddingResponse, Embedding
+from .schema import EmbeddingCreateResponse, Embedding
 
-EmbeddingDelegate = Callable[..., CreateEmbeddingResponse]
+EmbeddingDelegate = Callable[..., EmbeddingCreateResponse]
 
 class EmbeddingService:
     """
@@ -39,8 +39,8 @@ class EmbeddingService:
         model: str,
         dimensions: int | None=None,
         encoding_format: Literal["float", "base64"] | None=None,
-        acceleration: Acceleration | RemoteAcceleration="auto"
-    ) -> CreateEmbeddingResponse:
+        acceleration: Acceleration | RemoteAcceleration="remote_auto"
+    ) -> EmbeddingCreateResponse:
         """
         Create an embedding vector representing the input text.
 
@@ -54,7 +54,7 @@ class EmbeddingService:
         input = [input] if isinstance(input, str) else input
         # Ensure we have a delegate
         if model not in self.__cache:
-            self.__cache[model] = self.__create_embedding_delegate(model)
+            self.__cache[model] = self.__create_delegate(model)
         # Make prediction
         delegate = self.__cache[model]
         result = delegate(
@@ -67,11 +67,11 @@ class EmbeddingService:
         # Return
         return result
 
-    def __create_embedding_delegate(self, tag: str) -> EmbeddingDelegate:
+    def __create_delegate(self, tag: str) -> EmbeddingDelegate:
         # Retrieve predictor
         predictor = self.__predictors.retrieve(tag)
         if not predictor:
-            raise RuntimeError(
+            raise ValueError(
                 f"{tag} cannot be used with OpenAI embedding API because "
                 "the predictor could not be found. Check that your access key "
                 "is valid and that you have access to the predictor."
@@ -100,7 +100,7 @@ class EmbeddingService:
             for param in signature.inputs
             if "int" in param.type and param.denotation == "embedding.dims"
         ), None)
-        # Get the index of the embedding output
+        # Get the embedding output parameter index
         embedding_param_idx = next((
             idx
             for idx, param in enumerate(signature.outputs)
@@ -118,14 +118,14 @@ class EmbeddingService:
             if param.type == Dtype.dict and param.denotation == "openai.embedding.usage"
         ), None)
         # Define delegate
-        def create_embedding_func(
+        def delegate(
             *,
             input: list[str],
             model: str,
             dimensions: int | None,
             encoding_format: Literal["float", "base64"],
             acceleration: Acceleration | RemoteAcceleration
-        ) -> CreateEmbeddingResponse:
+        ) -> EmbeddingCreateResponse:
             # Get prediction creation function (local or remote)
             create_prediction_func = (
                 self.__remote_predictions.create
@@ -155,16 +155,16 @@ class EmbeddingService:
                 raise RuntimeError(f"{tag} returned embedding matrix with invalid shape: {embedding_matrix.shape}")
             # Create embedding response
             usage = (
-                CreateEmbeddingResponse.Usage(**prediction.results[usage_param_idx])
+                EmbeddingCreateResponse.Usage(**prediction.results[usage_param_idx])
                 if usage_param_idx is not None
-                else CreateEmbeddingResponse.Usage(prompt_tokens=0, total_tokens=0)
+                else EmbeddingCreateResponse.Usage(prompt_tokens=0, total_tokens=0)
             )
             embeddings = [self.__parse_embedding(
                 embedding,
                 index=idx,
                 encoding_format=encoding_format
             ) for idx, embedding in enumerate(embedding_matrix)]
-            response = CreateEmbeddingResponse(
+            response = EmbeddingCreateResponse(
                 object="list",
                 model=model,
                 data=embeddings,
@@ -173,7 +173,7 @@ class EmbeddingService:
             # Return
             return response
         # Return
-        return create_embedding_func
+        return delegate
 
     def __parse_embedding(
         self,

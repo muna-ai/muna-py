@@ -4,7 +4,6 @@
 #
 
 from __future__ import annotations
-from numpy import ndarray
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 from typing import Literal
 
@@ -15,7 +14,7 @@ ParameterDenotation = Literal[
     "bounding_box",
     "depth_map",
     "embedding", "embedding.dims",
-    "transcription.language", "transcription.prompt", "transcription.usage",
+    "transcription.language", "transcription.prompt",
     "sampling_temperature",
 ]
 
@@ -293,23 +292,6 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
             name="",
             description=description,
             denotation="transcription.prompt",
-            **kwargs
-        )
-    
-    @classmethod
-    def TranscriptionUsage(
-        cls,
-        *,
-        description: str,
-        **kwargs
-    ) -> Parameter:
-        """
-        Transcription usage parameter.
-        """
-        return Parameter(
-            name="",
-            description=description,
-            denotation="transcription.usage",
             **kwargs
         )
 

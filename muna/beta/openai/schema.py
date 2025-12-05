@@ -4,7 +4,8 @@
 #
 
 from __future__ import annotations
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+from requests import Response
 from typing import Literal, TypedDict
 
 class ChatCompletion(BaseModel):
@@ -53,7 +54,7 @@ class Embedding(BaseModel):
     embedding: list[float] | str
     index: int
 
-class CreateEmbeddingResponse(BaseModel):
+class EmbeddingCreateResponse(BaseModel):
     class Usage(BaseModel):
         prompt_tokens: int
         total_tokens: int
@@ -61,3 +62,7 @@ class CreateEmbeddingResponse(BaseModel):
     model: str
     data: list[Embedding]
     usage: Usage
+
+class SpeechCreateResponse(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
+    content: bytes
+    response: Response

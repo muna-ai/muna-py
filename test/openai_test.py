@@ -55,3 +55,14 @@ def test_create_embedding_base64():
     assert len(response.data) > 0
     assert response.data[0].object == "embedding"
     assert isinstance(response.data[0].embedding, str)
+
+def test_create_speech():
+    openai = Muna().beta.openai
+    response = openai.audio.speech.create(
+        input="Hello from Muna",
+        model="@kitten-ml/kitten-tts",
+        voice="expr-voice-2-f",
+        response_format="pcm",
+        acceleration="auto"
+    )
+    assert response
