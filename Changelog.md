@@ -1,3 +1,6 @@
+## 0.0.71
+*INCOMPLETE*
+
 ## 0.0.70
 + Added `muna.beta.openai.audio.speech.create` method for using text-to-speech predictors via the OpenAI API.
 + Added `beta.TensorRTInferenceMetadata.hardware_compatibility` field for specifying TensorRT engine compatibility.
