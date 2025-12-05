@@ -12,8 +12,11 @@ from .value import Dtype, Value
 
 ParameterDenotation = Literal[
     "audio", "audio.speed", "audio.voice",
-    "bounding_box", "depth_map",
+    "bounding_box",
+    "depth_map",
     "embedding", "embedding.dims",
+    "transcription.language", "transcription.prompt", "transcription.usage",
+    "sampling_temperature",
 ]
 
 class EnumerationMember(BaseModel):
@@ -256,5 +259,73 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
             name="",
             description=description,
             denotation="depth_map",
+            **kwargs
+        )
+
+    @classmethod
+    def TranscriptionLanguage(
+        cls,
+        *,
+        description: str,
+        **kwargs
+    ) -> Parameter:
+        """
+        Transcription language parameter.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="transcription.language",
+            **kwargs
+        )
+
+    @classmethod
+    def TranscriptionPrompt(
+        cls,
+        *,
+        description: str,
+        **kwargs
+    ) -> Parameter:
+        """
+        Transcription prompt parameter.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="transcription.prompt",
+            **kwargs
+        )
+    
+    @classmethod
+    def TranscriptionUsage(
+        cls,
+        *,
+        description: str,
+        **kwargs
+    ) -> Parameter:
+        """
+        Transcription usage parameter.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="transcription.usage",
+            **kwargs
+        )
+
+    @classmethod
+    def SamplingTemperature(
+        cls,
+        *,
+        description: str,
+        **kwargs
+    ) -> Parameter:
+        """
+        Sampling temperature parameter.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="sampling_temperature",
             **kwargs
         )

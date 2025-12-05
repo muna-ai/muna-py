@@ -1,5 +1,9 @@
 ## 0.0.70
 + Added `beta.TensorRTInferenceMetadata.hardware_compatibility` field for specifying TensorRT engine compatibility.
++ Added `Parameter.TranscriptionLanguage` annotation method to specify transcription language input parameters in audio transcription predictors.
++ Added `Parameter.TranscriptionPrompt` annotation method to specify transcription prompt input parameters in audio transcription predictors.
++ Added `Parameter.TranscriptionUsage` annotation method to specify transcription usage output parameters in audio transcription predictors.
++ Added `Parameter.SamplingTemperature` annotation method to specify sampling temperature input parameter in predictors.
 
 ## 0.0.69
 + Added `beta.TensorRTRTXInferenceMetadata` class to compile PyTorch models for inference on Nvidia RTX GPUs with TensorRT-RTX.
