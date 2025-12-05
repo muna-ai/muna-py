@@ -4,4 +4,5 @@
 #
 
 from .prediction import PredictionService
-from .remote import RemoteAcceleration
+from .schema import RemoteAcceleration, RemotePrediction, RemoteValue
+from .utils import remote_value_to_object

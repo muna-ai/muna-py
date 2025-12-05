@@ -10,16 +10,13 @@ from io import BytesIO
 from json import dumps, loads
 from numpy import array, frombuffer, ndarray
 from PIL import Image
-from pydantic import BaseModel, Field
-from requests import get
-from typing import Literal
-from urllib.request import urlopen
+from pydantic import BaseModel
 
 from ...c import Configuration
 from ...client import MunaClient
 from ...types import Dtype, Prediction, Value
-
-RemoteAcceleration = Literal["remote_auto", "remote_cpu", "remote_a40", "remote_a100"]
+from .schema import RemoteAcceleration, RemotePrediction, RemoteValue
+from .utils import remote_value_to_object
 
 class RemotePredictionService:
     """
@@ -57,20 +54,20 @@ class RemotePredictionService:
                 "acceleration": acceleration,
                 "clientId": Configuration.get_client_id()
             },
-            response_type=_RemotePrediction
+            response_type=RemotePrediction
         )
         results = (
-            list(map(self.__to_object, prediction.results))
+            list(map(remote_value_to_object, prediction.results))
             if prediction.results is not None
             else None
         )
         prediction = Prediction(**{ **prediction.model_dump(), "results": results })
         return prediction
 
-    def __to_value(self, obj: Value) -> _RemoteValue:
+    def __to_value(self, obj: Value) -> RemoteValue:
         obj = self.__try_ensure_serializable(obj)
         if obj is None:
-            return _RemoteValue(data=None, type=Dtype.null)
+            return RemoteValue(data=None, type=Dtype.null)
         elif isinstance(obj, float):
             obj = array(obj, dtype=Dtype.float32)
             return self.__to_value(obj)
@@ -83,54 +80,31 @@ class RemotePredictionService:
         elif isinstance(obj, ndarray):
             buffer = BytesIO(obj.tobytes())
             data = self.__upload(buffer)
-            return _RemoteValue(data=data, type=obj.dtype.name, shape=list(obj.shape))
+            return RemoteValue(data=data, type=obj.dtype.name, shape=list(obj.shape))
         elif isinstance(obj, str):
             buffer = BytesIO(obj.encode())
             data = self.__upload(buffer, mime="text/plain")
-            return _RemoteValue(data=data, type=Dtype.string)
+            return RemoteValue(data=data, type=Dtype.string)
         elif isinstance(obj, list):
             buffer = BytesIO(dumps(obj).encode())
             data = self.__upload(buffer, mime="application/json")
-            return _RemoteValue(data=data, type=Dtype.list)
+            return RemoteValue(data=data, type=Dtype.list)
         elif isinstance(obj, dict):
             buffer = BytesIO(dumps(obj).encode())
             data = self.__upload(buffer, mime="application/json")
-            return _RemoteValue(data=data, type=Dtype.dict)
+            return RemoteValue(data=data, type=Dtype.dict)
         elif isinstance(obj, Image.Image):
             buffer = BytesIO()
             format = "PNG" if obj.mode == "RGBA" else "JPEG"
             mime = f"image/{format.lower()}"
             obj.save(buffer, format=format)
             data = self.__upload(buffer, mime=mime)
-            return _RemoteValue(data=data, type=Dtype.image)
+            return RemoteValue(data=data, type=Dtype.image)
         elif isinstance(obj, BytesIO):
             data = self.__upload(obj)
-            return _RemoteValue(data=data, type=Dtype.binary)
+            return RemoteValue(data=data, type=Dtype.binary)
         else:
-            raise ValueError(f"Failed to serialize value '{obj}' of type `{type(obj)}` because it is not supported")
-
-    def __to_object(self, value: _RemoteValue) -> Value:
-        if value.type == Dtype.null:
-            return None
-        buffer = self.__download(value.data)
-        if value.type in [
-            Dtype.int8, Dtype.int16, Dtype.int32, Dtype.int64,
-            Dtype.uint8, Dtype.uint16, Dtype.uint32, Dtype.uint64,
-            Dtype.float16, Dtype.float32, Dtype.float64, Dtype.bool
-        ]:
-            assert value.shape is not None, "Array value must have a shape specified"
-            array = frombuffer(buffer.getbuffer(), dtype=value.type).reshape(value.shape)
-            return array if len(value.shape) > 0 else array.item()
-        elif value.type == Dtype.string:
-            return buffer.getvalue().decode("utf-8")
-        elif value.type in [Dtype.list, Dtype.dict]:
-            return loads(buffer.getvalue().decode("utf-8"))
-        elif value.type == Dtype.image:
-            return Image.open(buffer)
-        elif value.type == Dtype.binary:
-            return buffer
-        else:
-            raise ValueError(f"Failed to deserialize value with type `{value.type}` because it is not supported")
+            raise ValueError(f"Failed to serialize value '{obj}' of type `{type(obj)}` because it is not supported")        
 
     def __upload(
         self,
@@ -139,16 +113,7 @@ class RemotePredictionService:
         mime: str="application/octet-stream",
     ) -> str:
         encoded_data = b64encode(data.getvalue()).decode("ascii")
-        return f"data:{mime};base64,{encoded_data}"
-
-    def __download(self, url: str) -> BytesIO:
-        if url.startswith("data:"):
-            with urlopen(url) as response:
-                return BytesIO(response.read())
-        response = get(url)
-        response.raise_for_status()
-        result = BytesIO(response.content)
-        return result
+        return f"data:{mime};base64,{encoded_data}"        
 
     @classmethod
     def __try_ensure_serializable(cls, obj: object) -> object:
@@ -161,20 +126,3 @@ class RemotePredictionService:
         if isinstance(obj, BaseModel):
             return obj.model_dump(mode="json", by_alias=True)
         return obj
-
-class _RemotePrediction(Prediction):
-    """
-    Remote prediction.
-    """
-    results: list[_RemoteValue] | None = Field(description="Prediction results.")
-
-class _RemoteValue(BaseModel):
-    """
-    Remote value.
-    """
-    data: str | None = Field(description="Value URL. This is a remote or data URL.")
-    type: Dtype = Field(description="Value type.")
-    shape: list[int] | None = Field(
-        default=None,
-        description="Value shape. This is `None` if shape information is not available or applicable."
-    )
