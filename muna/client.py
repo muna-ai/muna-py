@@ -19,7 +19,7 @@ class MunaClient:
     def request(
         self,
         *,
-        method: Literal["GET", "POST", "PATCH", "DELETE"],
+        method: Literal["GET", "HEAD", "POST", "PATCH", "DELETE"],
         path: str,
         body: dict[str, object]=None,
         response_type: Type[T]=None
@@ -53,7 +53,7 @@ class MunaClient:
     async def stream(
         self,
         *,
-        method: Literal["GET", "POST", "PATCH", "DELETE"],
+        method: Literal["GET", "HEAD", "POST", "PATCH", "DELETE"],
         path: str,
         body: dict[str, object]=None,
         response_type: Type[T]=None

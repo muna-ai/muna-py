@@ -1,5 +1,10 @@
 ## 0.0.71
-*INCOMPLETE*
++ Refactored `Parameter.AudioSpeed` annotation method to `beta.openai.Annotations.AudioSpeed`.
++ Refactored `Parameter.AudioVoice` annotation method to `beta.openai.Annotations.AudioVoice`.
++ Refactored `Parameter.EmbeddingDims` annotation method to `beta.openai.Annotations.EmbeddingDims`.
++ Refactored `Parameter.SamplingTemperature` annotation method to `beta.openai.Annotations.SamplingTemperature`.
++ Refactored `Parameter.TranscriptionLanguage` annotation method to `beta.openai.Annotations.TranscriptionLanguage`.
++ Refactored `Parameter.TranscriptionPrompt` annotation method to `beta.openai.Annotations.TranscriptionPrompt`.
 
 ## 0.0.70
 + Added `muna.beta.openai.audio.speech.create` method for using text-to-speech predictors via the OpenAI API.
