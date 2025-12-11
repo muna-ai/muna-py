@@ -1,5 +1,6 @@
 ## 0.0.72
-*INCOMPLETE*
++ Fixed `muna compile` CLI command raising exceptions.
++ Removed `ParameterDenotation` type.
 
 ## 0.0.71
 + Added `beta.openai.Annotations.FrequencyPenalty` annotation method to specify LLM frequency penalty parameters.

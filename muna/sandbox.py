@@ -5,14 +5,14 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from hashlib import sha256
 from pathlib import Path
 from pydantic import BaseModel
-from requests import put
 from rich.progress import BarColumn, TextColumn
 from typing import Literal
+from urllib.parse import urlparse
 
 from .muna import Muna
+from .resources import upload_resource
 from .logging import CustomProgressTask
 
 class WorkdirCommand(BaseModel):
@@ -213,40 +213,9 @@ class Sandbox(BaseModel):
                             if from_path.is_dir()
                             else to_path
                         )
-                        checksum = self.__upload_file(file, muna=muna)
+                        resource_url = upload_resource(file, muna=muna, progress=False)
+                        checksum = urlparse(resource_url).path.split("/")[-1]
                         manifest[str(dst_path)] = checksum
                         task.update(total=len(files), completed=idx+1)
                     command.manifest = manifest
         return self
-
-    def __upload_file(self, path: Path, muna: Muna) -> str:
-        if not path.is_file():
-            raise ValueError(f"Cannot upload file at path {path} because it is not a file")
-        hash = self.__compute_hash(path)
-        try:
-            muna.client.request(method="HEAD", path=f"/resources/{hash}")
-        except:
-            resource = muna.client.request(
-                method="POST",
-                path="/resources",
-                body={ "name": hash },
-                response_type=_Resource
-            )
-            with path.open("rb") as f:
-                file_size = path.stat().st_size
-                put(
-                    resource.url,
-                    data=f if file_size > 0 else b"",
-                    headers={ "Content-Length": f"{file_size}" }
-                ).raise_for_status()
-        return hash
-
-    def __compute_hash(self, path: Path) -> str:
-        hash = sha256()
-        with path.open("rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                hash.update(chunk)
-        return hash.hexdigest()
-
-class _Resource(BaseModel):
-    url: str

@@ -3,7 +3,6 @@
 #   Copyright © 2025 NatML Inc. All Rights Reserved.
 #
 
-from hashlib import sha256
 from pathlib import Path
 from pydantic import BaseModel, Field
 from requests import get, put
@@ -15,6 +14,7 @@ from typing_extensions import Annotated
 
 from ..logging import CustomProgress, CustomProgressTask
 from ..muna import Muna
+from ..resources import upload_resource
 from .auth import get_access_key
 
 app = Typer(no_args_is_help=True)
@@ -22,7 +22,7 @@ app = Typer(no_args_is_help=True)
 @app.command(name="upload", help="Upload a prediction resource.")
 def upload(
     path: Annotated[Path, Argument(..., help="Path to resource file.", resolve_path=True, exists=True)],
-    public: Annotated[bool, Option(..., "--public", help="Whether to make the resource publicly available.")] = False
+    public: Annotated[bool, Option(..., "--public", help="Whether to make the resource publicly available.")]=False
 ):
     if not path.is_file():
         raise ValueError(f"Cannot upload resource at path {path} because it is not a file")
@@ -30,12 +30,13 @@ def upload(
     if public:
         _upload_value(path, muna=muna)
     else:
-        _upload_resource(path, muna=muna)
+        upload_resource(path, muna=muna, progress=True)
+        print(f"Uploaded resource [bright_cyan]{hash}[/bright_cyan]")
 
 @app.command(name="download", help="Download a prediction resource.")
 def download(
     hash: Annotated[str, Argument(..., help="Prediction resource checksum.")],
-    path: Annotated[Path, Option(help="Output path.")] = None
+    path: Annotated[Path, Option(help="Output path.")]=None
 ):
     muna = Muna(get_access_key())
     with CustomProgress():
@@ -71,25 +72,6 @@ def download(
         output_path.parent.mkdir(parents=True, exist_ok=True)
         Path(tmp_file.name).replace(output_path)
 
-def _upload_resource(
-    path: Path,
-    *,
-    muna: Muna
-):
-    hash = _compute_hash(path)
-    try:
-        muna.client.request(method="HEAD", path=f"/resources/{hash}")
-    except:
-        resource = muna.client.request(
-            method="POST",
-            path="/resources",
-            body={ "name": hash },
-            response_type=_CreateResourceResponse
-        )
-        with path.open("rb") as f:
-            put(resource.url, data=f).raise_for_status()
-    print(f"Uploaded resource [bright_cyan]{hash}[/bright_cyan]")
-
 def _upload_value(
     path: Path,
     *,
@@ -104,16 +86,6 @@ def _upload_value(
     with path.open("rb") as f:
         put(value.upload_url, data=f).raise_for_status()
     print(f"Uploaded resource [bright_cyan]{value.download_url}[/bright_cyan]")
-
-def _compute_hash(path: Path) -> str:
-    hash = sha256()
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            hash.update(chunk)
-    return hash.hexdigest()
-
-class _CreateResourceResponse(BaseModel):
-    url: str
 
 class _CreateValueResponse(BaseModel):
     upload_url: str = Field(validation_alias="uploadUrl")

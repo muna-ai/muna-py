@@ -5,18 +5,8 @@
 
 from __future__ import annotations
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
-from typing import Literal
 
-from .value import Dtype, Value
-
-ParameterDenotation = Literal[
-    "audio", "audio.speed", "audio.voice",
-    "bounding_box",
-    "depth_map",
-    "embedding", "embedding.dims",
-    "transcription.language", "transcription.prompt",
-    "sampling_temperature",
-]
+from .value import Dtype
 
 class EnumerationMember(BaseModel):
     """
@@ -37,7 +27,7 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
         name (str): Parameter name.
         type (Dtype): Parameter type. This is `None` if the type is unknown or unsupported by Muna.
         description (str): Parameter description.
-        denotation (ParameterDenotation): Parameter denotation for specialized data types.
+        denotation (str): Parameter denotation for specialized data types.
         optional (bool): Whether the parameter is optional.
         range (tuple): Parameter value range for numeric parameters.
         enumeration (list): Parameter value choices for enumeration parameters.
@@ -53,7 +43,7 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
         default=None,
         description="Parameter description."
     )
-    denotation: ParameterDenotation | None = Field(
+    denotation: str | None = Field(
         default=None,
         description="Parameter denotation for specialized data types."
     )
