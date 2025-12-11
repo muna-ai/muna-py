@@ -137,43 +137,6 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
         )
 
     @classmethod
-    def AudioSpeed(
-        cls,
-        *,
-        description: str,
-        min: float | None=None,
-        max: float | None=None,
-        **kwargs
-    ) -> Parameter:
-        """
-        Audio speed parameter.
-        """
-        return Parameter(
-            name="",
-            description=description,
-            denotation="audio.speed",
-            range=(min, max) if min is not None and max is not None else None,
-            **kwargs
-        )
-
-    @classmethod
-    def AudioVoice(
-        cls,
-        *,
-        description: str,
-        **kwargs
-    ) -> Parameter:
-        """
-        Audio voice parameter.
-        """
-        return Parameter(
-            name="",
-            description=description,
-            denotation="audio.voice",
-            **kwargs
-        )
-
-    @classmethod
     def Embedding(
         cls,
         *,
@@ -187,26 +150,6 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
             name="",
             description=description,
             denotation="embedding",
-            **kwargs
-        )
-
-    @classmethod
-    def EmbeddingDims(
-        cls,
-        *,
-        description: str,
-        min: int | None=None,
-        max: int | None=None,
-        **kwargs
-    ) -> Parameter:
-        """
-        Embedding Matryoshka dimensions parameter.
-        """
-        return Parameter(
-            name="",
-            description=description,
-            denotation="embedding.dims",
-            range=(min, max) if min is not None and max is not None else None,
             **kwargs
         )
 
@@ -258,56 +201,5 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
             name="",
             description=description,
             denotation="depth_map",
-            **kwargs
-        )
-
-    @classmethod
-    def TranscriptionLanguage(
-        cls,
-        *,
-        description: str,
-        **kwargs
-    ) -> Parameter:
-        """
-        Transcription language parameter.
-        """
-        return Parameter(
-            name="",
-            description=description,
-            denotation="transcription.language",
-            **kwargs
-        )
-
-    @classmethod
-    def TranscriptionPrompt(
-        cls,
-        *,
-        description: str,
-        **kwargs
-    ) -> Parameter:
-        """
-        Transcription prompt parameter.
-        """
-        return Parameter(
-            name="",
-            description=description,
-            denotation="transcription.prompt",
-            **kwargs
-        )
-
-    @classmethod
-    def SamplingTemperature(
-        cls,
-        *,
-        description: str,
-        **kwargs
-    ) -> Parameter:
-        """
-        Sampling temperature parameter.
-        """
-        return Parameter(
-            name="",
-            description=description,
-            denotation="sampling_temperature",
             **kwargs
         )
