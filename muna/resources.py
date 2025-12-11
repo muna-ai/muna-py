@@ -23,7 +23,7 @@ RESOURCE_URL_BASE = "https://cdn.fxn.ai/resources"
 MULTIPART_THRESHOLD = 100 * 1024 * 1024  # 100 MB
 MULTIPART_CHUNK_SIZE = 50 * 1024 * 1024  # 50 MB
 
-def upload_resource( # DEPLOY
+def upload_resource(
     path: str | Path | BinaryIO,
     *,
     muna: Muna,
@@ -112,14 +112,8 @@ def _upload_single(
     ) as progress_bar:
         task_id = progress_bar.add_task(resource_hash, total=file_size)
         with (source.open("rb") if isinstance(source, Path) else nullcontext(source)) as f:
-            def _reader():
-                while True:
-                    chunk = f.read(8192)
-                    if not chunk:
-                        break
-                    progress_bar.advance(task_id, len(chunk))
-                    yield chunk
-            response = put(resource.url, data=_reader() if file_size > 0 else b"")
+            reader = _ProgressReader(f.read(), progress_bar, task_id)
+            response = put(resource.url, data=reader)
             response.raise_for_status()
             return response.headers.get("ETag", "")
 
@@ -188,15 +182,8 @@ def _upload_part(
     Upload a single part and return ETag.
     """
     chunk = stream.read(MULTIPART_CHUNK_SIZE)
-    chunk_size = len(chunk)
-    def _reader():
-        offset = 0
-        while offset < chunk_size:
-            sub_chunk = chunk[offset:offset + 8192]
-            offset += len(sub_chunk)
-            progress.advance(task_id, len(sub_chunk))
-            yield sub_chunk
-    response = put(url, data=_reader() if chunk_size > 0 else b"")
+    reader = _ProgressReader(chunk, progress, task_id)
+    response = put(url, data=reader)
     response.raise_for_status()
     return response.headers.get("ETag", "")
 
@@ -206,3 +193,24 @@ class _CreateResourceResponse(BaseModel):
 class _CreateResourceMultipartResponse(BaseModel):
     upload_id: str = Field(validation_alias="uploadId")
     urls: list[str]
+
+class _ProgressReader:
+
+    def __init__(self, data: bytes, progress: Progress, task_id: int):
+        self._data = data
+        self._offset = 0
+        self._progress = progress
+        self._task_id = task_id
+
+    def read(self, size: int=-1) -> bytes:
+        if size == -1:
+            chunk = self._data[self._offset:]
+            self._offset = len(self._data)
+        else:
+            chunk = self._data[self._offset:self._offset + size]
+            self._offset += len(chunk)
+        self._progress.advance(self._task_id, len(chunk))
+        return chunk
+
+    def __len__(self):
+        return len(self._data)
