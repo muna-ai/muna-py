@@ -1,5 +1,5 @@
 ## 0.0.73
-*INCOMPLETE*
++ Added `beta.LlamaCppInferenceMetadata` class to compile Llama.cpp models for LLM inference.
 
 ## 0.0.72
 + Fixed `muna compile` CLI command raising exceptions.

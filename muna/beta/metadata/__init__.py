@@ -8,6 +8,7 @@ from .coreml import CoreMLInferenceMetadata
 from .executorch import ExecuTorchInferenceBackend, ExecuTorchInferenceMetadata
 from .iree import IREEInferenceBackend, IREEInferenceMetadata
 from .litert import LiteRTInferenceMetadata
+from .llama import LlamaCppBackend, LlamaCppInferenceMetadata
 from .onnx import OnnxRuntimeInferenceMetadata, OnnxRuntimeOptimizationLevel
 from .onnxruntime import OnnxRuntimeInferenceSessionMetadata
 from .openvino import OpenVINOInferenceMetadata

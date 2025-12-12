@@ -12,12 +12,10 @@ from types import ModuleType
 from typing import Callable, Literal, ParamSpec, TypeVar, cast
 
 from .beta import (
-    CoreMLInferenceMetadata, ExecuTorchInferenceMetadata,
-    LiteRTInferenceMetadata, IREEInferenceMetadata,
-    OnnxRuntimeInferenceMetadata, OnnxRuntimeInferenceSessionMetadata,
-    OpenVINOInferenceMetadata, QnnInferenceMetadata,
-    TensorRTInferenceMetadata, TensorRTRTXInferenceMetadata,
-    TFLiteInterpreterMetadata
+    CoreMLInferenceMetadata, ExecuTorchInferenceMetadata, LiteRTInferenceMetadata,
+    LlamaCppInferenceMetadata, IREEInferenceMetadata, OnnxRuntimeInferenceMetadata,
+    OnnxRuntimeInferenceSessionMetadata, OpenVINOInferenceMetadata, QnnInferenceMetadata,
+    TensorRTInferenceMetadata, TensorRTRTXInferenceMetadata, TFLiteInterpreterMetadata
 )
 from .sandbox import Sandbox
 from .types import PredictorAccess
@@ -37,6 +35,7 @@ CompileMetadata = (
     ExecuTorchInferenceMetadata         |
     IREEInferenceMetadata               |
     LiteRTInferenceMetadata             |
+    LlamaCppInferenceMetadata           |
     OnnxRuntimeInferenceMetadata        |
     OnnxRuntimeInferenceSessionMetadata |
     OpenVINOInferenceMetadata           |
