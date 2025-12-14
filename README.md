@@ -25,7 +25,7 @@ First, create a Muna client, specifying your access key:
 from muna import Muna
 
 # Create a Muna client
-muna = Muan(access_key="<Muna access key>")
+muna = Muna(access_key="<Muna access key>")
 ```
 
 Then make a prediction:
