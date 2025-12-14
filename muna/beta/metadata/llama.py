@@ -6,7 +6,7 @@
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 from typing import Annotated, Literal
 
-LlamaCppBackend = Literal["cuda"]
+LlamaCppBackend = Literal["cuda", "vulkan"]
 
 def _validate_llama_cpp_model(model: "llama_cpp.llama.Llama") -> "llama_cpp.llama.Llama": # type: ignore
     try:
