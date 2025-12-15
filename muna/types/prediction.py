@@ -6,7 +6,7 @@
 from pydantic import BaseModel, Field
 from typing import Literal
 
-Acceleration = Literal["auto", "cpu", "gpu", "npu"]
+Acceleration = Literal["local_auto", "local_cpu", "local_gpu", "local_npu"]
 
 class PredictionResource(BaseModel):
     """

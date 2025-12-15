@@ -1,5 +1,5 @@
 ## 0.0.74
-*INCOMPLETE*
++ Refactored `Acceleration` constants to use a `local_` prefix.
 
 ## 0.0.73
 + Added `beta.LlamaCppInferenceMetadata` class to compile Llama.cpp models for LLM inference.

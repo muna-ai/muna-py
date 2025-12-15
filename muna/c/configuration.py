@@ -125,7 +125,7 @@ class Configuration:
         
     def __enter__(self):
         return self
-    
+
     def __exit__(self, exc_type, exc_value, traceback):
         self.__release()
 
@@ -136,15 +136,15 @@ class Configuration:
 
     def __to_acceleration_int(self, value: Acceleration) -> int:
         match value:
-            case "auto": return 0
-            case "cpu": return 1
-            case "gpu": return 2
-            case "npu": return 4
+            case "local_auto" | "auto": return 0
+            case "local_cpu" | "cpu":   return 1
+            case "local_gpu" | "gpu":   return 2
+            case "local_npu" | "npu":   return 4
 
     def __to_acceleration_str(self, value: int) -> Acceleration:
         match value:
-            case 0: return "auto"
-            case 1: return "cpu"
-            case 2: return "gpu"
-            case 4: return "npu"
+            case 0: return "local_auto"
+            case 1: return "local_cpu"
+            case 2: return "local_gpu"
+            case 4: return "local_npu"
             case _: return None
