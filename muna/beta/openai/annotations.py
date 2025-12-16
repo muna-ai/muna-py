@@ -159,23 +159,6 @@ class Annotations:
         )
 
     @classmethod
-    def ResponseStreaming(
-        cls,
-        *,
-        description: str,
-        **kwargs
-    ) -> Parameter:
-        """
-        Response streaming parameter.
-        """
-        return Parameter(
-            name="",
-            description=description,
-            denotation="openai.chat.completions.stream",
-            **kwargs
-        )
-
-    @classmethod
     def SamplingProbability(
         cls,
         *,

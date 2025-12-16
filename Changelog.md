@@ -1,5 +1,6 @@
 ## 0.0.74
 + Refactored `Acceleration` constants to use a `local_` prefix.
++ Removed `beta.openai.Annotations.ResponseStreaming` annotation method.
 
 ## 0.0.73
 + Added `beta.LlamaCppInferenceMetadata` class to compile Llama.cpp models for LLM inference.
