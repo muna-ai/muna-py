@@ -91,7 +91,7 @@ class PredictionService:
             acceleration (Acceleration): Prediction acceleration.
 
         Returns:
-            Prediction: Created prediction.
+            Iterator: Prediction stream.
         """
         predictor = self.__get_predictor(
             tag=tag,

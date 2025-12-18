@@ -6,7 +6,7 @@
 from json import loads, JSONDecodeError
 from pydantic import BaseModel, TypeAdapter
 from requests import request
-from typing import AsyncGenerator, Literal, Type, TypeVar
+from typing import Iterator, Literal, Type, TypeVar
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -49,15 +49,15 @@ class MunaClient:
         else:
             error = _ErrorResponse(**data).errors[0].message if isinstance(data, dict) else data
             raise MunaAPIError(error, response.status_code)
-        
-    async def stream(
+
+    def stream(
         self,
         *,
         method: Literal["GET", "HEAD", "POST", "PATCH", "DELETE"],
         path: str,
         body: dict[str, object]=None,
         response_type: Type[T]=None
-    ) -> AsyncGenerator[T, None]:
+    ) -> Iterator[T]:
         """
         Make a request to a REST endpoint and consume the response as a server-sent events stream.
 
@@ -77,6 +77,12 @@ class MunaClient:
             },
             stream=True
         )
+        if not response.ok:
+            try:
+                error = _ErrorResponse(**response.json()).errors[0].message
+            except JSONDecodeError:
+                error = response.text
+            raise MunaAPIError(error, response.status_code)
         event = None
         data: str = ""
         for line in response.iter_lines(decode_unicode=True):

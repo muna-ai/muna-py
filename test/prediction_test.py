@@ -3,7 +3,7 @@
 #   Copyright © 2025 NatML Inc. All Rights Reserved.
 #
 
-from muna import Muna
+from muna import Muna, MunaAPIError
 import pytest
 
 def test_create_raw_prediction():
@@ -25,15 +25,34 @@ def test_create_prediction():
 
 def test_stream_prediction():
     muna = Muna()
-    sentence = "Hello world"
     stream = muna.predictions.stream(
-        tag="@yusuf/streaming",
-        inputs={ "sentence": sentence }
+        tag="@yusuf/generator",
+        inputs={ "sentence": "The fat cat sat on the mat." }
     )
     for prediction in stream:
-        print(prediction)
+        assert prediction.results
+        assert isinstance(prediction.results[0], str)
+
+def test_create_remote_prediction():
+    muna = Muna()
+    prediction = muna.beta.predictions.remote.create(
+        tag="@fxn/greeting",
+        inputs={ "name": "Yusuf" }
+    )
+    assert prediction.results
+    assert isinstance(prediction.results[0], str)
+
+def test_stream_remote_prediction():
+    muna = Muna()
+    stream = muna.beta.predictions.remote.stream(
+        tag="@yusuf/generator",
+        inputs={ "sentence": "The fat cat sat on the mat." }
+    )
+    for prediction in stream:
+        assert prediction.results
+        assert isinstance(prediction.results[0], str)
 
 def test_create_invalid_prediction():
     muna = Muna()
-    with pytest.raises(RuntimeError):
+    with pytest.raises(MunaAPIError):
         muna.predictions.create(tag="@yusu/invalid-predictor")

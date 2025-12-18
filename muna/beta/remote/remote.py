@@ -7,16 +7,17 @@ from __future__ import annotations
 from base64 import b64encode
 from dataclasses import asdict, is_dataclass
 from io import BytesIO
-from json import dumps, loads
-from numpy import array, frombuffer, ndarray
+from json import dumps
+from numpy import array, ndarray, savez_compressed
 from PIL import Image
 from pydantic import BaseModel
+from typing import Iterator, Literal
 
 from ...c import Configuration
 from ...client import MunaClient
 from ...types import Dtype, Prediction, Value
 from .schema import RemoteAcceleration, RemotePrediction, RemoteValue
-from .utils import remote_value_to_object
+from .utils import remote_prediction_to_prediction
 
 class RemotePredictionService:
     """
@@ -45,7 +46,7 @@ class RemotePredictionService:
             Prediction: Created prediction.
         """
         input_map = { name: self.__to_value(value).model_dump(mode="json") for name, value in inputs.items() }
-        prediction = self.client.request(
+        remote_prediction = self.client.request(
             method="POST",
             path="/predictions/remote",
             body={
@@ -56,13 +57,42 @@ class RemotePredictionService:
             },
             response_type=RemotePrediction
         )
-        results = (
-            list(map(remote_value_to_object, prediction.results))
-            if prediction.results is not None
-            else None
-        )
-        prediction = Prediction(**{ **prediction.model_dump(), "results": results })
+        prediction = remote_prediction_to_prediction(remote_prediction)
         return prediction
+    
+    def stream(
+        self,
+        tag: str,
+        *,
+        inputs: dict[str, Value],
+        acceleration: RemoteAcceleration="remote_auto"
+    ) -> Iterator[Prediction]:
+        """
+        Stream a prediction.
+
+        Parameters:
+            tag (str): Predictor tag.
+            inputs (dict): Input values.
+            acceleration (Acceleration): Prediction acceleration.
+
+        Returns:
+            Iterator: Prediction stream.
+        """
+        input_map = { name: self.__to_value(value).model_dump(mode="json") for name, value in inputs.items() }
+        for event in self.client.stream(
+            method="POST",
+            path=f"/predictions/remote",
+            body={
+                "tag": tag,
+                "inputs": input_map,
+                "acceleration": acceleration,
+                "clientId": Configuration.get_client_id(),
+                "stream": True
+            },
+            response_type=_RemotePredictionEvent
+        ):
+            prediction = remote_prediction_to_prediction(event.data)
+            yield prediction
 
     def __to_value(self, obj: Value) -> RemoteValue:
         obj = self.__try_ensure_serializable(obj)
@@ -78,9 +108,10 @@ class RemotePredictionService:
             obj = array(obj, dtype=Dtype.int32)
             return self.__to_value(obj)
         elif isinstance(obj, ndarray):
-            buffer = BytesIO(obj.tobytes())
+            buffer = BytesIO()
+            savez_compressed(buffer, obj, allow_pickle=False)
             data = self.__upload(buffer)
-            return RemoteValue(data=data, type=obj.dtype.name, shape=list(obj.shape))
+            return RemoteValue(data=data, type=obj.dtype.name)
         elif isinstance(obj, str):
             buffer = BytesIO(obj.encode())
             data = self.__upload(buffer, mime="text/plain")
@@ -126,3 +157,7 @@ class RemotePredictionService:
         if isinstance(obj, BaseModel):
             return obj.model_dump(mode="json", by_alias=True)
         return obj
+    
+class _RemotePredictionEvent(BaseModel):
+    event: Literal["prediction"]
+    data: RemotePrediction

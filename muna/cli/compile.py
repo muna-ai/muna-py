@@ -3,7 +3,6 @@
 #   Copyright © 2025 NatML Inc. All Rights Reserved.
 #
 
-from asyncio import run as run_async
 from importlib.util import module_from_spec, spec_from_file_location
 from inspect import getmembers, getmodulename, isfunction
 from pathlib import Path
@@ -26,39 +25,6 @@ from .auth import get_access_key
 def compile_predictor(
     path: str=Argument(..., help="Predictor path."),
     overwrite: bool=Option(False, "--overwrite", help="Whether to delete any existing predictor with the same tag before compiling."),
-):
-    run_async(_compile_predictor_async(path, overwrite=overwrite))
-
-def triage_predictor(
-    reference_code: Annotated[str, Argument(help="Predictor compilation reference code.")]
-):
-    muna = Muna(get_access_key())
-    error = muna.client.request(
-        method="GET",
-        path=f"/predictors/triage?referenceCode={reference_code}",
-        response_type=_TriagedCompileError
-    )
-    user_panel = Panel(
-        error.user,
-        title="User Error",
-        title_align="left",
-        highlight=True,
-        border_style="bright_red"
-    )
-    internal_panel = Panel(
-        error.internal,
-        title="Internal Error",
-        title_align="left",
-        highlight=True,
-        border_style="gold1"
-    )
-    print_rich(user_panel)
-    print_rich(internal_panel)
-
-async def _compile_predictor_async(
-    path: str,
-    *,
-    overwrite: bool
 ):
     muna = Muna(get_access_key())
     path: Path = Path(path).resolve()
@@ -92,7 +58,7 @@ async def _compile_predictor_async(
                     if ex.status_code != 409 or not overwrite:
                         raise
             with ProgressLogQueue() as task_queue:
-                async for event in muna.client.stream(
+                for event in muna.client.stream(
                     method="POST",
                     path=f"/predictors/{spec.tag}/compile",
                     body=spec.model_dump(mode="json", exclude=spec.model_extra.keys(), by_alias=True),
@@ -105,6 +71,32 @@ async def _compile_predictor_async(
                         raise CompileError(event.data.error)
     predictor_url = _compute_predictor_url(muna.client.api_url, spec.tag)
     print_rich(f"\n[bold spring_green3]🎉 Predictor is now being compiled.[/bold spring_green3] Check it out at [link={predictor_url}]{predictor_url}[/link]")
+
+def triage_predictor(
+    reference_code: Annotated[str, Argument(help="Predictor compilation reference code.")]
+):
+    muna = Muna(get_access_key())
+    error = muna.client.request(
+        method="GET",
+        path=f"/predictors/triage?referenceCode={reference_code}",
+        response_type=_TriagedCompileError
+    )
+    user_panel = Panel(
+        error.user,
+        title="User Error",
+        title_align="left",
+        highlight=True,
+        border_style="bright_red"
+    )
+    internal_panel = Panel(
+        error.internal,
+        title="Internal Error",
+        title_align="left",
+        highlight=True,
+        border_style="gold1"
+    )
+    print_rich(user_panel)
+    print_rich(internal_panel)
 
 def _load_predictor_func(path: str) -> Callable[...,object]:
     if "" not in sys.path:

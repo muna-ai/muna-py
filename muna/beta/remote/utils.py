@@ -11,8 +11,8 @@ from PIL import Image
 from requests import get
 from urllib.request import urlopen
 
-from ...types import Dtype, Value
-from .schema import RemoteValue
+from ...types import Dtype, Prediction, Value
+from .schema import RemotePrediction, RemoteValue
 
 def remote_value_to_object(value: RemoteValue) -> Value:
     """
@@ -40,6 +40,27 @@ def remote_value_to_object(value: RemoteValue) -> Value:
         return buffer
     else:
         raise ValueError(f"Failed to deserialize value with type `{value.type}` because it is not supported")
+
+def remote_prediction_to_prediction(prediction: RemotePrediction) -> Prediction:
+    """
+    Download a remote prediction.
+    """
+    # Download results
+    results = (
+        list(map(remote_value_to_object, prediction.results))
+        if prediction.results is not None
+        else None
+    )
+    # Return
+    return Prediction(
+        id=prediction.id,
+        tag=prediction.tag,
+        results=results,
+        latency=prediction.latency,
+        error=prediction.error,
+        logs=prediction.logs,
+        created=prediction.created
+    )
 
 def _download_value(url: str) -> BytesIO:
     if url.startswith("data:"):

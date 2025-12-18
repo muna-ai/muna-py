@@ -54,7 +54,7 @@ class ChatCompletionService:
         *,
         messages: list[Message | _MessageDict],
         model: str,
-        stream: bool = False,
+        stream: bool=False,
         max_tokens: int | None=None,
         acceleration: Acceleration | RemoteAcceleration="remote_auto"
     ) -> ChatCompletion | Iterator[ChatCompletionChunk]:
@@ -78,9 +78,12 @@ class ChatCompletionService:
         }
         # Predict
         if stream:
-            if acceleration.startswith("remote_"):
-                raise ValueError(f"Streaming predictions are not supported with remote acceleration")
-            prediction_stream = self.__predictions.stream(
+            stream_prediction_func = (
+                self.__remote_predictions.stream
+                if acceleration.startswith("remote_")
+                else self.__predictions.stream
+            )
+            prediction_stream = stream_prediction_func(
                 tag=model,
                 inputs=inputs,
                 acceleration=acceleration

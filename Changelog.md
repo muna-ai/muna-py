@@ -1,5 +1,5 @@
 ## 0.0.75
-*INCOMPLETE*
++ Added `muna.beta.predictions.remote.stream` method to stream remote predictions.
 
 ## 0.0.74
 + Fixed `MunaAPIError` exception class raising exception when being unpickled.
