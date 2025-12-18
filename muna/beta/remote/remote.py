@@ -68,7 +68,7 @@ class RemotePredictionService:
         acceleration: RemoteAcceleration="remote_auto"
     ) -> Iterator[Prediction]:
         """
-        Stream a prediction.
+        Stream a remote prediction.
 
         Parameters:
             tag (str): Predictor tag.
