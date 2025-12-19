@@ -3,15 +3,22 @@
 #   Copyright © 2025 NatML Inc. All Rights Reserved.
 #
 
-from __future__ import annotations
+from base64 import b64encode
+from io import BytesIO
+from json import dumps, loads
+from numpy import array, generic, load as npz_load, ndarray, savez_compressed
+from numpy.lib.npyio import NpzFile
+from PIL import Image
 from pydantic import BaseModel
+from requests import get
 from typing import Iterator, Literal
+from urllib.request import urlopen
 
 from ...c import Configuration
 from ...client import MunaClient
-from ...services._utils import create_remote_value, parse_remote_value
-from ...types import Prediction, Value
-from .schema import RemoteAcceleration, RemotePrediction
+from ...services.prediction import _ensure_object_serializable, _TENSOR_DTYPES, _JSON_TYPES
+from ...types import Dtype, Prediction, Value
+from .schema import RemoteAcceleration, RemotePrediction, RemoteValue
 
 class RemotePredictionService:
     """
@@ -39,7 +46,7 @@ class RemotePredictionService:
         Returns:
             Prediction: Created prediction.
         """
-        input_map = { name: create_remote_value(value).model_dump(mode="json") for name, value in inputs.items() }
+        input_map = { name: _create_remote_value(value).model_dump(mode="json") for name, value in inputs.items() }
         remote_prediction = self.client.request(
             method="POST",
             path="/predictions/remote",
@@ -72,7 +79,7 @@ class RemotePredictionService:
         Returns:
             Iterator: Prediction stream.
         """
-        input_map = { name: create_remote_value(value).model_dump(mode="json") for name, value in inputs.items() }
+        input_map = { name: _create_remote_value(value).model_dump(mode="json") for name, value in inputs.items() }
         for event in self.client.stream(
             method="POST",
             path=f"/predictions/remote",
@@ -88,17 +95,69 @@ class RemotePredictionService:
             prediction = _parse_remote_prediction(event.data)
             yield prediction
 
+def _create_remote_value(obj: Value) -> RemoteValue:
+    obj = _ensure_object_serializable(obj)
+    match obj:
+        case None:      return RemoteValue(data=None, type=Dtype.null)
+        case float():   return _create_remote_value(array(obj, dtype=Dtype.float32))
+        case bool():    return _create_remote_value(array(obj, dtype=Dtype.bool))
+        case int():     return _create_remote_value(array(obj, dtype=Dtype.int32))
+        case generic(): return _create_remote_value(array(obj))
+        case ndarray():
+            buffer = BytesIO()
+            savez_compressed(buffer, obj, allow_pickle=False)
+            data = _upload_value_data(buffer)
+            return RemoteValue(data=data, type=obj.dtype.name)
+        case str():
+            buffer = BytesIO(obj.encode())
+            data = _upload_value_data(buffer, mime="text/plain")
+            return RemoteValue(data=data, type=Dtype.string)
+        case list():
+            buffer = BytesIO(dumps(obj).encode())
+            data = _upload_value_data(buffer, mime="application/json")
+            return RemoteValue(data=data, type=Dtype.list)
+        case dict():
+            buffer = BytesIO(dumps(obj).encode())
+            data = _upload_value_data(buffer, mime="application/json")
+            return RemoteValue(data=data, type=Dtype.dict)
+        case Image.Image():
+            buffer = BytesIO()
+            format = "PNG" if obj.mode == "RGBA" else "JPEG"
+            mime = f"image/{format.lower()}"
+            obj.save(buffer, format=format)
+            data = _upload_value_data(buffer, mime=mime)
+            return RemoteValue(data=data, type=Dtype.image)
+        case BytesIO():
+            data = _upload_value_data(obj)
+            return RemoteValue(data=data, type=Dtype.binary)
+        case _:
+            raise ValueError(f"Failed to serialize value '{obj}' of type `{type(obj)}` because it is not supported")
+
+def _parse_remote_value(value: RemoteValue) -> Value:
+    """
+    Parse an object from a remote value.
+    """
+    buffer = _download_value_data(value.data) if value.data else None
+    is_tensor = value.type in _TENSOR_DTYPES
+    is_json = value.type in _JSON_TYPES
+    match value.type:
+        case Dtype.null:    return None
+        case _ if is_tensor:
+            archive: NpzFile = npz_load(buffer)
+            array = next(iter(archive.values()))
+            return array if len(array.shape) else array.item()
+        case Dtype.string:  return buffer.getvalue().decode("utf-8")
+        case _ if is_json:  return loads(buffer.getvalue().decode("utf-8"))
+        case Dtype.image:   return Image.open(buffer)
+        case Dtype.binary:  return buffer
+        case _:             raise ValueError(f"Failed to parse remote value with type `{value.type}` because it is not supported")
+
 def _parse_remote_prediction(prediction: RemotePrediction) -> Prediction:
-    """
-    Download a remote prediction.
-    """
-    # Download results
     results = (
-        list(map(parse_remote_value, prediction.results))
+        list(map(_parse_remote_value, prediction.results))
         if prediction.results is not None
         else None
     )
-    # Return
     return Prediction(
         id=prediction.id,
         tag=prediction.tag,
@@ -108,6 +167,23 @@ def _parse_remote_prediction(prediction: RemotePrediction) -> Prediction:
         logs=prediction.logs,
         created=prediction.created
     )
+
+def _upload_value_data(
+    data: BytesIO,
+    *,
+    mime: str="application/octet-stream"
+) -> str:
+    encoded_data = b64encode(data.getvalue()).decode("ascii")
+    return f"data:{mime};base64,{encoded_data}"
+
+def _download_value_data(url: str) -> BytesIO:
+    if url.startswith("data:"):
+        with urlopen(url) as response:
+            return BytesIO(response.read())
+    response = get(url)
+    response.raise_for_status()
+    result = BytesIO(response.content)
+    return result
 
 class _RemotePredictionEvent(BaseModel):
     event: Literal["prediction"]

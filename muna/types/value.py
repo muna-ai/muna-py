@@ -7,7 +7,6 @@ from enum import StrEnum
 from io import BytesIO
 from numpy import ndarray
 from PIL import Image
-from pydantic import BaseModel, Field
 
 class Dtype(StrEnum):
     """
@@ -49,10 +48,3 @@ Value = (
     BytesIO             |
     memoryview
 )
-
-class RemoteValue(BaseModel):
-    """
-    Remote value.
-    """
-    data: str | None = Field(description="Value URL. This is a remote or data URL.")
-    type: Dtype = Field(description="Value type.")
