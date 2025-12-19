@@ -5,16 +5,13 @@
 
 from pathlib import Path
 from pydantic import BaseModel, Field
-from requests import get, put
+from requests import put
 from rich import print
-from rich.progress import BarColumn, DownloadColumn, TimeRemainingColumn, TransferSpeedColumn
-from tempfile import NamedTemporaryFile
 from typer import Argument, Option, Typer
 from typing_extensions import Annotated
 
-from ..logging import CustomProgress, CustomProgressTask
 from ..muna import Muna
-from ..resources import upload_resource
+from ..resources import download_resource, upload_resource
 from .auth import get_access_key
 
 app = Typer(no_args_is_help=True)
@@ -39,38 +36,9 @@ def download(
     path: Annotated[Path, Option(help="Output path.")]=None
 ):
     muna = Muna(get_access_key())
-    with CustomProgress():
-        api_request_url = f"{muna.client.api_url}/resources/{hash}"
-        response = get(
-            api_request_url,
-            headers={ "Authorization": f"Bearer {muna.client.access_key}" },
-            stream=True,
-            allow_redirects=True
-        )
-        response.raise_for_status()
-        total_size = int(response.headers.get("content-length", 0))
-        output_path = path or Path(hash)
-        completed = 0
-        with (
-            CustomProgressTask(
-                loading_text=f"[dark_orange]{hash}[/dark_orange]",
-                done_text=f"Downloaded: [bold dark_orange]{output_path}[/bold dark_orange]",
-                columns=[
-                    BarColumn(),
-                    DownloadColumn(),
-                    TransferSpeedColumn(),
-                    TimeRemainingColumn()
-                ]
-            ) as task,
-            NamedTemporaryFile(mode="wb", delete=False) as tmp_file
-        ):
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    tmp_file.write(chunk)
-                    completed += len(chunk)
-                    task.update(total=total_size, completed=completed)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        Path(tmp_file.name).replace(output_path)
+    url = f"{muna.client.api_url}/resources/{hash}"
+    path = path or Path(hash)
+    download_resource(url, path, client=muna.client)
 
 def _upload_value(
     path: Path,
