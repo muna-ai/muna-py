@@ -3,11 +3,13 @@
 #   Copyright © 2025 NatML Inc. All Rights Reserved.
 #
 
+import atexit
 from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import gettempdir
 from typing import Iterator
 from urllib.parse import urlparse
+import weakref
 
 from ..c import Configuration, Predictor, Prediction as LocalPrediction, ValueMap
 from ..client import MunaClient
@@ -19,9 +21,26 @@ class PredictionService:
 
     def __init__(self, client: MunaClient):
         self.client = client
-        self.__cache = { }
+        self.__cache = dict[str, Predictor]()
         self.__cache_dir = _get_home_dir() / ".fxn" / "cache"
         self.__cache_dir.mkdir(parents=True, exist_ok=True)
+        # Cleanup
+        weak_self = weakref.ref(self)
+        def _cleanup():
+            obj = weak_self()
+            if obj is None:
+                return
+            while self.__cache:
+                _, predictor = self.__cache.popitem()
+                with predictor:
+                    pass
+        atexit.register(_cleanup)
+
+    def __del__(self):
+        while self.__cache:
+            _, predictor = self.__cache.popitem()
+            with predictor:
+                pass
 
     def create(
         self,
