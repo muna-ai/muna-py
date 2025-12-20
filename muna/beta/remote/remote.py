@@ -134,9 +134,6 @@ def _create_remote_value(obj: Value) -> RemoteValue:
             raise ValueError(f"Failed to serialize value '{obj}' of type `{type(obj)}` because it is not supported")
 
 def _parse_remote_value(value: RemoteValue) -> Value:
-    """
-    Parse an object from a remote value.
-    """
     buffer = _download_value_data(value.data) if value.data else None
     is_tensor = value.type in _TENSOR_DTYPES
     is_json = value.type in _JSON_TYPES

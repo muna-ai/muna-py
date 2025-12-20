@@ -12,6 +12,7 @@ from ...services import PredictorService, PredictionService
 from ...types import Acceleration, Dtype
 from ..remote import RemoteAcceleration
 from ..remote.remote import RemotePredictionService
+from .annotations import get_parameter
 from .schema import EmbeddingCreateResponse, Embedding
 
 EmbeddingDelegate = Callable[..., EmbeddingCreateResponse]
@@ -78,44 +79,44 @@ class EmbeddingService:
             )
         # Check that there is only one required input parameter
         signature = predictor.signature
-        if sum(1 for param in signature.inputs if not param.optional) != 1:
+        required_inputs = [param for param in signature.inputs if not param.optional]
+        if len(required_inputs) != 1:
             raise ValueError(
                 f"{tag} cannot be used with OpenAI embedding API because "
                 "it has more than one required input parameter."
             )
         # Check that the input parameter is `list[str]`
-        input_param = next((
-            param
-            for param in signature.inputs
-            if param.type == Dtype.list
-        ), None)
+        _, input_param = get_parameter(required_inputs, dtype=Dtype.list)
         if input_param is None:
             raise ValueError(
                 f"{tag} cannot be used with OpenAI embedding API because "
                 "it does not have a valid text embedding input parameter."
             )
         # Get the Matryoshka dim parameter (optional)
-        matryoshka_param = next((
-            param
-            for param in signature.inputs
-            if "int" in param.type and param.denotation == "embedding.dims"
-        ), None)
+        _, matryoshka_param = get_parameter(
+            signature.inputs,
+            dtype={
+                Dtype.int8, Dtype.int16, Dtype.int32, Dtype.int64,
+                Dtype.uint8, Dtype.uint16, Dtype.uint32, Dtype.uint64
+            },
+            denotation="openai.embeddings.dims"
+        )
         # Get the embedding output parameter index
-        embedding_param_idx = next((
-            idx
-            for idx, param in enumerate(signature.outputs)
-            if param.type == Dtype.float32 and param.denotation == "embedding"
-        ), None)
+        embedding_param_idx, _ = get_parameter(
+            signature.outputs,
+            dtype=Dtype.float32,
+            denotation="embedding"
+        )
         if embedding_param_idx is None:
             raise ValueError(
                 f"{tag} cannot be used with OpenAI embedding API because "
                 "it has no outputs with an `embedding` denotation."
             )
-        # Get the index of the usage output (optional)
+        # Get usage output param
         usage_param_idx = next((
             idx
             for idx, param in enumerate(signature.outputs)
-            if param.type == Dtype.dict and param.denotation == "openai.embedding.usage"
+            if param.value_schema and param.value_schema.get("title") == "Usage"
         ), None)
         # Define delegate
         def delegate(

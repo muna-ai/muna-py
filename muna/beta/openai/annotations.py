@@ -3,7 +3,7 @@
 #   Copyright © 2025 NatML Inc. All Rights Reserved.
 #
 
-from ...types.parameter import Parameter
+from ...types import Dtype, Parameter
 
 class Annotations:
     """
@@ -231,3 +231,21 @@ class Annotations:
             denotation="openai.audio.transcriptions.prompt",
             **kwargs
         )
+    
+def get_parameter(
+    parameters: list[Parameter],
+    *,
+    dtype: Dtype | set[Dtype],
+    denotation: str | None=None
+) -> tuple[int | None, Parameter | None]:
+    """
+    Get a parameter with the given data type and denotation.
+    """
+    dtype = dtype if isinstance(dtype, set) else { dtype }
+    for idx, param in enumerate(parameters):
+        if (
+            param.type in dtype and
+            (not denotation or param.denotation == denotation)
+        ):
+            return idx, param
+    return None, None

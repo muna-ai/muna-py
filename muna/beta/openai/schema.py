@@ -41,10 +41,6 @@ class Message(BaseModel):
     role: Literal["assistant", "user", "system"]
     content: str | None = None
 
-class _MessageDict(TypedDict): # For text completion
-    role: Literal["assistant", "user", "system"]
-    content: str | None
-
 class DeltaMessage(BaseModel):
     role: Literal["assistant", "user", "system"] | None = None
     content: str | None = None
@@ -66,3 +62,16 @@ class EmbeddingCreateResponse(BaseModel):
 class SpeechCreateResponse(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
     content: bytes
     response: Response
+
+class _MessageDict(TypedDict): # For text completion
+    role: Literal["assistant", "user", "system"]
+    content: str | None
+
+class _ResponseFormatTextDict(TypedDict):
+    type: Literal["text"]
+
+class _ResponseFormatJsonSchemaDict(TypedDict):
+    type: Literal["json_schema"]
+    json_schema: dict[str, object]
+
+_ResponseFormatDict = _ResponseFormatTextDict | _ResponseFormatJsonSchemaDict

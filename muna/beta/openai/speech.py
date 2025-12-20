@@ -13,6 +13,7 @@ from ...services import PredictorService, PredictionService
 from ...types import Acceleration, Dtype
 from ..remote import RemoteAcceleration
 from ..remote.remote import RemotePredictionService
+from .annotations import get_parameter
 from .schema import SpeechCreateResponse
 
 SpeechDelegate = Callable[..., object]
@@ -33,7 +34,7 @@ class SpeechService:
         self.__remote_predictions = remote_predictions
         self.__cache = dict[str, SpeechDelegate]()
     
-    def create( # DEPLOY
+    def create(
         self,
         *,
         input: str,
@@ -91,41 +92,40 @@ class SpeechService:
                 "it does not have exactly two required input parameters."
             )
         # Get the text input param
-        input_param = next((param for param in required_inputs if param.type == Dtype.string), None)
-        if not input_param:
+        _, input_param = get_parameter(required_inputs, dtype=Dtype.string)
+        if input_param is None:
             raise ValueError(
                 f"{tag} cannot be used with OpenAI speech API because "
                 "it does not have the required speech input parameter."
             )
         # Get the voice input param
-        voice_param = next((
-            param
-            for param in required_inputs
-            if param.type == Dtype.string and param.denotation == "audio.voice"
-        ), None)
-        if not voice_param:
+        _, voice_param = get_parameter(
+            required_inputs,
+            dtype=Dtype.string,
+            denotation="openai.audio.speech.voice"
+        )
+        if voice_param is None:
             raise ValueError(
                 f"{tag} cannot be used with OpenAI speech API because "
                 "it does not have the required speech voice parameter."
             )
         # Get the speed input param (optional)
-        speed_param = next((
-            param
-            for param in signature.inputs
-            if param.type in [Dtype.float32, Dtype.float64]
-        ), None)
+        _, speed_param = get_parameter(
+            signature.inputs,
+            dtype={ Dtype.float32, Dtype.float64 },
+            denotation="openai.audio.speech.speed"
+        )
         # Get the audio output parameter index
-        audio_param_idx = next((
-            idx
-            for idx, param in enumerate(signature.outputs)
-            if param.type == Dtype.float32 and param.denotation == "audio"
-        ), None)
-        if audio_param_idx is None:
+        audio_param_idx, audio_param = get_parameter(
+            signature.outputs,
+            dtype=Dtype.float32,
+            denotation="audio"
+        )
+        if audio_param is None:
             raise ValueError(
                 f"{tag} cannot be used with OpenAI speech API because "
                 "it has no outputs with an `audio` denotation."
             )
-        audio_param = signature.outputs[audio_param_idx]
         # Define delegate
         def delegate(
             *,

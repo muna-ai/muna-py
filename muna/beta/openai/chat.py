@@ -5,7 +5,7 @@
 
 from ...services import PredictorService, PredictionService
 from ..remote.remote import RemotePredictionService
-from .completion import ChatCompletionService
+from .completions import ChatCompletionService
 
 class ChatService:
     """
