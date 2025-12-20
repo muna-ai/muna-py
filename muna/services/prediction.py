@@ -3,27 +3,16 @@
 #   Copyright © 2025 NatML Inc. All Rights Reserved.
 #
 
-from ctypes import c_uint8, cast, string_at, POINTER
-from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
-from io import BytesIO
-from json import loads
-from numpy import array, dtype, generic, ndarray
-from numpy.ctypeslib import as_array, as_ctypes_type
 from pathlib import Path
-from PIL import Image
-from pydantic import BaseModel
 from tempfile import gettempdir
 from typing import Iterator
 from urllib.parse import urlparse
 
-from ..c import (
-    Configuration, Predictor, Prediction as LocalPrediction,
-    Value as LocalValue, ValueMap, ValueFlags
-)
+from ..c import Configuration, Predictor, Prediction as CPrediction, ValueMap
 from ..client import MunaClient
 from ..resources import download_resource
-from ..types import Acceleration, Dtype, Prediction, PredictionResource, Value
+from ..types import Acceleration, Prediction, PredictionResource, Value
 
 class PredictionService:
 
@@ -76,7 +65,7 @@ class PredictionService:
             configuration_id=configuration_id
         )
         with (
-            _create_value_map(inputs) as input_map,
+            ValueMap.from_dict(inputs) as input_map,
             predictor.create_prediction(input_map) as prediction
         ):
             return _parse_local_prediction(prediction, tag=tag)
@@ -106,7 +95,7 @@ class PredictionService:
             device=device,
         )
         with (
-            _create_value_map(inputs) as input_map,
+            ValueMap.from_dict(inputs) as input_map,
             predictor.stream_prediction(input_map) as stream
         ):
             for prediction in stream:
@@ -184,37 +173,8 @@ class PredictionService:
         path = path / resource.name if resource.name else path
         return path
 
-def _create_value_map(inputs: dict[str, Value]) -> ValueMap:
-    map = ValueMap()
-    for name, value in inputs.items():
-        map[name] = _create_local_value(value)
-    return map
-
-def _create_local_value(
-    obj: Value,
-    *,
-    flags: ValueFlags=ValueFlags.NONE
-) -> LocalValue:
-    obj = _ensure_object_serializable(obj)
-    match obj:
-        case None:          return LocalValue.create_null()
-        case float():       return _create_local_value(array(obj, dtype=Dtype.float32), flags=flags | ValueFlags.COPY_DATA)
-        case bool():        return _create_local_value(array(obj, dtype=Dtype.bool), flags=flags | ValueFlags.COPY_DATA)
-        case int():         return _create_local_value(array(obj, dtype=Dtype.int32), flags=flags | ValueFlags.COPY_DATA)
-        case generic():     return _create_local_value(array(obj), flags=flags | ValueFlags.COPY_DATA)
-        case ndarray():     return LocalValue.create_array(obj, flags=flags)
-        case str():         return LocalValue.create_string(obj)
-        case list():        return LocalValue.create_list(obj)
-        case dict():        return LocalValue.create_dict(obj)
-        case Image.Image(): return LocalValue.create_image(obj)
-        case memoryview():  return LocalValue.create_binary(obj, flags=flags)
-        case bytes():       return LocalValue.create_binary(memoryview(obj), flags=flags | ValueFlags.COPY_DATA)
-        case bytearray():   return LocalValue.create_binary(memoryview(obj), flags=flags | ValueFlags.COPY_DATA)
-        case BytesIO():     return LocalValue.create_binary(memoryview(obj.getvalue()), flags=flags | ValueFlags.COPY_DATA)
-        case _:             raise RuntimeError(f"Failed to convert object to prediction value because object has an unsupported type: {type(obj)}")
-
 def _parse_local_prediction(
-    prediction: LocalPrediction,
+    prediction: CPrediction,
     *,
     tag: str
 ) -> Prediction:
@@ -222,7 +182,7 @@ def _parse_local_prediction(
     results: list[Value] | None = None
     if output_map:
         output_values = [output_map[output_map.key(idx)] for idx in range(len(output_map))]
-        results = [_parse_local_value(value) for value in output_values]
+        results = [value.to_object() for value in output_values]
     return Prediction(
         id=prediction.id,
         tag=tag,
@@ -233,31 +193,6 @@ def _parse_local_prediction(
         created=datetime.now(timezone.utc).isoformat()
     )
 
-def _parse_local_value(value: LocalValue) -> Value:
-    is_tensor = value.type in _TENSOR_DTYPES
-    is_json = value.type in _JSON_TYPES
-    match value.type:
-        case Dtype.null:    return None
-        case _ if is_tensor:
-            ctype = as_ctypes_type(dtype(type))
-            tensor = as_array(cast(value.data, POINTER(ctype)), value.shape)
-            return tensor.copy() if len(tensor.shape) else tensor.item()
-        case Dtype.string:  return string_at(value.data).decode()
-        case _ if is_json:  return loads(string_at(value.data))
-        case Dtype.image:
-            data = as_array(cast(value.data, POINTER(c_uint8)), value.shape).copy()
-            return Image.fromarray(data.squeeze())
-        case Dtype.binary:  return BytesIO(string_at(value.data, value.shape[0]))
-        case _:             raise ValueError(f"Failed to parse local value with type `{value.type}` because it is not supported")
-
-def _ensure_object_serializable(obj: object) -> object:
-    is_dict = is_dataclass(obj) and not isinstance(obj, type)
-    match obj:
-        case list():        return list(map(_ensure_object_serializable, obj))
-        case BaseModel():   return obj.model_dump(mode="json", by_alias=True)
-        case _ if is_dict:  return asdict(obj)
-        case _:             return obj
-
 def _get_home_dir() -> Path:
     try:
         check = Path.home() / ".fxntest"
@@ -267,11 +202,3 @@ def _get_home_dir() -> Path:
         return Path.home()
     except:
         return Path(gettempdir())
-    
-_TENSOR_DTYPES = {
-    Dtype.bfloat16, Dtype.float16, Dtype.float32, Dtype.float64,
-    Dtype.int8, Dtype.int16, Dtype.int32, Dtype.int64,
-    Dtype.uint8, Dtype.uint16, Dtype.uint32, Dtype.uint64,
-    Dtype.bool,
-}
-_JSON_TYPES = { Dtype.list, Dtype.dict }

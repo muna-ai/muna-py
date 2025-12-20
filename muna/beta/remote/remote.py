@@ -15,8 +15,8 @@ from typing import Iterator, Literal
 from urllib.request import urlopen
 
 from ...c import Configuration
+from ...c.value import _ensure_object_serializable, _TENSOR_DTYPES
 from ...client import MunaClient
-from ...services.prediction import _ensure_object_serializable, _TENSOR_DTYPES, _JSON_TYPES
 from ...types import Dtype, Prediction, Value
 from .schema import RemoteAcceleration, RemotePrediction, RemoteValue
 
@@ -136,18 +136,23 @@ def _create_remote_value(obj: Value) -> RemoteValue:
 def _parse_remote_value(value: RemoteValue) -> Value:
     buffer = _download_value_data(value.data) if value.data else None
     is_tensor = value.type in _TENSOR_DTYPES
-    is_json = value.type in _JSON_TYPES
     match value.type:
-        case Dtype.null:    return None
+        case Dtype.null:
+            return None
         case _ if is_tensor:
             archive: NpzFile = npz_load(buffer)
             array = next(iter(archive.values()))
             return array if len(array.shape) else array.item()
-        case Dtype.string:  return buffer.getvalue().decode("utf-8")
-        case _ if is_json:  return loads(buffer.getvalue().decode("utf-8"))
-        case Dtype.image:   return Image.open(buffer)
-        case Dtype.binary:  return buffer
-        case _:             raise ValueError(f"Failed to parse remote value with type `{value.type}` because it is not supported")
+        case Dtype.string:
+            return buffer.getvalue().decode("utf-8")
+        case Dtype.list | Dtype.dict:
+            return loads(buffer.getvalue().decode("utf-8"))
+        case Dtype.image:
+            return Image.open(buffer)
+        case Dtype.binary:
+            return buffer
+        case _:
+            raise ValueError(f"Failed to parse remote value with type `{value.type}` because it is not supported")
 
 def _parse_remote_prediction(prediction: RemotePrediction) -> Prediction:
     results = (
