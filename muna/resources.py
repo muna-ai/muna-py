@@ -35,7 +35,7 @@ def download_resource(
     """
     response = get(
         url,
-        headers={ "Authorization": f"Bearer {client.access_key}" } if client else ...,
+        headers={ "Authorization": f"Bearer {client.access_key}" } if client else None,
         stream=True,
         allow_redirects=True
     )

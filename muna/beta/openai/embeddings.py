@@ -134,13 +134,13 @@ class EmbeddingService:
                 else self.__predictions.create
             )
             # Build prediction input map
-            prediction_inputs = { input_param.name: input }
+            input_map = { input_param.name: input }
             if dimensions is not None and matryoshka_param is not None:
-                prediction_inputs[matryoshka_param.name] = dimensions
+                input_map[matryoshka_param.name] = dimensions
             # Create prediction
             prediction = create_prediction_func(
                 tag=model,
-                inputs=prediction_inputs,
+                inputs=input_map,
                 acceleration=acceleration
             )
             # Check for error

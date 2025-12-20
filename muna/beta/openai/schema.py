@@ -13,19 +13,20 @@ class ChatCompletion(BaseModel):
         prompt_tokens: int
         completion_tokens: int
         total_tokens: int
-    id: str
     object: Literal["chat.completion"] = "chat.completion"
+    id: str
     created: int
     model: str
     choices: list[Choice]
     usage: Usage
 
 class ChatCompletionChunk(BaseModel):
-    id: str
     object: Literal["chat.completion.chunk"] = "chat.completion.chunk"
+    id: str
     created: int
     model: str
     choices: list[StreamChoice]
+    usage: ChatCompletion.Usage | None = None
 
 class Choice(BaseModel):
     index: int

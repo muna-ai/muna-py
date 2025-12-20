@@ -10,7 +10,7 @@ from typing import Iterator
 def test_create_chat_completion():
     openai = Muna().beta.openai
     response = openai.chat.completions.create(
-        model="@yusuf/llama-stream",
+        model="@openai/gpt-oss-20b",
         messages=[
             { "role": "user", "content": "What is the capital of France?" },
             Message(role="user", content="And how many people live there?")
@@ -22,12 +22,13 @@ def test_create_chat_completion():
 def test_stream_chat_completion():
     openai = Muna().beta.openai
     chunks = openai.chat.completions.create(
-        model="@yusuf/llama-stream",
+        model="@openai/gpt-oss-20b",
         messages=[
             { "role": "user", "content": "What is the capital of France?" },
             Message(role="user", content="And how many people live there?")
         ],
-        stream=True
+        stream=True,
+        acceleration="local_auto"
     )
     assert(isinstance(chunks, Iterator))
     for chunk in chunks:

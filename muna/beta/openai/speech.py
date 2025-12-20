@@ -156,16 +156,16 @@ class SpeechService:
                 else self.__predictions.create
             )
             # Build prediction input map
-            prediction_inputs = {
+            input_map = {
                 input_param.name: input,
                 voice_param.name: voice
             }
             if speed_param is not None:
-                prediction_inputs[speed_param.name] = speed
+                input_map[speed_param.name] = speed
             # Create prediction
             prediction = create_prediction_func(
                 tag=model,
-                inputs=prediction_inputs,
+                inputs=input_map,
                 acceleration=acceleration
             )
             # Check for error

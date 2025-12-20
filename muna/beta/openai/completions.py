@@ -4,15 +4,18 @@
 #
 
 from collections.abc import Callable
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 from typing import overload, Iterator, Literal
 
 from ...services import PredictorService, PredictionService
-from ...types import Acceleration, Dtype, Prediction
+from ...types import Acceleration, Dtype
 from ..remote import RemoteAcceleration
 from ..remote.remote import RemotePredictionService
 from .annotations import get_parameter
-from .schema import ChatCompletion, ChatCompletionChunk, Message, _MessageDict, _ResponseFormatDict
+from .schema import (
+    ChatCompletion, ChatCompletionChunk, Choice, DeltaMessage,
+    Message, _MessageDict, _ResponseFormatDict, StreamChoice
+)
 
 ChatCompletionDelegate = Callable[..., ChatCompletion | Iterator[ChatCompletionChunk]]
 
@@ -176,7 +179,7 @@ class ChatCompletionService:
             denotation="openai.chat.completions.presence_penalty"
         )
         # Get chat completion output param
-        completions_param_idx = next((
+        completion_param_idx = next((
             idx
             for idx, param in enumerate(signature.outputs)
             if (
@@ -184,17 +187,11 @@ class ChatCompletionService:
                 param.value_schema["title"] in { "ChatCompletion", "ChatCompletionChunk" }
             )
         ), None)
-        if completions_param_idx is None:
+        if completion_param_idx is None:
             raise ValueError(
                 f"{tag} cannot be used with OpenAI chat completions API because "
                 "it does not have a valid chat completion output parameter."
             )
-        # Get usage output param
-        usage_param_idx = next((
-            idx
-            for idx, param in enumerate(signature.outputs)
-            if param.value_schema and param.value_schema.get("title") == "Usage"
-        ), None)
         # Create delegate
         def delegate( # INCOMPLETE
             *,
@@ -210,49 +207,78 @@ class ChatCompletionService:
             presence_penalty: float | None,
             acceleration: Acceleration | RemoteAcceleration
         ) -> ChatCompletion | Iterator[ChatCompletionChunk]:
-            pass
+            # Get prediction creation and streaming functions (local or remote)
+            stream_prediction_func = (
+                self.__remote_predictions.stream
+                if acceleration.startswith("remote_")
+                else self.__predictions.stream
+            )
+            # Build prediction input map
+            input_map = { input_param.name: messages }
+            if response_format_param and response_format:
+                input_map[response_format_param.name] = response_format
+            if reasoning_effort_param and reasoning_effort:
+                input_map[reasoning_effort_param.name] = reasoning_effort
+            if max_output_tokens_param and max_output_tokens is not None:
+                input_map[max_output_tokens_param.name] = max_output_tokens
+            if temperature_param and temperature is not None:
+                input_map[temperature_param.name] = temperature
+            if top_p_param and top_p is not None:
+                input_map[top_p_param.name] = top_p
+            if frequency_penalty_param and frequency_penalty is not None:
+                input_map[frequency_penalty_param.name] = frequency_penalty
+            if presence_penalty_param and presence_penalty is not None:
+                input_map[presence_penalty_param.name] = presence_penalty
+            # Predict
+            for prediction in stream_prediction_func(
+                tag=model,
+                inputs=input_map,
+                acceleration=acceleration
+            ):
+                # Check for error
+                if prediction.error:
+                    raise RuntimeError(prediction.error)
+                # Return completion
+                data = prediction.results[completion_param_idx]
+                if not stream:
+                    return _parse_chat_completion(data)
+                # Yield completion chunk
+                yield _parse_chat_completion_chunk(data)
         # Return
         return delegate
 
-    #     # Build prediction input dictionary
-    #     adapter = TypeAdapter(list[Message])
-    #     messages = adapter.validate_python(messages)
-    #     inputs = {
-    #         "messages": adapter.dump_python(messages, mode="json", by_alias=True),
-    #         "stream": stream,
-    #         "max_tokens": max_tokens
-    #     }
-    #     # Predict
-    #     if stream:
-    #         stream_prediction_func = (
-    #             self.__remote_predictions.stream
-    #             if acceleration.startswith("remote_")
-    #             else self.__predictions.stream
-    #         )
-    #         prediction_stream = stream_prediction_func(
-    #             tag=model,
-    #             inputs=inputs,
-    #             acceleration=acceleration
-    #         )
-    #         yield from map(self.__parse_response, prediction_stream)
-    #     else:
-    #         create_prediction_func = (
-    #             self.__remote_predictions.create
-    #             if acceleration.startswith("remote_")
-    #             else self.__predictions.create
-    #         )
-    #         prediction = create_prediction_func(
-    #             tag=model,
-    #             inputs=inputs,
-    #             acceleration=acceleration
-    #         )
-    #         return self.__parse_response(prediction)
-    
-    # def __parse_response(
-    #     self,
-    #     prediction: Prediction
-    # ) -> ChatCompletion | ChatCompletionChunk:
-    #     adapter = TypeAdapter(ChatCompletion | ChatCompletionChunk)
-    #     completion_dict = prediction.results[0]
-    #     completion = adapter.validate_python(completion_dict)
-    #     return completion
+def _parse_chat_completion(data: dict[str, object]) -> ChatCompletion: # INCOMPLETE # Gather all chunks and yield
+    try:
+        return TypeAdapter(ChatCompletion).validate_python(data)
+    except ValidationError:
+        pass
+    try:
+        pass
+    except ValidationError:
+        pass
+    raise ValueError(f"")
+
+def _parse_chat_completion_chunk(data: dict[str, object]) -> ChatCompletionChunk:
+    try:
+        return TypeAdapter(ChatCompletionChunk).validate_python(data)
+    except ValidationError:
+        pass
+    try:
+        completion = TypeAdapter(ChatCompletion).validate_python(data)
+        return ChatCompletionChunk(
+            id=completion.id,
+            created=completion.created,
+            model=completion.model,
+            choices=[StreamChoice(
+                index=choice.index,
+                delta=DeltaMessage(
+                    role=choice.message.role,
+                    content=choice.message.content
+                ),
+                finish_reason=choice.finish_reason
+            ) for choice in completion.choices],
+            usage=completion.usage,
+        )
+    except ValidationError:
+        pass
+    raise ValueError(f"Failed to parse streaming chat completion chunk from model output: {data}")
