@@ -3,6 +3,7 @@
 #   Copyright © 2025 NatML Inc. All Rights Reserved.
 #
 
+from collections import defaultdict
 from collections.abc import Callable
 from pydantic import TypeAdapter, ValidationError
 from typing import overload, Iterator, Literal
@@ -193,7 +194,7 @@ class ChatCompletionService:
                 "it does not have a valid chat completion output parameter."
             )
         # Create delegate
-        def delegate( # INCOMPLETE
+        def delegate(
             *,
             messages: list[Message | _MessageDict],
             model: str,
@@ -229,7 +230,8 @@ class ChatCompletionService:
                 input_map[frequency_penalty_param.name] = frequency_penalty
             if presence_penalty_param and presence_penalty is not None:
                 input_map[presence_penalty_param.name] = presence_penalty
-            # Predict
+            # Stream
+            outputs = list[object]()
             for prediction in stream_prediction_func(
                 tag=model,
                 inputs=input_map,
@@ -238,25 +240,47 @@ class ChatCompletionService:
                 # Check for error
                 if prediction.error:
                     raise RuntimeError(prediction.error)
-                # Return completion
+                # Yield chunk
                 data = prediction.results[completion_param_idx]
-                if not stream:
-                    return _parse_chat_completion(data)
-                # Yield completion chunk
-                yield _parse_chat_completion_chunk(data)
+                if stream:
+                    yield _parse_chat_completion_chunk(data)
+                else:
+                    outputs.append(data)
+            # Return
+            if not stream:
+                return _parse_chat_completion(outputs)
         # Return
         return delegate
 
-def _parse_chat_completion(data: dict[str, object]) -> ChatCompletion: # INCOMPLETE # Gather all chunks and yield
+def _parse_chat_completion(outputs: list[object]) -> ChatCompletion: # INCOMPLETE # Gather all chunks and yield
+    if not outputs:
+        raise ValueError(f"Failed to parse chat completion because model did not return any outputs")
     try:
-        return TypeAdapter(ChatCompletion).validate_python(data)
+        completions = TypeAdapter(list[ChatCompletion]).validate_python(outputs)
+        return completions[-1]
     except ValidationError:
         pass
     try:
-        pass
+        chunks = TypeAdapter(list[ChatCompletionChunk]).validate_python(outputs)
+        choices_map = defaultdict[int, list[StreamChoice]](list)
+        for chunk in chunks:
+            for choice in chunk.choices:
+                choices_map[choice.index].append(choice)
+        usages = [chunk.usage for chunk in chunks if chunk.usage is not None]
+        return ChatCompletion(
+            id=chunks[0].id,
+            created=chunks[0].created,
+            model=chunks[0].model,
+            choices=[],
+            usage=ChatCompletion.Usage(
+                prompt_tokens=sum(usage.prompt_tokens for usage in usages),
+                completion_tokens=sum(usage.completion_tokens for usage in usages),
+                total_tokens=sum(usage.total_tokens for usage in usages)
+            )
+        )
     except ValidationError:
         pass
-    raise ValueError(f"")
+    raise ValueError(f"Failed to parse chat completion from model outputs: {outputs}")
 
 def _parse_chat_completion_chunk(data: dict[str, object]) -> ChatCompletionChunk:
     try:
