@@ -6,7 +6,7 @@
 from .annotations import Annotations
 from .openai import OpenAIClient
 from .schema import (
-    ChatCompletion, ChatCompletionChunk, Choice, DeltaMessage,
-    EmbeddingCreateResponse, Embedding, Message, SpeechCreateResponse,
-    StreamChoice
+    ChatCompletion, ChatCompletionChunk, ChatCompletionReasoningEffort,
+    Choice, DeltaMessage, EmbeddingCreateResponse, Embedding, Message,
+    SpeechCreateResponse, StreamChoice
 )

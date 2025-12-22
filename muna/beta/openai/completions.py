@@ -9,13 +9,14 @@ from pydantic import TypeAdapter, ValidationError
 from typing import overload, Iterator, Literal
 
 from ...services import PredictorService, PredictionService
-from ...types import Acceleration, Dtype
+from ...types import Acceleration, Dtype, Prediction
 from ..remote import RemoteAcceleration
 from ..remote.remote import RemotePredictionService
 from .annotations import get_parameter
 from .schema import (
-    ChatCompletion, ChatCompletionChunk, Choice, DeltaMessage,
-    Message, _MessageDict, _ResponseFormatDict, StreamChoice
+    ChatCompletion, ChatCompletionChunk, ChatCompletionReasoningEffort,
+    Choice, DeltaMessage, Message, _MessageDict, _ResponseFormatDict,
+    StreamChoice
 )
 
 ChatCompletionDelegate = Callable[..., ChatCompletion | Iterator[ChatCompletionChunk]]
@@ -77,7 +78,7 @@ class ChatCompletionService:
         model: str,
         stream: bool=False,
         response_format: _ResponseFormatDict | None=None,
-        reasoning_effort: Literal["minimal", "low", "medium", "high", "xhigh"] | None=None,
+        reasoning_effort: ChatCompletionReasoningEffort | None=None,
         max_output_tokens: int | None=None,
         temperature: float | None=None,
         top_p: float | None=None,
@@ -92,8 +93,17 @@ class ChatCompletionService:
             messages (list): Messages for the conversation so far.
             model (str): Chat model predictor tag.
             stream (bool): Whether to stream responses.
-            max_tokens (int): Maximum output tokens.
+            response_format (dict): Response format.
+            reasoning_effort (ChatCompletionReasoningEffort): Reasoning effort for reasoning models.
+            max_output_tokens (int): Maximum output tokens.
+            temperature (float): Sampling temperature to use.
+            top_p (float): Nucleus sampling coefficient.
+            frequency_penalty (float): Token frequency penalty.
+            presence_penalty (float): Token presence penalty.
             acceleration (Acceleration | RemoteAcceleration): Prediction acceleration.
+
+        Returns:
+            ChatCompletion | Iterator[ChatCompletionChunk]: Chat completion or chat completion chunks if streaming.
         """
         # Ensure we have a delegate
         if model not in self.__cache:
@@ -230,29 +240,31 @@ class ChatCompletionService:
                 input_map[frequency_penalty_param.name] = frequency_penalty
             if presence_penalty_param and presence_penalty is not None:
                 input_map[presence_penalty_param.name] = presence_penalty
-            # Stream
-            outputs = list[object]()
-            for prediction in stream_prediction_func(
+            # Predict
+            prediction_stream = stream_prediction_func(
                 tag=model,
                 inputs=input_map,
                 acceleration=acceleration
-            ):
-                # Check for error
-                if prediction.error:
-                    raise RuntimeError(prediction.error)
-                # Yield chunk
-                data = prediction.results[completion_param_idx]
-                if stream:
-                    yield _parse_chat_completion_chunk(data)
-                else:
-                    outputs.append(data)
+            )
+            completion_stream = _gather_completion_outputs(prediction_stream, completion_param_idx)
             # Return
-            if not stream:
-                return _parse_chat_completion(outputs)
+            if stream:
+                return map(_parse_chat_completion_chunk, completion_stream)
+            else:
+                return _parse_chat_completion(list(completion_stream))
         # Return
         return delegate
 
-def _parse_chat_completion(outputs: list[object]) -> ChatCompletion: # INCOMPLETE # Gather all chunks and yield
+def _gather_completion_outputs(
+    stream: Iterator[Prediction],
+    completion_param_idx: int
+) -> Iterator[object]:
+    for prediction in stream:
+        if prediction.error:
+            raise RuntimeError(prediction.error)
+        yield prediction.results[completion_param_idx]
+
+def _parse_chat_completion(outputs: list[object]) -> ChatCompletion:
     if not outputs:
         raise ValueError(f"Failed to parse chat completion because model did not return any outputs")
     try:
@@ -266,18 +278,21 @@ def _parse_chat_completion(outputs: list[object]) -> ChatCompletion: # INCOMPLET
         for chunk in chunks:
             for choice in chunk.choices:
                 choices_map[choice.index].append(choice)
-        usages = [chunk.usage for chunk in chunks if chunk.usage is not None]
-        return ChatCompletion(
+        choices = [_create_chat_completion_choice(index, choices) for index, choices in choices_map.items()]
+        chunk_usages = [chunk.usage for chunk in chunks if chunk.usage is not None]
+        usage = ChatCompletion.Usage(
+            prompt_tokens=sum(usage.prompt_tokens for usage in chunk_usages),
+            completion_tokens=sum(usage.completion_tokens for usage in chunk_usages),
+            total_tokens=sum(usage.total_tokens for usage in chunk_usages)
+        )
+        completion = ChatCompletion(
             id=chunks[0].id,
             created=chunks[0].created,
             model=chunks[0].model,
-            choices=[],
-            usage=ChatCompletion.Usage(
-                prompt_tokens=sum(usage.prompt_tokens for usage in usages),
-                completion_tokens=sum(usage.completion_tokens for usage in usages),
-                total_tokens=sum(usage.total_tokens for usage in usages)
-            )
+            choices=choices,
+            usage=usage
         )
+        return completion
     except ValidationError:
         pass
     raise ValueError(f"Failed to parse chat completion from model outputs: {outputs}")
@@ -289,7 +304,7 @@ def _parse_chat_completion_chunk(data: dict[str, object]) -> ChatCompletionChunk
         pass
     try:
         completion = TypeAdapter(ChatCompletion).validate_python(data)
-        return ChatCompletionChunk(
+        chunk = ChatCompletionChunk(
             id=completion.id,
             created=completion.created,
             model=completion.model,
@@ -303,6 +318,22 @@ def _parse_chat_completion_chunk(data: dict[str, object]) -> ChatCompletionChunk
             ) for choice in completion.choices],
             usage=completion.usage,
         )
+        return chunk
     except ValidationError:
         pass
     raise ValueError(f"Failed to parse streaming chat completion chunk from model output: {data}")
+
+def _create_chat_completion_choice(
+    index: int,
+    choices: list[StreamChoice]
+) -> Choice:
+    role = choices[0].delta.role
+    content = "".join(choice.delta.content for choice in choices if choice.delta)
+    message = message=Message(role=role, content=content)
+    finish_reason = next((choice.finish_reason for choice in choices if choice.finish_reason), None)
+    result = Choice(
+        index=index,
+        message=message,
+        finish_reason=finish_reason
+    )
+    return result

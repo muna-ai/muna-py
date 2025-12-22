@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict
 from requests import Response
 from typing import Literal, TypedDict
 
+ChatCompletionReasoningEffort = Literal["minimal", "low", "medium", "high", "xhigh"]
+
 class ChatCompletion(BaseModel):
     class Usage(BaseModel):
         prompt_tokens: int

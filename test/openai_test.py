@@ -15,7 +15,8 @@ def test_create_chat_completion():
             { "role": "user", "content": "What is the capital of France?" },
             Message(role="user", content="And how many people live there?")
         ],
-        stream=False
+        stream=False,
+        acceleration="local_auto"
     )
     print(response.model_dump_json(indent=2))
 
