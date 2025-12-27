@@ -6,7 +6,7 @@
 from __future__ import annotations
 from dataclasses import asdict, is_dataclass
 from enum import IntFlag
-from ctypes import byref, cast, c_int, c_int32, c_uint8, c_void_p, string_at, POINTER
+from ctypes import byref, cast, c_char_p, c_int, c_int32, c_uint8, c_void_p, string_at, POINTER
 from io import BytesIO
 from json import dumps, loads
 from numpy import array, dtype, generic, int32, ndarray, zeros
@@ -46,7 +46,7 @@ class Value:
         return _dtype_from_c(dtype.value)        
 
     @property
-    def shape(self) -> list[int] | None:
+    def shape(self) -> tuple[int, ...] | None:
         if self.type not in _TENSOR_ISH_DTYPES:
             return None
         fxnc = get_fxnc()
@@ -58,7 +58,7 @@ class Value:
         status = fxnc.FXNValueGetShape(self.__value, shape.ctypes.data_as(POINTER(c_int32)), dims)
         if status != FXNStatus.OK:
             raise RuntimeError(f"Failed to get value shape with error: {status_to_error(status)}")
-        return shape.tolist()
+        return tuple(shape)
 
     def to_object(self) -> object:
         match self.type:
@@ -105,12 +105,12 @@ class Value:
             case float():   return cls.from_object(array(obj, dtype=Dtype.float32), flags=flags | ValueFlags.COPY_DATA)
             case bool():    return cls.from_object(array(obj, dtype=Dtype.bool), flags=flags | ValueFlags.COPY_DATA)
             case int():     return cls.from_object(array(obj, dtype=Dtype.int32), flags=flags | ValueFlags.COPY_DATA)
-            case generic(): return cls.from_object(array(obj), flags=flags | ValueFlags.COPY_DATA)
-            case bytes():   return cls.from_object(memoryview(obj), flags=flags | ValueFlags.COPY_DATA)
-            case BytesIO(): return cls.from_object(memoryview(obj.getvalue()), flags=flags | ValueFlags.COPY_DATA)
+            case generic(): return cls.from_object(array(obj), flags=flags | ValueFlags.COPY_DATA)            
             case str():     status = get_fxnc().FXNValueCreateString(obj.encode(), byref(value))
             case list():    status = get_fxnc().FXNValueCreateList(dumps(obj).encode(), byref(value))
             case dict():    status = get_fxnc().FXNValueCreateDict(dumps(obj).encode(), byref(value))
+            case BytesIO(): return cls.from_object(obj.getvalue(), flags=flags | ValueFlags.COPY_DATA)
+            case bytes():   status = get_fxnc().FXNValueCreateBinary(c_char_p(obj), len(obj), flags, byref(value))
             case ndarray():
                 status = get_fxnc().FXNValueCreateArray(
                     obj.ctypes.data_as(c_void_p),
@@ -130,9 +130,6 @@ class Value:
                     flags,
                     byref(value)
                 )
-            case memoryview():
-                buffer = (c_uint8 * len(obj)).from_buffer(obj)
-                status = get_fxnc().FXNValueCreateBinary(buffer, len(obj), flags, byref(value))
             case _:
                 raise ValueFlags(f"Failed to convert object to prediction value because object has an unsupported type: {type(obj)}")
         if status != FXNStatus.OK:

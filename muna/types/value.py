@@ -45,6 +45,6 @@ Value = (
     list[object]        |
     dict[str, object]   |
     Image.Image         |
-    BytesIO             |
-    memoryview
+    bytes               |
+    BytesIO
 )
