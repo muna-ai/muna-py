@@ -1,5 +1,6 @@
 ## 0.0.75
 + Added `muna.beta.predictions.remote.stream` method to stream remote predictions.
++ Fixed `TypeError` when creating a prediction with read-only `bytes` input value.
 
 ## 0.0.74
 + Fixed `MunaAPIError` exception class raising exception when being unpickled.
