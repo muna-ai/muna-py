@@ -60,25 +60,21 @@ class Value:
             raise RuntimeError(f"Failed to get value shape with error: {status_to_error(status)}")
         return tuple(shape)
 
-    def to_object(self) -> object:
+    def to_object(self) -> Object:
         match self.type:
-            case Dtype.null:
-                return None
+            case Dtype.null:    return None
             case t if t in _TENSOR_DTYPES:
                 ctype = as_ctypes_type(dtype(type))
                 tensor = as_array(cast(self.data, POINTER(ctype)), self.shape)
                 return tensor.copy() if len(tensor.shape) else tensor.item()
-            case Dtype.string:
-                return string_at(self.data).decode()
-            case Dtype.list | Dtype.dict:
-                return loads(string_at(self.data))
+            case Dtype.string:  return string_at(self.data).decode()
+            case Dtype.list:    return loads(string_at(self.data))
+            case Dtype.dict:    return loads(string_at(self.data))
             case Dtype.image:
                 data = as_array(cast(self.data, POINTER(c_uint8)), self.shape).copy()
                 return Image.fromarray(data.squeeze())
-            case Dtype.binary:
-                return BytesIO(string_at(self.data, self.shape[0]))
-            case _:
-                raise ValueError(f"Failed to parse local value with type `{self.type}` because it is not supported")
+            case Dtype.binary:  return string_at(self.data, self.shape[0])
+            case _:             raise ValueError(f"Failed to convert value with type `{self.type}` to object because it is not supported")
 
     def __enter__(self):
         return self
