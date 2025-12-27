@@ -196,4 +196,4 @@ _TENSOR_DTYPES = {
     Dtype.uint8, Dtype.uint16, Dtype.uint32, Dtype.uint64,
     Dtype.bool,
 }
-_TENSOR_ISH_DTYPES = _TENSOR_DTYPES | { Dtype.image }
+_TENSOR_ISH_DTYPES = _TENSOR_DTYPES | { Dtype.image, Dtype.binary }
