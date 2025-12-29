@@ -217,6 +217,6 @@ def _create_response_data(
         data = audio.tobytes()
         return data, content_type
     with Value.from_object(audio) as audio_value:
-        content_type = f"audio/{response_format}rate={sample_rate}"
+        content_type = f"audio/{response_format};rate={sample_rate}"
         data = audio_value.serialize(content_type)
         return data, content_type
