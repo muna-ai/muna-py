@@ -46,7 +46,7 @@ class ChatCompletionService:
         stream: Literal[False]=False,
         response_format: _ResponseFormatDict | None=None,
         reasoning_effort: Literal["minimal", "low", "medium", "high", "xhigh"] | None=None,
-        max_output_tokens: int | None=None,
+        max_completion_tokens: int | None=None,
         temperature: float | None=None,
         top_p: float | None=None,
         frequency_penalty: float | None=None,
@@ -63,7 +63,7 @@ class ChatCompletionService:
         stream: Literal[True],
         response_format: _ResponseFormatDict | None=None,
         reasoning_effort: Literal["minimal", "low", "medium", "high", "xhigh"] | None=None,
-        max_output_tokens: int | None=None,
+        max_completion_tokens: int | None=None,
         temperature: float | None=None,
         top_p: float | None=None,
         frequency_penalty: float | None=None,
@@ -79,7 +79,7 @@ class ChatCompletionService:
         stream: bool=False,
         response_format: _ResponseFormatDict | None=None,
         reasoning_effort: ChatCompletionReasoningEffort | None=None,
-        max_output_tokens: int | None=None,
+        max_completion_tokens: int | None=None,
         temperature: float | None=None,
         top_p: float | None=None,
         frequency_penalty: float | None=None,
@@ -95,7 +95,7 @@ class ChatCompletionService:
             stream (bool): Whether to stream responses.
             response_format (dict): Response format.
             reasoning_effort (ChatCompletionReasoningEffort): Reasoning effort for reasoning models.
-            max_output_tokens (int): Maximum output tokens.
+            max_completion_tokens (int): Maximum completion tokens.
             temperature (float): Sampling temperature to use.
             top_p (float): Nucleus sampling coefficient.
             frequency_penalty (float): Token frequency penalty.
@@ -116,7 +116,7 @@ class ChatCompletionService:
             stream=stream,
             response_format=response_format,
             reasoning_effort=reasoning_effort,
-            max_output_tokens=max_output_tokens,
+            max_completion_tokens=max_completion_tokens,
             temperature=temperature,
             top_p=top_p,
             frequency_penalty=frequency_penalty,
@@ -211,7 +211,7 @@ class ChatCompletionService:
             stream: bool,
             response_format: _ResponseFormatDict | None,
             reasoning_effort: Literal["minimal", "low", "medium", "high", "xhigh"] | None,
-            max_output_tokens: int | None,
+            max_completion_tokens: int | None,
             temperature: float | None,
             top_p: float | None,
             frequency_penalty: float | None,
@@ -230,8 +230,8 @@ class ChatCompletionService:
                 input_map[response_format_param.name] = response_format
             if reasoning_effort_param and reasoning_effort:
                 input_map[reasoning_effort_param.name] = reasoning_effort
-            if max_output_tokens_param and max_output_tokens is not None:
-                input_map[max_output_tokens_param.name] = max_output_tokens
+            if max_output_tokens_param and max_completion_tokens is not None:
+                input_map[max_output_tokens_param.name] = max_completion_tokens
             if temperature_param and temperature is not None:
                 input_map[temperature_param.name] = temperature
             if top_p_param and top_p is not None:
