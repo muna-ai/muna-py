@@ -1,10 +1,11 @@
 # 
 #   Muna
-#   Copyright © 2025 NatML Inc. All Rights Reserved.
+#   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
 from muna import Muna
 from muna.beta.openai import ChatCompletionChunk, Message
+from pathlib import Path
 from typing import Iterator
 
 def test_create_chat_completion():
@@ -64,7 +65,7 @@ def test_create_speech():
         input="Hello from Muna",
         model="@kitten-ml/kitten-tts",
         voice="expr-voice-2-f",
-        response_format="pcm",
-        acceleration="auto"
+        response_format="mp3",
+        acceleration="local_auto"
     )
     assert response

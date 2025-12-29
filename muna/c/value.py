@@ -1,6 +1,6 @@
 #
 #   Muna
-#   Copyright © 2025 NatML Inc. All Rights Reserved.
+#   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
 from __future__ import annotations
@@ -59,12 +59,30 @@ class Value:
         if status != FXNStatus.OK:
             raise RuntimeError(f"Failed to get value shape with error: {status_to_error(status)}")
         return tuple(shape)
+    
+    def serialize(self, mime: str=None) -> bytes:
+        fxnc = get_fxnc()
+        value = c_void_p()
+        status = fxnc.FXNValueCreateSerializedValue(
+            self.__value,
+            mime.encode() if mime else None,
+            byref(value)
+        )
+        if status != FXNStatus.OK:
+            raise RuntimeError(f"Failed to serialize value with error: {status_to_error(status)}")
+        data = c_void_p()
+        byte_length = c_int32()
+        status = fxnc.FXNValueGetData(value, byref(data))
+        status = fxnc.FXNValueGetShape(value, byref(byte_length), 1)
+        result = string_at(data, byte_length)
+        fxnc.FXNValueRelease(value)
+        return result
 
     def to_object(self) -> Object:
         match self.type:
             case Dtype.null:    return None
             case t if t in _TENSOR_DTYPES:
-                ctype = as_ctypes_type(dtype(type))
+                ctype = as_ctypes_type(dtype(t))
                 tensor = as_array(cast(self.data, POINTER(ctype)), self.shape)
                 return tensor.copy() if len(tensor.shape) else tensor.item()
             case Dtype.string:  return string_at(self.data).decode()
@@ -130,6 +148,33 @@ class Value:
                 raise ValueFlags(f"Failed to convert object to prediction value because object has an unsupported type: {type(obj)}")
         if status != FXNStatus.OK:
             raise RuntimeError(f"Failed to create string value with error: {status_to_error(status)}")
+        return Value(value)
+    
+    @classmethod
+    def from_bytes( # DEPLOY
+        cls,
+        data: bytes,
+        mime: str
+    ) -> Value:
+        fxnc = get_fxnc()
+        serialized_value = c_void_p()
+        status = fxnc.FXNValueCreateBinary(
+            c_char_p(data),
+            len(data),
+            ValueFlags.NONE,
+            byref(serialized_value)
+        )
+        if status != FXNStatus.OK:
+            raise RuntimeError(f"Failed to deserialize value because wrapping data failed with error: {status_to_error(status)}")
+        value = c_void_p()
+        status = fxnc.FXNValueCreateFromSerializedValue(
+            serialized_value,
+            mime.encode(),
+            byref(value)
+        )
+        fxnc.FXNValueRelease(serialized_value)
+        if status != FXNStatus.OK:
+            raise RuntimeError(f"Failed to deserialize value with error: {status_to_error(status)}")
         return Value(value)
 
 def _ensure_object_serializable(obj: object) -> object:

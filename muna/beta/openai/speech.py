@@ -1,20 +1,20 @@
 # 
 #   Muna
-#   Copyright © 2025 NatML Inc. All Rights Reserved.
+#   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
 from __future__ import annotations
 from collections.abc import Callable
 from numpy import ndarray
 from requests import Response
-from typing import Literal
 
+from ...c import Value
 from ...services import PredictorService, PredictionService
 from ...types import Acceleration, Dtype
 from ..remote import RemoteAcceleration
 from ..remote.remote import RemotePredictionService
 from .annotations import get_parameter
-from .schema import SpeechCreateResponse
+from .schema import SpeechCreateResponse, SpeechResponseFormat, SpeechStreamFormat
 
 SpeechDelegate = Callable[..., object]
 
@@ -40,9 +40,9 @@ class SpeechService:
         input: str,
         model: str,
         voice: str,
-        response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"]="mp3",
+        response_format: SpeechResponseFormat="mp3",
         speed: float=1.,
-        stream_format: Literal["audio", "sse"]="audio",
+        stream_format: SpeechStreamFormat="audio",
         acceleration: Acceleration | RemoteAcceleration="remote_auto"
     ) -> SpeechCreateResponse:
         """
@@ -132,16 +132,16 @@ class SpeechService:
             input: str,
             model: str,
             voice: str,
-            response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"],
+            response_format: SpeechResponseFormat,
             speed: float,
-            stream_format: Literal["audio", "sse"],
+            stream_format: SpeechStreamFormat,
             acceleration: Acceleration | RemoteAcceleration
         ) -> SpeechCreateResponse:
             # Check response format
-            if response_format != "pcm":
+            if response_format == "mp3":
                 raise ValueError(
                     f"Cannot create speech with response format `{response_format}` "
-                    f"because only `pcm` is currently supported."
+                    f"because it is not yet supported."
                 )
             # Check stream format
             if stream_format != "audio":
@@ -178,12 +178,15 @@ class SpeechService:
             if audio.ndim not in [1, 2]:
                 raise RuntimeError(f"{tag} returned audio tensor with invalid shape: {audio.shape}")
             # Create response
-            channels = audio.shape[0] if audio.ndim == 2 else 1 # assume planar
-            content = audio.tobytes()
+            content, content_type = _create_response_data(
+                audio,
+                sample_rate=audio_param.sample_rate,
+                response_format=response_format
+            )
             response = Response()
             response.status_code = 200
             response.headers = {
-                "Content-Type": f"audio/pcm;rate={audio_param.sample_rate};channels={channels};encoding=float;bits=32",
+                "Content-Type": content_type,
                 "Content-Length": len(content)
             }
             response._content = content
@@ -195,3 +198,25 @@ class SpeechService:
             return result
         # Return
         return delegate
+
+def _create_response_data(
+    audio: ndarray,
+    *,
+    sample_rate: int,
+    response_format: SpeechResponseFormat
+) -> tuple[bytes, str]:
+    channels = audio.shape[1] if audio.ndim == 2 else 1 # assume interleaved
+    if response_format == "pcm":
+        content_type = ";".join([
+            f"audio/pcm",
+            f"rate={sample_rate}",
+            f"channels={channels}",
+            f"encoding=float",
+            f"bits=32"
+        ])
+        data = audio.tobytes()
+        return data, content_type
+    with Value.from_object(audio) as audio_value:
+        content_type = f"audio/{response_format}rate={sample_rate}"
+        data = audio_value.serialize(content_type)
+        return data, content_type

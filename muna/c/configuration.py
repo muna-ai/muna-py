@@ -1,6 +1,6 @@
 #
 #   Muna
-#   Copyright © 2025 NatML Inc. All Rights Reserved.
+#   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
 from ctypes import byref, c_int, c_void_p, create_string_buffer

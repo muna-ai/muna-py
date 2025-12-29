@@ -1,5 +1,6 @@
 ## 0.0.75
 + Added `muna.beta.predictions.remote.stream` method to stream remote predictions.
++ Added support for `aac`, `flac`, `opus`, `wav` response formats in `muna.beta.openai.audio.speech.create` function.
 + Fixed `TypeError` when creating a prediction with read-only `bytes` input value.
 + Fixed `AttributeError` when creating a prediction that outputs a binary output value.
 

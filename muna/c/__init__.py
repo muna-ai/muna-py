@@ -1,6 +1,6 @@
 #
 #   Muna
-#   Copyright © 2025 NatML Inc. All Rights Reserved.
+#   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
 # https://github.com/muna-ai/fxnc

@@ -1,6 +1,6 @@
 # 
 #   Muna
-#   Copyright © 2025 NatML Inc. All Rights Reserved.
+#   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
 from __future__ import annotations
@@ -9,6 +9,8 @@ from requests import Response
 from typing import Literal, TypedDict
 
 ChatCompletionReasoningEffort = Literal["minimal", "low", "medium", "high", "xhigh"]
+SpeechResponseFormat = Literal["mp3", "opus", "aac", "flac", "wav", "pcm"]
+SpeechStreamFormat = Literal["audio", "sse"]
 
 class ChatCompletion(BaseModel):
     class Usage(BaseModel):

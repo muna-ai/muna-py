@@ -1,6 +1,6 @@
 #
 #   Muna
-#   Copyright © 2025 NatML Inc. All Rights Reserved.
+#   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
 from __future__ import annotations
@@ -13,11 +13,16 @@ from .value import Value
 @final
 class ValueMap:
 
-    def __init__(self, map=None, *, owner: bool=True):
+    def __init__(
+        self,
+        map=None,
+        *,
+        owner: bool=True
+    ):
         if map is None:
             map = c_void_p()
             owner = True
-            status = get_fxnc().FXNValueMapCreate(byref(map))
+            status = get_fxnc().FXNValueCreateValueMap(byref(map))
             if status != FXNStatus.OK:
                 raise RuntimeError(f"Failed to create value map with error: {status_to_error(status)}")
         self.__map = map
@@ -48,7 +53,11 @@ class ValueMap:
         else:
             raise RuntimeError(f"Failed to get value map value for key '{key}' with error: {status_to_error(status)}")
 
-    def __setitem__(self, key: str, value: Value):
+    def __setitem__(
+        self,
+        key: str,
+        value: Value
+    ):
         status = get_fxnc().FXNValueMapSetValue(
             self.__map,
             key.encode(),
@@ -73,7 +82,7 @@ class ValueMap:
 
     def __release(self):
         if self.__map and self.__owner:
-            get_fxnc().FXNValueMapRelease(self.__map)
+            get_fxnc().FXNValueRelease(self.__map)
         self.__map = None
 
     @classmethod
