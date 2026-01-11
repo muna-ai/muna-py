@@ -3,6 +3,9 @@
 + Added support for `aac`, `flac`, `opus`, `wav` response formats in `muna.beta.openai.audio.speech.create` function.
 + Fixed `TypeError` when creating a prediction with read-only `bytes` input value.
 + Fixed `AttributeError` when creating a prediction that outputs a binary output value.
++ Removed `Dtype.audio` enumeration member.
++ Removed `Dtype.video` enumeration member.
++ Removed `Dtype.model` enumeration member.
 
 ## 0.0.74
 + Fixed `MunaAPIError` exception class raising exception when being unpickled.

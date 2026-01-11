@@ -22,9 +22,12 @@ class ValueMap:
         if map is None:
             map = c_void_p()
             owner = True
-            status = get_fxnc().FXNValueCreateValueMap(byref(map))
+            status = get_fxnc().FXNValueMapCreate(byref(map))
             if status != FXNStatus.OK:
-                raise RuntimeError(f"Failed to create value map with error: {status_to_error(status)}")
+                raise RuntimeError(
+                    f"Failed to create value map "
+                    f"with error: {status_to_error(status)}"
+                )
         self.__map = map
         self.__owner = owner
 
@@ -39,7 +42,10 @@ class ValueMap:
         if status == FXNStatus.OK:
             return buffer.value.decode("utf-8")
         else:
-            raise RuntimeError(f"Failed to get value map key at index {index} with error: {status_to_error(status)}")
+            raise RuntimeError(
+                f"Failed to get value map key at index {index} "
+                f"with error: {status_to_error(status)}"
+            )
 
     def __getitem__(self, key: str) -> Value | None:
         value = c_void_p()
@@ -48,10 +54,12 @@ class ValueMap:
             key.encode(),
             byref(value)
         )
-        if status == FXNStatus.OK:
-            return Value(value, owner=False)
-        else:
-            raise RuntimeError(f"Failed to get value map value for key '{key}' with error: {status_to_error(status)}")
+        if status != FXNStatus.OK:
+            raise RuntimeError(
+                f"Failed to get value map value for key '{key}' "
+                f"with error: {status_to_error(status)}"
+            )
+        return Value(value, owner=False)            
 
     def __setitem__(
         self,
@@ -64,7 +72,10 @@ class ValueMap:
             value._Value__value
         )
         if status != FXNStatus.OK:
-            raise RuntimeError(f"Failed to set value map value for key '{key}' with error: {status_to_error(status)}")
+            raise RuntimeError(
+                f"Failed to set value map value for key '{key}' "
+                f"with error: {status_to_error(status)}"
+            )
 
     def __len__(self) -> int:
         count = c_int32()
@@ -82,7 +93,7 @@ class ValueMap:
 
     def __release(self):
         if self.__map and self.__owner:
-            get_fxnc().FXNValueRelease(self.__map)
+            get_fxnc().FXNValueMapRelease(self.__map)
         self.__map = None
 
     @classmethod
