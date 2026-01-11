@@ -1,5 +1,5 @@
 ## 0.0.76
-*INCOMPLETE*
++ Minor stability improvements.
 
 ## 0.0.75
 + Added `muna.beta.predictions.remote.stream` method to stream remote predictions.
