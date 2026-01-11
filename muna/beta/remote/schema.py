@@ -28,4 +28,4 @@ class RemotePrediction(Prediction):
     """
     Remote prediction.
     """
-    results: list[RemoteValue] | None = Field(description="Prediction results.")
+    results: list[RemoteValue] | None = Field(default=None, description="Prediction results.")
