@@ -8,10 +8,10 @@ from collections.abc import Callable, Iterator
 from contextlib import redirect_stdout, redirect_stderr
 from contextvars import ContextVar
 from datetime import datetime, timezone
-from functools import reduce, wraps
-from inspect import signature, Parameter
+from functools import reduce, wraps, WRAPPER_ASSIGNMENTS
+from inspect import signature, Parameter, Signature
 from io import StringIO
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from secrets import choice
 from time import perf_counter
 from traceback import format_exc
@@ -28,15 +28,12 @@ _prediction_request: ContextVar[CreatePredictionInput | None] = ContextVar(
     default=None
 )
 
-def prediction_endpoint(tag: str) -> Callable[
+def prediction_endpoint() -> Callable[
     [Callable[P, R]],
     Callable[[CreatePredictionInput], RemotePrediction | Iterator[RemotePrediction]]
 ]:
     """
     Wrap a function to handle serving remote prediction requests.
-
-    Parameters:
-        tag (str): Predictor tag.
     """
     def decorator(func: Callable[P, R]) -> Callable[[CreatePredictionInput], RemotePrediction | Iterator[RemotePrediction]]:
         # Get function signature to determine required parameters
@@ -47,7 +44,10 @@ def prediction_endpoint(tag: str) -> Callable[
             and param.kind not in (Parameter.VAR_POSITIONAL, Parameter.VAR_KEYWORD)
         }
         # Define wrapper
-        @wraps(func)
+        @wraps(
+            func,
+            assigned=(a for a in WRAPPER_ASSIGNMENTS if a != "__annotations__")
+        )
         def wrapper(input: CreatePredictionInput) -> RemotePrediction | Iterator[RemotePrediction]:
             prediction_id = _create_prediction_id()
             stdout_buffer = StringIO()
@@ -76,7 +76,7 @@ def prediction_endpoint(tag: str) -> Callable[
                     return map(
                         lambda r: _create_prediction(
                             id=prediction_id,
-                            tag=tag,
+                            tag=input.tag,
                             results=r,
                             start_time=start_time,
                             logs=stdout_buffer,
@@ -92,7 +92,7 @@ def prediction_endpoint(tag: str) -> Callable[
                     )
                     return _create_prediction(
                         id=prediction_id,
-                        tag=tag,
+                        tag=input.tag,
                         results=result,
                         start_time=start_time,
                         logs=stdout_buffer,
@@ -102,7 +102,7 @@ def prediction_endpoint(tag: str) -> Callable[
                 latency = (perf_counter() - start_time) * 1000  # millis
                 return RemotePrediction(
                     id=prediction_id,
-                    tag=tag,
+                    tag=input.tag,
                     latency=latency,
                     logs=stdout_buffer.getvalue(),
                     error=format_exc(),
@@ -110,13 +110,25 @@ def prediction_endpoint(tag: str) -> Callable[
                 )
             finally:
                 _prediction_request.reset(token)
+        # Explicitly set signature with concrete types (vs. forward references)
+        # This is done for compatibility with FastAPI.
+        wrapper.__signature__ = Signature(
+            parameters=[
+                Parameter(
+                    name="input",
+                    kind=Parameter.POSITIONAL_OR_KEYWORD,
+                    annotation=CreatePredictionInput
+                )
+            ],
+            return_annotation=RemotePrediction
+        )
         # Return
         return wrapper
     return decorator
 
 def get_prediction_request() -> CreatePredictionInput | None:
     """
-    Get the current prediction request, or None if not in scope.
+    Get the current prediction request, or `None` if not in scope.
     """
     return _prediction_request.get()
 
@@ -147,9 +159,9 @@ def _create_prediction_id() -> str:
     return f"pred_{random}"
 
 class CreatePredictionInput(BaseModel):
-    api_url: str
-    access_key: str
-    tag: str
-    inputs: dict[str, RemoteValue]
-    acceleration: RemoteAcceleration | str
-    stream: bool = False
+    tag: str = Field(description="Predictor tag.")
+    inputs: dict[str, RemoteValue] = Field(description="Prediction inputs.")
+    api_url: str | None = Field(default=None, description="Muna API URL.")
+    access_key: str | None = Field(default=None, description="Muna access key.")
+    acceleration: RemoteAcceleration | str | None = Field(default=None, description="Prediction acceleration.")
+    stream: bool = Field(default=False, description="Whether to stream predictions.")
