@@ -1,3 +1,6 @@
+## 0.0.78
+*INCOMPLETE*
+
 ## 0.0.77
 + Fixed errors when compiling predictors with the Muna CLI.
 
