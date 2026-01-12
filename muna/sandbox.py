@@ -12,7 +12,6 @@ from typing import Literal
 from urllib.parse import urlparse
 
 from .muna import Muna
-from .resources import upload_resource
 from .logging import CustomProgressTask
 
 class WorkdirCommand(BaseModel):
@@ -213,7 +212,7 @@ class Sandbox(BaseModel):
                             if from_path.is_dir()
                             else to_path
                         )
-                        resource_url = upload_resource(file, muna=muna, progress=False)
+                        resource_url = muna.client.upload(file, progress=False)
                         checksum = urlparse(resource_url).path.split("/")[-1]
                         manifest[str(dst_path)] = checksum
                         task.update(total=len(files), completed=idx+1)

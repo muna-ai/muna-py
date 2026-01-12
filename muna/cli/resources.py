@@ -11,7 +11,6 @@ from typer import Argument, Option, Typer
 from typing_extensions import Annotated
 
 from ..muna import Muna
-from ..resources import download_resource, upload_resource
 from .auth import get_access_key
 
 app = Typer(no_args_is_help=True)
@@ -27,7 +26,7 @@ def upload(
     if public:
         _upload_value(path, muna=muna)
     else:
-        upload_resource(path, muna=muna, progress=True)
+        muna.client.upload(path, progress=True)
         print(f"Uploaded resource [bright_cyan]{hash}[/bright_cyan]")
 
 @app.command(name="download", help="Download a prediction resource.")
@@ -38,7 +37,7 @@ def download(
     muna = Muna(get_access_key())
     url = f"{muna.client.api_url}/resources/{hash}"
     path = path or Path(hash)
-    download_resource(url, path, client=muna.client)
+    muna.client.download(url, path)
 
 def _upload_value(
     path: Path,
