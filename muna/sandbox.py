@@ -94,7 +94,7 @@ class Sandbox(BaseModel):
         command = WorkdirCommand(path=str(path))
         return Sandbox(commands=self.commands + [command])
 
-    def env(self, **env: str) -> Sandbox:
+    def env(self, env: dict[str, str]) -> Sandbox:
         """
         Set environment variables in the sandbox.
         """
