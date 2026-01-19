@@ -160,6 +160,7 @@ class PredictionService:
                 path = self.__get_resource_path(resource)
                 if not path.exists():
                     color = "dark_orange" if not resource.type == "dso" else "purple"
+                    path.parent.mkdir(parents=True, exist_ok=True)
                     self.client.download(resource.url, path, progress=color)
                 configuration.add_resource(resource.type, path)
             predictor = Predictor(configuration)

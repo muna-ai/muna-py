@@ -166,7 +166,6 @@ class MunaClient:
                     tmp_file.write(chunk)
                     completed += len(chunk)
                     progress_bar.update(task_id, total=size, completed=completed)
-        path.parent.mkdir(parents=True, exist_ok=True)
         Path(tmp_file.name).replace(path)
         return path
 
