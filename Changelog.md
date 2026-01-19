@@ -1,5 +1,5 @@
 ## 0.0.78
-*INCOMPLETE*
++ Fixed errors when creating predictions with certain predictors.
 
 ## 0.0.77
 + Fixed errors when compiling predictors with the Muna CLI.
