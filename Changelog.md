@@ -1,5 +1,6 @@
 ## 0.0.79
-*INCOMPLETE*
++ Updated `@compile` decorator to make `tag` argument optional.
++ Updated `@compile` decorator to make `description` argument optional.
 
 ## 0.0.78
 + Fixed errors when creating predictions with certain predictors.

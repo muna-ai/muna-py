@@ -48,24 +48,23 @@ CompileMetadata = (
 P = ParamSpec("P")
 R = TypeVar("R")
 
-class PredictorSpec(BaseModel):
+class PredictorSpec(BaseModel, **ConfigDict(arbitrary_types_allowed=True, extra="allow")):
     """
     Descriptor of a predictor to be compiled.
     """
-    tag: str = Field(description="Predictor tag.")
-    description: str = Field(description="Predictor description. MUST be less than 100 characters long.", min_length=4, max_length=100)
+    tag: str | None = Field(description="Predictor tag.")
+    description: str | None = Field(description="Predictor description. MUST be less than 100 characters long.", min_length=4, max_length=100)
     sandbox: Sandbox = Field(description="Sandbox to compile the function.")
     targets: list[str] | None = Field(description="Targets to compile this predictor for. Pass `None` to compile for our default targets.")
     metadata: list[object] = Field(default=[], description="Metadata to use while compiling the function.")
     access: PredictorAccess = Field(description="Predictor access.")
     card: str | None = Field(default=None, description="Predictor card (markdown).")
     license: str | None = Field(default=None, description="Predictor license URL. This is required for public predictors.")
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow", frozen=True)
 
 def compile(
-    tag: str,
     *,
-    description: str,
+    tag: str=None,
+    description: str=None,
     sandbox: Sandbox=None,
     trace_modules: list[ModuleType]=[],
     targets: list[CompileTarget]=None,

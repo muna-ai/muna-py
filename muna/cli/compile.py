@@ -38,6 +38,17 @@ def compile_predictor(
                 name=func.__name__
             )
             spec: PredictorSpec = func.__predictor_spec
+            if spec.tag is None:
+                user = muna.users.retrieve()
+                spec.tag = f"@{user.username}/{func.__name__}"
+            if spec.description is None:
+                if func.__doc__ is None:
+                    raise ValueError(
+                        f"Cannot compile predictor because no `description` was "
+                        f"provided in `@compile(...)`, and the function does not "
+                        f"have a docstring."
+                    )
+                spec.description = func.__doc__.strip()
             task.finish(f"Loaded prediction function: [bold cyan]{spec.tag}[/bold cyan]")
         # Populate
         sandbox = spec.sandbox
@@ -51,7 +62,11 @@ def compile_predictor(
                     muna.client.request(
                         method="POST",
                         path="/predictors",
-                        body=spec.model_dump(mode="json", exclude=spec.model_extra.keys(), by_alias=True),
+                        body=spec.model_dump(
+                            mode="json",
+                            exclude=spec.model_extra.keys(),
+                            by_alias=True
+                        ),
                         response_type=_Predictor
                     )
                 except MunaAPIError as ex:
@@ -61,7 +76,11 @@ def compile_predictor(
                 for event in muna.client.stream(
                     method="POST",
                     path=f"/predictors/{spec.tag}/compile",
-                    body=spec.model_dump(mode="json", exclude=spec.model_extra.keys(), by_alias=True),
+                    body=spec.model_dump(
+                        mode="json",
+                        exclude=spec.model_extra.keys(),
+                        by_alias=True
+                    ),
                     response_type=_LogEvent | _ErrorEvent
                 ):
                     if isinstance(event, _LogEvent):

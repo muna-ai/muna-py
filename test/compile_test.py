@@ -9,8 +9,6 @@ import numpy as np
 
 def test_populate_predictor_spec():
     @compile(
-        "@yusuf/test",
-        description="Test function.",
         trace_modules=[np],
         targets=["android", "macos"],
         hidden_attribute="kept"

@@ -49,67 +49,18 @@ def prediction_endpoint() -> Callable[
             assigned=(a for a in WRAPPER_ASSIGNMENTS if a != "__annotations__")
         )
         def wrapper(input: CreatePredictionInput) -> RemotePrediction | Iterator[RemotePrediction]:
-            prediction_id = _create_prediction_id()
-            stdout_buffer = StringIO()
-            start_time = perf_counter()
-            token = _prediction_request.set(input)
-            try:
-                # Check args
-                missing_args = required_params - set(input.inputs.keys())
-                if missing_args:
-                    arg_name = next(iter(missing_args))
-                    raise ValueError(
-                        f"Failed to create prediction because required "
-                        f"input argument `{arg_name}` was not provided."
-                    )
-                # Deserialize inputs
-                kwargs = {
-                    name: _parse_remote_value(value)
-                    for name, value in input.inputs.items()
-                }
-                # Invoke function
-                with redirect_stdout(stdout_buffer), redirect_stderr(stdout_buffer):
-                    result = func(**kwargs)
-                # Create prediction
-                created = datetime.now(timezone.utc).isoformat()
-                if input.stream:
-                    return map(
-                        lambda r: _create_prediction(
-                            id=prediction_id,
-                            tag=input.tag,
-                            results=r,
-                            start_time=start_time,
-                            logs=stdout_buffer,
-                            created=created
-                        ),
-                        result if isinstance(result, Iterator) else iter([result])
-                    )
-                else:
-                    result = (
-                        reduce(lambda _, x: x, result)
-                        if isinstance(result, Iterator)
-                        else result
-                    )
-                    return _create_prediction(
-                        id=prediction_id,
-                        tag=input.tag,
-                        results=result,
-                        start_time=start_time,
-                        logs=stdout_buffer,
-                        created=created
-                    )
-            except Exception:
-                latency = (perf_counter() - start_time) * 1000  # millis
-                return RemotePrediction(
-                    id=prediction_id,
-                    tag=input.tag,
-                    latency=latency,
-                    logs=stdout_buffer.getvalue(),
-                    error=format_exc(),
-                    created=datetime.now(timezone.utc).isoformat()
+            if input.stream:
+                return _invoke_streaming(
+                    func=func,
+                    input=input,
+                    required_params=required_params
                 )
-            finally:
-                _prediction_request.reset(token)
+            else:
+                return _invoke_eager(
+                    func=func,
+                    input=input,
+                    required_params=required_params
+                )
         # Explicitly set signature with concrete types (vs. forward references)
         # This is done for compatibility with FastAPI.
         wrapper.__signature__ = Signature(
@@ -131,6 +82,102 @@ def get_prediction_request() -> CreatePredictionInput | None:
     Get the current prediction request, or `None` if not in scope.
     """
     return _prediction_request.get()
+
+def _invoke_eager(
+    *,
+    func: Callable,
+    input: CreatePredictionInput,
+    required_params: set[str]
+) -> RemotePrediction:
+    prediction_id = _create_prediction_id()
+    stdout_buffer = StringIO()
+    token = _prediction_request.set(input)
+    start_time = perf_counter()
+    try:
+        kwargs = _parse_inputs(input.inputs, required_params)
+        with redirect_stdout(stdout_buffer), redirect_stderr(stdout_buffer):
+            result = func(**kwargs)
+        if isinstance(result, Iterator):
+            result = reduce(lambda _, x: x, result)
+        return _create_prediction(
+            id=prediction_id,
+            tag=input.tag,
+            results=result,
+            start_time=start_time,
+            logs=stdout_buffer,
+            created=datetime.now(timezone.utc).isoformat()
+        )
+    except Exception:
+        latency = (perf_counter() - start_time) * 1000
+        return RemotePrediction(
+            id=prediction_id,
+            tag=input.tag,
+            latency=latency,
+            logs=stdout_buffer.getvalue(),
+            error=format_exc(),
+            created=datetime.now(timezone.utc).isoformat()
+        )
+    finally:
+        _prediction_request.reset(token)
+
+def _invoke_streaming(
+    *,
+    func: Callable,
+    input: CreatePredictionInput,
+    required_params: set[str]
+) -> Iterator[RemotePrediction]:
+    prediction_id = _create_prediction_id()
+    stdout_buffer = StringIO()
+    token = _prediction_request.set(input)
+    start_time = perf_counter()
+    try:
+        kwargs = _parse_inputs(input.inputs, required_params)
+        with redirect_stdout(stdout_buffer), redirect_stderr(stdout_buffer):
+            result = func(**kwargs)
+        created = datetime.now(timezone.utc).isoformat()
+        def stream_with_context():
+            try:
+                stream = result if isinstance(result, Iterator) else iter([result])
+                for r in stream:
+                    yield _create_prediction(
+                        id=prediction_id,
+                        tag=input.tag,
+                        results=r,
+                        start_time=start_time,
+                        logs=stdout_buffer,
+                        created=created
+                    )
+            finally:
+                _prediction_request.reset(token)
+        return stream_with_context()
+    except Exception:
+        _prediction_request.reset(token)
+        latency = (perf_counter() - start_time) * 1000
+        prediction = RemotePrediction(
+            id=prediction_id,
+            tag=input.tag,
+            latency=latency,
+            logs=stdout_buffer.getvalue(),
+            error=format_exc(),
+            created=datetime.now(timezone.utc).isoformat()
+        )
+        return iter([prediction])
+
+def _parse_inputs(
+    inputs: dict[str, RemoteValue],
+    required_params: set[str],
+) -> dict[str, object]:
+    missing_args = required_params - set(inputs.keys())
+    if missing_args:
+        arg_name = next(iter(missing_args))
+        raise ValueError(
+            f"Failed to create prediction because required "
+            f"input argument `{arg_name}` was not provided."
+        )
+    return {
+        name: _parse_remote_value(value)
+        for name, value in inputs.items()
+    }
 
 def _create_prediction(
     *,
