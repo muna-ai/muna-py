@@ -147,6 +147,16 @@ def _invoke_streaming(
                         logs=stdout_buffer,
                         created=created
                     )
+            except Exception:
+                latency = (perf_counter() - start_time) * 1000
+                yield RemotePrediction(
+                    id=prediction_id,
+                    tag=input.tag,
+                    latency=latency,
+                    logs=stdout_buffer.getvalue(),
+                    error=format_exc(),
+                    created=datetime.now(timezone.utc).isoformat()
+                )
             finally:
                 _prediction_request.reset(token)
         return stream_with_context()

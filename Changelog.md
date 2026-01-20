@@ -1,5 +1,5 @@
 ## 0.0.80
-*INCOMPLETE*
++ Minor stability improvement.
 
 ## 0.0.79
 + Updated `@compile` decorator to make `tag` argument optional.
