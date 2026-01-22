@@ -1,5 +1,5 @@
 ## 0.0.82
-*INCOMPLETE*
++ Minor fixes.
 
 ## 0.0.81
 + Refactored `Parameter.type` field to `Parameter.dtype`.

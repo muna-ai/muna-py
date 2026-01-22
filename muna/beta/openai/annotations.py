@@ -244,7 +244,7 @@ def get_parameter(
     dtype = dtype if isinstance(dtype, set) else { dtype }
     for idx, param in enumerate(parameters):
         if (
-            param.type in dtype and
+            param.dtype in dtype and
             (not denotation or param.denotation == denotation)
         ):
             return idx, param

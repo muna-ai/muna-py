@@ -135,8 +135,8 @@ def _create_remote_value(obj: Value) -> RemoteValue:
 
 def _parse_remote_value(value: RemoteValue) -> Value:
     buffer = _download_value_data(value.data) if value.data else None
-    is_tensor = value.type in _TENSOR_DTYPES
-    match value.type:
+    is_tensor = value.dtype in _TENSOR_DTYPES
+    match value.dtype:
         case Dtype.null:
             return None
         case _ if is_tensor:
@@ -152,7 +152,7 @@ def _parse_remote_value(value: RemoteValue) -> Value:
         case Dtype.binary:
             return buffer
         case _:
-            raise ValueError(f"Failed to parse remote value with type `{value.type}` because it is not supported")
+            raise ValueError(f"Failed to parse remote value with type `{value.dtype}` because it is not supported")
 
 def _parse_remote_prediction(prediction: RemotePrediction) -> Prediction:
     results = (

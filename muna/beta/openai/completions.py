@@ -194,7 +194,7 @@ class ChatCompletionService:
             idx
             for idx, param in enumerate(signature.outputs)
             if (
-                param.type == Dtype.dict and
+                param.dtype == Dtype.dict and
                 param.value_schema["title"] in { "ChatCompletion", "ChatCompletionChunk" }
             )
         ), None)

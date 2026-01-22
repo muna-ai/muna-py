@@ -27,5 +27,5 @@ def test_deserialize_png_to_image():
     image_data = Path("test/data/cat.jpg").read_bytes()
     image_value = Value.from_bytes(image_data, mime="image/*")
     # Check
-    assert image_value.type == Dtype.image
+    assert image_value.dtype == Dtype.image
     assert image_value.shape == (224, 224, 3)

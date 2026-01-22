@@ -38,7 +38,7 @@ class Value:
         return data            
 
     @property
-    def type(self) -> Dtype:
+    def dtype(self) -> Dtype:
         dtype = c_int()
         status = get_fxnc().FXNValueGetType(self.__value, byref(dtype))
         if status != FXNStatus.OK:
@@ -47,7 +47,7 @@ class Value:
 
     @property
     def shape(self) -> tuple[int, ...] | None:
-        if self.type not in _TENSOR_ISH_DTYPES:
+        if self.dtype not in _TENSOR_ISH_DTYPES:
             return None
         fxnc = get_fxnc()
         dims = c_int32()
@@ -79,7 +79,7 @@ class Value:
         return result
 
     def to_object(self) -> Object:
-        match self.type:
+        match self.dtype:
             case Dtype.null:    return None
             case t if t in _TENSOR_DTYPES:
                 ctype = as_ctypes_type(dtype(t))
@@ -92,7 +92,7 @@ class Value:
                 data = as_array(cast(self.data, POINTER(c_uint8)), self.shape).copy()
                 return Image.fromarray(data.squeeze())
             case Dtype.binary:  return string_at(self.data, self.shape[0])
-            case _:             raise ValueError(f"Failed to convert value with type `{self.type}` to object because it is not supported")
+            case _:             raise ValueError(f"Failed to convert value with type `{self.dtype}` to object because it is not supported")
 
     def __enter__(self):
         return self

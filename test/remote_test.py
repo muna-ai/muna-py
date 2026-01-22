@@ -24,7 +24,7 @@ def test_prediction_endpoint_create_eager():
     prediction = _prediction_endpoint_eager(payload)
     assert isinstance(prediction, RemotePrediction)
     assert isinstance(prediction.results, list)
-    assert prediction.results[0].type == Dtype.string
+    assert prediction.results[0].dtype == Dtype.string
 
 def test_prediction_endpoint_stream_eager():
     @prediction_endpoint(tag="@muna/greeting")
@@ -60,7 +60,7 @@ def test_prediction_endpoint_create_generator():
     prediction = _prediction_endpoint_generator(payload)
     assert isinstance(prediction, RemotePrediction)
     assert isinstance(prediction.results, list)
-    assert prediction.results[0].type == Dtype.string
+    assert prediction.results[0].dtype == Dtype.string
 
 def test_prediction_endpoint_stream_generator():
     payload = CreatePredictionInput(
