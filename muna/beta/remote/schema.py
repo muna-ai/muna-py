@@ -3,7 +3,7 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 from typing import Literal
 
 from ...types import Dtype, Prediction
@@ -22,7 +22,7 @@ class RemoteValue(BaseModel):
     Remote value.
     """
     data: str | None = Field(description="Value URL. This is a remote or data URL.")
-    type: Dtype = Field(description="Value type.")
+    dtype: Dtype = Field(description="Value type.", validation_alias=AliasChoices("dtype", "type"))
 
 class RemotePrediction(Prediction):
     """

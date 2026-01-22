@@ -1,5 +1,6 @@
 ## 0.0.81
-*INCOMPLETE*
++ Refactored `Parameter.type` field to `Parameter.dtype`.
++ Refactored `RemoteValue.type` field to `RemoteValue.dtype`.
 
 ## 0.0.80
 + Minor stability improvement.

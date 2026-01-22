@@ -98,7 +98,7 @@ class RemotePredictionService:
 def _create_remote_value(obj: Value) -> RemoteValue:
     obj = _ensure_object_serializable(obj)
     match obj:
-        case None:      return RemoteValue(data=None, type=Dtype.null)
+        case None:      return RemoteValue(data=None, dtype=Dtype.null)
         case float():   return _create_remote_value(array(obj, dtype=Dtype.float32))
         case bool():    return _create_remote_value(array(obj, dtype=Dtype.bool))
         case int():     return _create_remote_value(array(obj, dtype=Dtype.int32))
@@ -107,29 +107,29 @@ def _create_remote_value(obj: Value) -> RemoteValue:
             buffer = BytesIO()
             savez_compressed(buffer, obj, allow_pickle=False)
             data = _upload_value_data(buffer)
-            return RemoteValue(data=data, type=obj.dtype.name)
+            return RemoteValue(data=data, dtype=obj.dtype.name)
         case str():
             buffer = BytesIO(obj.encode())
             data = _upload_value_data(buffer, mime="text/plain")
-            return RemoteValue(data=data, type=Dtype.string)
+            return RemoteValue(data=data, dtype=Dtype.string)
         case list():
             buffer = BytesIO(dumps(obj).encode())
             data = _upload_value_data(buffer, mime="application/json")
-            return RemoteValue(data=data, type=Dtype.list)
+            return RemoteValue(data=data, dtype=Dtype.list)
         case dict():
             buffer = BytesIO(dumps(obj).encode())
             data = _upload_value_data(buffer, mime="application/json")
-            return RemoteValue(data=data, type=Dtype.dict)
+            return RemoteValue(data=data, dtype=Dtype.dict)
         case Image.Image():
             buffer = BytesIO()
             format = "PNG" if obj.mode == "RGBA" else "JPEG"
             mime = f"image/{format.lower()}"
             obj.save(buffer, format=format)
             data = _upload_value_data(buffer, mime=mime)
-            return RemoteValue(data=data, type=Dtype.image)
+            return RemoteValue(data=data, dtype=Dtype.image)
         case BytesIO():
             data = _upload_value_data(obj)
-            return RemoteValue(data=data, type=Dtype.binary)
+            return RemoteValue(data=data, dtype=Dtype.binary)
         case _:
             raise ValueError(f"Failed to serialize value '{obj}' of type `{type(obj)}` because it is not supported")
 

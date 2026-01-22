@@ -35,9 +35,10 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
         sample_rate (int): Audio sample rate in Hertz.
     """
     name: str = Field(description="Parameter name.")
-    type: Dtype | None = Field(
+    dtype: Dtype | None = Field(
         default=None,
-        description="Parameter type. This is `None` if the type is unknown or unsupported by Muna."
+        description="Parameter type. This is `None` if the type is unknown or unsupported by Muna.",
+        validation_alias=AliasChoices("dtype", "type")
     )
     description: str | None = Field(
         default=None,
