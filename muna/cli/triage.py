@@ -13,7 +13,10 @@ from ..muna import Muna
 from .auth import get_access_key
 
 def triage_predictor(
-    reference_code: Annotated[str, Argument(help="Predictor compilation reference code.")]
+    reference_code: Annotated[
+        str,
+        Argument(help="Predictor compilation reference code.")
+    ]
 ):
     muna = Muna(get_access_key())
     error = muna.client.request(
