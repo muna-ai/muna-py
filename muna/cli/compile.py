@@ -8,11 +8,9 @@ from inspect import getmembers, getmodulename, isfunction
 from pathlib import Path
 from pydantic import BaseModel
 from rich import print as print_rich
-from rich.panel import Panel
 import sys
 from typer import Argument, Option
-from typing import Callable, Literal
-from typing_extensions import Annotated
+from typing import Annotated, Callable, Literal
 from urllib.parse import urlparse, urlunparse
 
 from ..client import MunaAPIError
@@ -22,9 +20,19 @@ from ..sandbox import EntrypointCommand
 from ..logging import CustomProgress, CustomProgressTask
 from .auth import get_access_key
 
-def compile_predictor(
-    path: str=Argument(..., help="Predictor path."),
-    overwrite: bool=Option(False, "--overwrite", help="Whether to delete any existing predictor with the same tag before compiling."),
+def compile_function(
+    path: Annotated[str, Argument(
+        resolve_path=True,
+        exists=True,
+        readable=True,
+        file_okay=True,
+        dir_okay=False,
+        help="Python source path."
+    )],
+    overwrite: Annotated[bool, Option(
+        "--overwrite",
+        help="Whether to delete any existing predictor with the same tag before compiling.")
+    ]=False,
 ):
     muna = Muna(get_access_key())
     path: Path = Path(path).resolve()
@@ -91,31 +99,36 @@ def compile_predictor(
     predictor_url = _compute_predictor_url(muna.client.api_url, spec.tag)
     print_rich(f"\n[bold spring_green3]🎉 Predictor is now being compiled.[/bold spring_green3] Check it out at [link={predictor_url}]{predictor_url}[/link]")
 
-def triage_predictor(
-    reference_code: Annotated[str, Argument(help="Predictor compilation reference code.")]
+def transpile_function( # INCOMPLETE
+    path: Annotated[Path, Argument(
+        resolve_path=True,
+        exists=True,
+        readable=True,
+        file_okay=True,
+        dir_okay=False,
+        help="Python source path."
+    )]
 ):
     muna = Muna(get_access_key())
-    error = muna.client.request(
-        method="GET",
-        path=f"/predictors/triage?referenceCode={reference_code}",
-        response_type=_TriagedCompileError
-    )
-    user_panel = Panel(
-        error.user,
-        title="User Error",
-        title_align="left",
-        highlight=True,
-        border_style="bright_red"
-    )
-    internal_panel = Panel(
-        error.internal,
-        title="Internal Error",
-        title_align="left",
-        highlight=True,
-        border_style="gold1"
-    )
-    print_rich(user_panel)
-    print_rich(internal_panel)
+    with CustomProgress():
+        # Load
+        with CustomProgressTask(loading_text="Loading predictor...") as task:
+            func = _load_predictor_func(path)
+            entrypoint = EntrypointCommand(
+                from_path=str(path),
+                to_path=f"./{path.name}",
+                name=func.__name__
+            )
+            spec: PredictorSpec = func.__predictor_spec
+            task.finish(f"Loaded prediction function: [bold cyan]{func.__module__}.{func.__name__}[/bold cyan]")
+        # Populate
+        sandbox = spec.sandbox
+        sandbox.commands.append(entrypoint)
+        with CustomProgressTask(loading_text="Uploading sandbox...", done_text="Uploaded sandbox"):
+            sandbox.populate(muna=muna)
+        # Compile
+        with CustomProgressTask(loading_text="Running codegen...", done_text="Completed codegen"):
+            pass
 
 def _load_predictor_func(path: str) -> Callable[...,object]:
     if "" not in sys.path:
@@ -164,10 +177,6 @@ class _ErrorEvent(BaseModel):
 
 class CompileError(Exception):
     pass
-
-class _TriagedCompileError(BaseModel):
-    user: str
-    internal: str
 
 class ProgressLogQueue:
 
