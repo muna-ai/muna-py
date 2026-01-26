@@ -6,25 +6,35 @@
 from importlib.util import module_from_spec, spec_from_file_location
 from inspect import getmembers, getmodulename, isfunction
 from pathlib import Path
+import platform
 from pydantic import BaseModel
 from rich import print as print_rich
-from rich.panel import Panel
 import sys
 from typer import Argument, Option
-from typing import Callable, Literal
-from typing_extensions import Annotated
+from typing import Annotated, Callable, Literal
 from urllib.parse import urlparse, urlunparse
 
 from ..client import MunaAPIError
 from ..compile import PredictorSpec
+from ..logging import CustomProgress, CustomProgressTask
 from ..muna import Muna
 from ..sandbox import EntrypointCommand
-from ..logging import CustomProgress, CustomProgressTask
+from ..types import PredictionResource
 from .auth import get_access_key
 
-def compile_predictor(
-    path: str=Argument(..., help="Predictor path."),
-    overwrite: bool=Option(False, "--overwrite", help="Whether to delete any existing predictor with the same tag before compiling."),
+def compile_function(
+    path: Annotated[str, Argument(
+        resolve_path=True,
+        exists=True,
+        readable=True,
+        file_okay=True,
+        dir_okay=False,
+        help="Python source path."
+    )],
+    overwrite: Annotated[bool, Option(
+        "--overwrite",
+        help="Whether to delete any existing predictor with the same tag before compiling.")
+    ]=False,
 ):
     muna = Muna(get_access_key())
     path: Path = Path(path).resolve()
@@ -49,7 +59,7 @@ def compile_predictor(
                         f"have a docstring."
                     )
                 spec.description = func.__doc__.strip()
-            task.finish(f"Loaded prediction function: [bold cyan]{spec.tag}[/bold cyan]")
+            task.finish(f"Loaded Python function: [bold cyan]{spec.tag}[/bold cyan]")
         # Populate
         sandbox = spec.sandbox
         sandbox.commands.append(entrypoint)
@@ -83,39 +93,85 @@ def compile_predictor(
                     ),
                     response_type=_LogEvent | _ErrorEvent
                 ):
-                    if isinstance(event, _LogEvent):
-                        task_queue.push_log(event)
-                    elif isinstance(event, _ErrorEvent):
-                        task_queue.push_error(event)
-                        raise CompileError(event.data.error)
+                    match event.event:
+                        case "log":
+                            task_queue.push_log(event)
+                        case "error":
+                            task_queue.push_error(event)
+                            raise CompileError(event.data.error)
     predictor_url = _compute_predictor_url(muna.client.api_url, spec.tag)
     print_rich(f"\n[bold spring_green3]🎉 Predictor is now being compiled.[/bold spring_green3] Check it out at [link={predictor_url}]{predictor_url}[/link]")
 
-def triage_predictor(
-    reference_code: Annotated[str, Argument(help="Predictor compilation reference code.")]
+def transpile_function(
+    path: Annotated[Path, Argument(
+        resolve_path=True,
+        exists=True,
+        readable=True,
+        file_okay=True,
+        dir_okay=False,
+        help="Python source path."
+    )],
+    output: Annotated[Path, Argument(
+        resolve_path=True,
+        exists=False,
+        writable=True,
+        help="Output path for generated C++ sources."
+    )]=Path("cpp")
 ):
     muna = Muna(get_access_key())
-    error = muna.client.request(
-        method="GET",
-        path=f"/predictors/triage?referenceCode={reference_code}",
-        response_type=_TriagedCompileError
-    )
-    user_panel = Panel(
-        error.user,
-        title="User Error",
-        title_align="left",
-        highlight=True,
-        border_style="bright_red"
-    )
-    internal_panel = Panel(
-        error.internal,
-        title="Internal Error",
-        title_align="left",
-        highlight=True,
-        border_style="gold1"
-    )
-    print_rich(user_panel)
-    print_rich(internal_panel)
+    with CustomProgress():
+        # Load
+        with CustomProgressTask(loading_text="Loading predictor...") as task:
+            func = _load_predictor_func(path)
+            entrypoint = EntrypointCommand(
+                from_path=str(path),
+                to_path=f"./{path.name}",
+                name=func.__name__
+            )
+            spec: PredictorSpec = func.__predictor_spec
+            spec.targets = (
+                spec.targets
+                if spec.targets is not None
+                else [_get_current_target()]
+            )
+            task.finish(f"Loaded Python function: [bold cyan]{func.__module__}.{func.__name__}[/bold cyan]")
+        # Populate
+        sandbox = spec.sandbox
+        sandbox.commands.append(entrypoint)
+        with CustomProgressTask(loading_text="Uploading sandbox...", done_text="Uploaded sandbox"):
+            sandbox.populate(muna=muna)
+        # Compile
+        with CustomProgressTask(loading_text="Running codegen...", done_text="Completed codegen"):
+            with ProgressLogQueue() as task_queue:
+                for event in muna.client.stream(
+                    method="POST",
+                    path=f"/transpile",
+                    body=spec.model_dump(
+                        mode="json",
+                        exclude=spec.model_extra.keys(),
+                        by_alias=True
+                    ),
+                    response_type=_LogEvent | _ErrorEvent | _SourceEvent
+                ):
+                    match event.event:
+                        case "log":
+                            task_queue.push_log(event)
+                        case "error":
+                            task_queue.push_error(event)
+                            raise CompileError(event.data.error)
+                        case "sources":
+                            source: _TranspiledSource = event.data[0]
+        # Write source files
+        output.mkdir()
+        _write_file(source.code, dir=output, muna=muna)
+        _write_file(source.cmake, dir=output, muna=muna)
+        _write_file(source.readme, dir=output, muna=muna)
+        _write_file(source.example, dir=output, muna=muna)
+        if source.resources:
+            resource_path = output / "resources"
+            resource_path.mkdir()
+            for res in source.resources:
+                _write_file(res.url, name=res.name, dir=resource_path, muna=muna)
 
 def _load_predictor_func(path: str) -> Callable[...,object]:
     if "" not in sys.path:
@@ -142,6 +198,27 @@ def _compute_predictor_url(api_url: str, tag: str) -> str:
     predictor_url = urlunparse(parsed_url._replace(netloc=netloc, path=f"{tag}"))
     return predictor_url
 
+def _get_current_target() -> str:
+    match (platform.system().lower(), platform.machine().lower()):
+        case ("darwin", "arm64"):       return "arm64-apple-darwin"
+        case ("linux", "aarch64"):      return "aarch64-unknown-linux-gnu"
+        case ("linux", "x86_64"):       return "x86_64-unknown-linux-gnu"
+        case ("windows", "arm64"):      return "aarch64-pc-windows-msvc"
+        case ("windows", "amd64"):      return "x86_64-pc-windows-msvc"
+        case (system, arch):            raise ValueError(f"Cannot transpile because your system target is unsupported: {system} {arch}")
+
+def _write_file(
+    url: str,
+    *,
+    name: str=None,
+    dir: Path,
+    muna: Muna,
+) -> Path:
+    name = name or Path(url).name
+    path = dir / name
+    muna.client.download(url, path, progress=True)
+    return path
+
 class _Predictor(BaseModel):
     tag: str
 
@@ -162,12 +239,19 @@ class _ErrorEvent(BaseModel):
     event: Literal["error"]
     data: _ErrorData
 
+class _TranspiledSource(BaseModel):
+    code: str
+    cmake: str
+    readme: str
+    example: str
+    resources: list[PredictionResource]
+
+class _SourceEvent(BaseModel):
+    event: Literal["sources"]
+    data: list[_TranspiledSource]
+
 class CompileError(Exception):
     pass
-
-class _TriagedCompileError(BaseModel):
-    user: str
-    internal: str
 
 class ProgressLogQueue:
 

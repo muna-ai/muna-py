@@ -1,5 +1,5 @@
 ## 0.0.83
-*INCOMPLETE*
++ Added `muna transpile` CLI command to transpile Python functions to C++.
 
 ## 0.0.82
 + Minor fixes.
