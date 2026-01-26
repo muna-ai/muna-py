@@ -217,7 +217,7 @@ def _write_file(
     dir: Path,
     muna: Muna,
 ) -> Path:
-    name = name or Path(url).name
+    name = name or Path(urlparse(url).path).name
     path = dir / name
     muna.client.download(url, path, progress=True)
     return path
