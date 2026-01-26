@@ -111,7 +111,7 @@ def transpile_function(
         dir_okay=False,
         help="Python source path."
     )],
-    output: Annotated[Path, Argument(
+    output: Annotated[Path, Option(
         resolve_path=True,
         exists=False,
         writable=True,
@@ -119,6 +119,9 @@ def transpile_function(
     )]=Path("cpp")
 ):
     muna = Muna(get_access_key())
+    # Check path
+    if output.exists():
+        raise ValueError(f"Cannot transpile because output directory already exists: {output}")
     with CustomProgress():
         # Load
         with CustomProgressTask(loading_text="Loading predictor...") as task:

@@ -33,7 +33,7 @@ app.callback()(cli_options)
 # Compilation
 app.command(
     name="transpile",
-    help="Transpile a Python function to a self-contained C++ library.",
+    help="Transpile a Python function to C++ source code.",
     rich_help_panel="Compilation"
 )(transpile_function)
 app.command(
