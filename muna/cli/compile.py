@@ -3,13 +3,18 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
+from base64 import b64decode
 from importlib.util import module_from_spec, spec_from_file_location
 from inspect import getmembers, getmodulename, isfunction
+from os import environ
 from pathlib import Path
 import platform
 from pydantic import BaseModel
+import re
+from requests import get as http_get
 from rich import print as print_rich
 import sys
+from tempfile import TemporaryDirectory
 from typer import Argument, Option
 from typing import Annotated, Callable, Literal
 from urllib.parse import urlparse, urlunparse
@@ -103,23 +108,25 @@ def compile_function(
     print_rich(f"\n[bold spring_green3]🎉 Predictor is now being compiled.[/bold spring_green3] Check it out at [link={predictor_url}]{predictor_url}[/link]")
 
 def transpile_function(
-    path: Annotated[Path, Argument(
-        resolve_path=True,
-        exists=True,
-        readable=True,
-        file_okay=True,
-        dir_okay=False,
-        help="Python source path."
-    )],
+    path: Annotated[
+        str,
+        Argument(help="Python source path or GitHub URL.")
+    ],
     output: Annotated[Path, Option(
         resolve_path=True,
         exists=False,
         writable=True,
         help="Output path for generated C++ sources."
-    )]=Path("cpp")
+    )]=Path("cpp"),
+    trust_remote_code: Annotated[bool, Option(
+        "--trust-remote-code",
+        help="Trust and execute code from remote URLs. Required when using GitHub URLs."
+    )]=False,
 ):
     muna = Muna(get_access_key())
-    # Check path
+    # Resolve path
+    path: Path = _resolve_source_path(path, trust_remote_code=trust_remote_code)
+    # Check output
     if output.exists():
         raise ValueError(f"Cannot transpile because output directory already exists: {output}")
     with CustomProgress():
@@ -221,6 +228,62 @@ def _write_file(
     path = dir / name
     muna.client.download(url, path, progress=True)
     return path
+
+def _resolve_source_path(
+    path: str,
+    *,
+    trust_remote_code: bool
+) -> Path:
+    # GitHub URL
+    github_match = re.match(r"https://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)", path)
+    if github_match:
+        if not trust_remote_code:
+            raise ValueError(
+                "Cannot transpile remote code without explicit trust. "
+                "Pass --trust-remote-code to confirm you trust this code."
+            )
+        owner, repo, ref, file_path = github_match.groups()
+        return _download_github_file(owner, repo, ref, file_path)
+    # Local path
+    local_path = Path(path).resolve()
+    if not local_path.exists():
+        raise ValueError(f"Cannot transpile because no file exists at path: {local_path}")
+    if not local_path.is_file():
+        raise ValueError(f"Cannot transpile because path is not a file: {local_path}")
+    return local_path
+
+def _download_github_file(
+    owner: str,
+    repo: str,
+    ref: str,
+    file_path: str
+) -> Path:
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"
+    headers = { "Accept": "application/vnd.github.v3+json" }
+    github_token = environ.get("GITHUB_TOKEN")
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
+    response = http_get(api_url, headers=headers, params={ "ref": ref })
+    if response.status_code == 404:
+        raise ValueError(
+            f"Cannot transpile because file not found: {file_path} at ref '{ref}' "
+            f"in repository {owner}/{repo}. Note: branch names containing '/' are not supported."
+        )
+    response.raise_for_status()
+    data = response.json()
+    # Decode content
+    if data.get("encoding") == "base64":
+        content = b64decode(data["content"])
+    else:
+        download_response = http_get(data["download_url"], headers=headers)
+        download_response.raise_for_status()
+        content = download_response.content
+    # Write to temp file
+    with TemporaryDirectory(delete=False) as tmp_dir:
+        name = Path(file_path).name
+        path = Path(tmp_dir) / name
+        path.write_bytes(content)
+        return path
 
 class _Predictor(BaseModel):
     tag: str

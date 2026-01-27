@@ -1,5 +1,5 @@
 ## 0.0.85
-*INCOMPLETE*
++ Added support for providing GitHub file URLs in `muna transpile` CLI command.
 
 ## 0.0.84
 + Minor CLI improvements.
