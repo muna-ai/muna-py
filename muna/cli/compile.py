@@ -125,9 +125,9 @@ def transpile_function(
         help="Trust and execute code from remote URLs. Required when using GitHub URLs."
     )]=False,
     install_deps: Annotated[bool, Option(
-        "--install-deps/--skip-deps",
+        "--install-deps",
         help="Install dependencies defined by the Python script. Requires that `uv` is installed."
-    )]=True,
+    )]=False,
 ):
     muna = Muna(get_access_key())
     # Resolve path
