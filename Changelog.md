@@ -1,5 +1,5 @@
 ## 0.0.86
-*INCOMPLETE*
++ Added `muna transpile --install-deps` flag to install dependencies before transpiling.
 
 ## 0.0.85
 + Added support for providing GitHub file URLs in `muna transpile` CLI command.

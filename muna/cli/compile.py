@@ -13,6 +13,8 @@ from pydantic import BaseModel
 import re
 from requests import get as http_get
 from rich import print as print_rich
+from shutil import which
+from subprocess import run
 import sys
 from tempfile import TemporaryDirectory
 from typer import Argument, Option
@@ -39,7 +41,7 @@ def compile_function(
     overwrite: Annotated[bool, Option(
         "--overwrite",
         help="Whether to delete any existing predictor with the same tag before compiling.")
-    ]=False,
+    ]=False
 ):
     muna = Muna(get_access_key())
     path: Path = Path(path).resolve()
@@ -122,6 +124,10 @@ def transpile_function(
         "--trust-remote-code",
         help="Trust and execute code from remote URLs. Required when using GitHub URLs."
     )]=False,
+    install_deps: Annotated[bool, Option(
+        "--install-deps/--skip-deps",
+        help="Install dependencies defined by the Python script. Requires that `uv` is installed."
+    )]=True,
 ):
     muna = Muna(get_access_key())
     # Resolve path
@@ -129,6 +135,9 @@ def transpile_function(
     # Check output
     if output.exists():
         raise ValueError(f"Cannot transpile because output directory already exists: {output}")
+    # Install deps
+    if install_deps:
+        _sync_and_load_script_env(path)
     with CustomProgress():
         # Load
         with CustomProgressTask(loading_text="Loading predictor...") as task:
@@ -284,6 +293,35 @@ def _download_github_file(
         path = Path(tmp_dir) / name
         path.write_bytes(content)
         return path
+
+def _sync_and_load_script_env(path: Path):
+    # Check that uv is installed
+    uv = which("uv")
+    if uv is None:
+        raise RuntimeError(
+            "Cannot install dependencies because `uv` is not installed. "
+            "Install `uv` from https://docs.astral.sh/uv or use `--skip-deps` "
+            "and manually install the script's dependencies."
+        )
+    # Sync
+    env = { k: v for k, v in environ.items() if k != "VIRTUAL_ENV" }
+    run([
+        uv, "sync",
+        "--script", str(path),
+        "--python", sys.executable
+    ], check=True, env=env)
+    # Get the environment path
+    result = run([
+        uv, "python", "find",
+        "--script", str(path)
+    ], capture_output=True, text=True, check=True, env=env)
+    script_python = Path(result.stdout.strip())
+    env_root = script_python.parent.parent
+    site_packages = next(env_root.glob("lib/python*/site-packages"))
+    # Add to sys.path
+    site_str = str(site_packages)
+    if site_str not in sys.path:
+        sys.path.insert(0, site_str)
 
 class _Predictor(BaseModel):
     tag: str
