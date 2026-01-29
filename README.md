@@ -1,6 +1,6 @@
 # Muna for Python
 
-![muna transpile](media/transpile.gif)
+![muna transpile](https://github.com/user-attachments/assets/06490612-17aa-4e42-b5e2-61afdfe3d58a)
 
 Run AI models anywhere.
 
