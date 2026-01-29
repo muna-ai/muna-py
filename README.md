@@ -5,7 +5,7 @@
 Run AI models anywhere.
 
 ## Installing Muna
-Muna is distributed on PyPi. This distribution contains both the Python client and the command line interface (CLI). To install, open a terminal and run the following command:
+Muna is distributed on PyPi. This distribution contains both the Python client and the command line interface (CLI). Run the following command in terminal:
 ```sh
 # Install Muna
 $ pip install --upgrade muna
@@ -43,7 +43,7 @@ Once compiled, you can then build the included example app and test it from the 
 ___
 
 ## Useful Links
-- [Check out several AI models we've tested](https://github.com/muna-ai/muna-predictors).
+- [Check out several AI models we've compiled](https://github.com/muna-ai/muna-predictors).
 - [Join our Slack community](https://muna.ai/slack).
 - [Check out our docs](https://docs.muna.ai).
 - Learn more about us [on our blog](https://blog.muna.ai).
