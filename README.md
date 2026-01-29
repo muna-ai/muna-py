@@ -1,6 +1,6 @@
 # Muna for Python
 
-![Muna logo](https://raw.githubusercontent.com/fxnai/.github/main/logo_wide.png)
+![muna transpile](media/transpile.gif)
 
 Run AI models anywhere.
 
@@ -12,51 +12,38 @@ $ pip install --upgrade muna
 ```
 
 > [!NOTE]
-> Muna requires Python 3.10+
+> Muna requires Python 3.11+
 
-## Retrieving your Access Key
-Head over to [muna.ai](https://www.muna.ai/account/developer) to create an account by logging in. Once you do, generate an access key:
-
-![generate access key](https://raw.githubusercontent.com/muna-ai/.github/main/access_key.gif)
-
-## Making a Prediction
-First, create a Muna client, specifying your access key:
+## Transpiling a Python Function
+Muna can transpile Python functions into C++, generating a self-contained header-only library that pulls all of its dependencies automatically (e.g. llama.cpp, mlx, CUDA). First, add the `@compile` decorator to your function:
 ```py
-from muna import Muna
+from muna import compile
 
-# Create a Muna client
-muna = Muna(access_key="<Muna access key>")
+@compile()
+def do_stuff():
+    ...
 ```
 
-Then make a prediction:
-```py
-# Create a prediction
-prediction = muna.predictions.create(
-    tag="@fxn/greeting",
-    inputs={ "name": "Peter" }
-)
-
-# Print the returned greeting
-print(prediction.results[0])
-```
-
-## Using the Muna CLI
-Open up a terminal and login to the Muna CLI:
+Then use the Muna CLI to transpile to C++:
 ```sh
-# Login to Muna
-$ muna auth login <ACCESS KEY>
+# Transpile the Python function to C++
+$ muna transpile do_stuff.py
 ```
 
-Then make a prediction:
-```sh
-# Make a prediction using the Muna CLI
-$ muna predict @fxn/greeting --name Peter
-```
+Muna will create a cloud sandbox to setup your Python function, trace it, lower to C++, then generate a folder containing the header-only library and a corresponding `CMakeLists.txt`.
+
+> [!TIP]
+> Even though the compiler is not open-source, you can [read up on how it works](https://blog.codingconfessions.com/p/compiling-python-to-run-anywhere).
+
+Once compiled, you can then build the included example app and test it from the command line. Here's an example using 
+[Kokoro TTS](https://github.com/muna-ai/muna-predictors/blob/main/text-to-speech/kokoro.py) 🔊:
+
+![kokoro example](media/kokoro.mp4)
 
 ___
 
 ## Useful Links
-- [Discover predictors to use in your apps](https://muna.ai/explore).
+- [Check out several AI models we've tested](https://github.com/muna-ai/muna-predictors).
 - [Join our Slack community](https://muna.ai/slack).
 - [Check out our docs](https://docs.muna.ai).
 - Learn more about us [on our blog](https://blog.muna.ai).
