@@ -38,7 +38,7 @@ Muna will create a cloud sandbox to setup your Python function, trace it, lower 
 Once compiled, you can then build the included example app and test it from the command line. Here's an example using 
 [Kokoro TTS](https://github.com/muna-ai/muna-predictors/blob/main/text-to-speech/kokoro.py) 🔊:
 
-![kokoro example](media/kokoro.mp4)
+https://github.com/user-attachments/assets/a0090414-bb9d-4b69-8876-959bd60c699a
 
 ___
 
