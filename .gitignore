@@ -27,7 +27,6 @@ muna/**/*.so
 *.gif
 !test/media/**/*.jpg
 !test/media/**/*.jpeg
-!media/*.gif
 
 # Misc
 .DS_Store
