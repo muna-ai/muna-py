@@ -15,7 +15,7 @@ $ pip install --upgrade muna
 > Muna requires Python 3.11+
 
 ## Transpiling a Python Function
-Muna can transpile Python functions into C++, generating a self-contained header-only library that pulls all of its dependencies automatically (e.g. llama.cpp, mlx, CUDA). First, add the `@compile` decorator to your function:
+Muna can transpile Python functions into C++, generating a self-contained header-only library that pulls all of its dependencies automatically (e.g. llama.cpp, mlx, CUDA). First, add the [`@compile`](https://docs.muna.ai/predictors/create) decorator to your function:
 ```py
 from muna import compile
 
