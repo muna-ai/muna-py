@@ -206,6 +206,7 @@ def _dtype_to_c(type: Dtype) -> int:
         case Dtype.image:       return 16
         case Dtype.binary:      return 17
         case Dtype.bfloat16:    return 18
+        case Dtype.image_list:  return 19
         case _:                 raise ValueError(f"Failed to convert data type because it is not supported: {type}")
 
 def _dtype_from_c(type: int) -> Dtype:
@@ -229,6 +230,7 @@ def _dtype_from_c(type: int) -> Dtype:
         case 16:    return Dtype.image
         case 17:    return Dtype.binary
         case 18:    return Dtype.bfloat16
+        case 19:    return Dtype.image_list
         case _:     raise ValueError(f"Failed to convert data type because it is not supported: {type}")
 
 _TENSOR_DTYPES = {
