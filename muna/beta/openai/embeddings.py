@@ -47,7 +47,7 @@ class EmbeddingService:
 
         Parameters:
             input (str | list): Input text to embed. The input must not exceed the max input tokens for the model.
-            model (str): Embedding model predictor tag.
+            model (str): Embedding model tag.
             dimensions (int): The number of dimensions the resulting output embeddings should have. Only supported by Matryoshka embedding models.
             encoding_format (str): The format to return the embeddings in.
             acceleration (Acceleration | RemoteAcceleration): Prediction acceleration.

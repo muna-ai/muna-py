@@ -68,6 +68,22 @@ class SpeechCreateResponse(BaseModel, **ConfigDict(arbitrary_types_allowed=True)
     content: bytes
     response: Response
 
+class Transcription(BaseModel):
+    class TokenUsage(BaseModel):
+        class InputTokenDetails(BaseModel):
+            audio_tokens: int
+            text_tokens: int
+        type: Literal["tokens"]
+        input_tokens: int
+        output_tokens: int
+        total_tokens: int
+        input_token_details: InputTokenDetails
+    class DurationUsage(BaseModel):
+        type: Literal["duration"]
+        seconds: float
+    text: str
+    usage: TokenUsage | DurationUsage
+
 class _MessageDict(TypedDict): # For text completion
     role: Literal["assistant", "user", "system"]
     content: str | None

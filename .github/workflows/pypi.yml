@@ -22,7 +22,7 @@ jobs:
         python3 -m pip install -r requirements.txt
 
     - name: Pull Function C
-      run: python3 fxnc.py --version 0.0.40
+      run: python3 fxnc.py --version 0.0.41
 
     - name: Build Muna
       run: python3 -m build

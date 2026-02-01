@@ -50,7 +50,7 @@ class SpeechService:
 
         Parameters:
             input (str): The text to generate audio for.
-            model (str): Speech generation predictor tag.
+            model (str): Speech generation model tag.
             voice (str): Voice to use when generating the audio.
             response_format ("mp3" | "opus" | "aac" | "flac" | "wav" | "pcm"): Audio output format.
             speed (float): The speed of the generated audio. Defaults to 1.0.

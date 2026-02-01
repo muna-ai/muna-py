@@ -91,7 +91,7 @@ class ChatCompletionService:
 
         Parameters:
             messages (list): Messages for the conversation so far.
-            model (str): Chat model predictor tag.
+            model (str): Chat model tag.
             stream (bool): Whether to stream responses.
             response_format (dict): Response format.
             reasoning_effort (ChatCompletionReasoningEffort): Reasoning effort for reasoning models.
