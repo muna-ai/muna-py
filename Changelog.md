@@ -1,5 +1,8 @@
 ## 0.0.87
-*INCOMPLETE*
++ Added support for `mp3` respose format in `muna.beta.openai.audio.speech.create` method.
++ Added `min` and `max` arguments in `Annotations.MaxOutputTokens` annotation method.
++ Replaced `Parameter.range` field to `Parameter.min` and `Parameter.max` fields.
++ Upgraded to Function C 0.0.40.
 
 ## 0.0.86
 + Added `muna transpile --install-deps` flag to install dependencies before transpiling.

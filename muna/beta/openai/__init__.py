@@ -3,7 +3,6 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
-from .annotations import Annotations
 from .openai import OpenAIClient
 from .schema import (
     ChatCompletion, ChatCompletionChunk, ChatCompletionReasoningEffort,

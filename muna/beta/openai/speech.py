@@ -11,9 +11,9 @@ from requests import Response
 from ...c import Value
 from ...services import PredictorService, PredictionService
 from ...types import Acceleration, Dtype
+from ..annotations import get_parameter
 from ..remote import RemoteAcceleration
 from ..remote.remote import RemotePredictionService
-from .annotations import get_parameter
 from .schema import SpeechCreateResponse, SpeechResponseFormat, SpeechStreamFormat
 
 SpeechDelegate = Callable[..., object]
@@ -137,12 +137,6 @@ class SpeechService:
             stream_format: SpeechStreamFormat,
             acceleration: Acceleration | RemoteAcceleration
         ) -> SpeechCreateResponse:
-            # Check response format
-            if response_format == "mp3":
-                raise ValueError(
-                    f"Cannot create speech with response format `{response_format}` "
-                    f"because it is not yet supported."
-                )
             # Check stream format
             if stream_format != "audio":
                 raise ValueError(

@@ -19,7 +19,7 @@ def _download_fxnc(name: str, version: str, path: Path):
         f.write(response.content)
     print(f"Wrote {name} {version} to path: {path}")
 
-def main ():
+def main():
     args = parser.parse_args()
     LIB_PATH_BASE = Path("muna") / "lib"
     DOWNLOADS = [

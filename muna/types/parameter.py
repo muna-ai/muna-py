@@ -52,10 +52,6 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
         default=None,
         description="Whether the parameter is optional."
     )
-    range: tuple[float, float] | None = Field(
-        default=None,
-        description="Parameter value range for numeric parameters."
-    )
     enumeration: list[EnumerationMember] | None = Field(
         default=None,
         description="Parameter value choices for enumeration parameters."
@@ -65,6 +61,14 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
         description="Parameter JSON schema. This is only populated for `list` and `dict` parameters.",
         serialization_alias="schema",
         validation_alias=AliasChoices("schema", "value_schema")
+    )
+    min: int | float | None = Field(
+        default=None,
+        description="Parameter minumum value."
+    )
+    max: int | float | None = Field(
+        default=None,
+        description="Parameter maximum value."
     )
     sample_rate: int | None = Field(
         default=None,
@@ -104,7 +108,8 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
         return Parameter(
             name="",
             description=description,
-            range=(min, max) if min is not None and max is not None else None,
+            min=min,
+            max=max,
             **kwargs
         )
 

@@ -48,7 +48,12 @@ def prediction_endpoint() -> Callable[
             func,
             assigned=(a for a in WRAPPER_ASSIGNMENTS if a != "__annotations__")
         )
-        def wrapper(input: CreatePredictionInput) -> RemotePrediction | Iterator[RemotePrediction]:
+        def wrapper(input: dict | CreatePredictionInput) -> RemotePrediction | Iterator[RemotePrediction]:
+            input = (
+                input
+                if isinstance(input, CreatePredictionInput)
+                else CreatePredictionInput.model_validate(input)
+            )
             if input.stream:
                 return _invoke_streaming(
                     func=func,

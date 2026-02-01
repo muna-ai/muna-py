@@ -10,9 +10,9 @@ from typing import Literal
 
 from ...services import PredictorService, PredictionService
 from ...types import Acceleration, Dtype
+from ..annotations import get_parameter
 from ..remote import RemoteAcceleration
 from ..remote.remote import RemotePredictionService
-from .annotations import get_parameter
 from .schema import EmbeddingCreateResponse, Embedding
 
 EmbeddingDelegate = Callable[..., EmbeddingCreateResponse]

@@ -10,9 +10,9 @@ from typing import overload, Iterator, Literal
 
 from ...services import PredictorService, PredictionService
 from ...types import Acceleration, Dtype, Prediction
+from ..annotations import get_parameter
 from ..remote import RemoteAcceleration
 from ..remote.remote import RemotePredictionService
-from .annotations import get_parameter
 from .schema import (
     ChatCompletion, ChatCompletionChunk, ChatCompletionReasoningEffort,
     Choice, DeltaMessage, Message, _MessageDict, _ResponseFormatDict,

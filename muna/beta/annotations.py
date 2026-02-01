@@ -3,7 +3,7 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
-from ...types import Dtype, Parameter
+from ..types import Dtype, Parameter
 
 class Annotations:
     """
@@ -26,7 +26,8 @@ class Annotations:
             name="",
             description=description,
             denotation="openai.audio.speech.speed",
-            range=(min, max) if min is not None and max is not None else None,
+            min=min,
+            max=max,
             **kwargs
         )
 
@@ -63,7 +64,8 @@ class Annotations:
             name="",
             description=description,
             denotation="openai.embeddings.dims",
-            range=(min, max) if min is not None and max is not None else None,
+            min=min,
+            max=max,
             **kwargs
         )
 
@@ -83,7 +85,8 @@ class Annotations:
             name="",
             description=description,
             denotation="openai.chat.completions.frequency_penalty",
-            range=(min, max) if min is not None and max is not None else None,
+            min=min,
+            max=max,
             **kwargs
         )
 
@@ -92,6 +95,8 @@ class Annotations:
         cls,
         *,
         description: str,
+        min: int | None=None,
+        max: int | None=None,
         **kwargs
     ) -> Parameter:
         """
@@ -101,6 +106,8 @@ class Annotations:
             name="",
             description=description,
             denotation="openai.chat.completions.max_output_tokens",
+            min=min,
+            max=max,
             **kwargs
         )
 
@@ -120,7 +127,8 @@ class Annotations:
             name="",
             description=description,
             denotation="openai.chat.completions.presence_penalty",
-            range=(min, max) if min is not None and max is not None else None,
+            min=min,
+            max=max,
             **kwargs
         )
 
@@ -174,7 +182,8 @@ class Annotations:
             name="",
             description=description,
             denotation="openai.chat.completions.top_p",
-            range=(min, max) if min is not None and max is not None else None,
+            min=min,
+            max=max,
             **kwargs
         )
 
@@ -194,7 +203,8 @@ class Annotations:
             name="",
             description=description,
             denotation="openai.chat.completions.temperature",
-            range=(min, max) if min is not None and max is not None else None,
+            min=min,
+            max=max,
             **kwargs
         )
 
