@@ -1,3 +1,6 @@
+## 0.0.88
+*INCOMPLETE*
+
 ## 0.0.87
 + Added support for `mp3` respose format in `muna.beta.openai.audio.speech.create` method.
 + Added `min` and `max` arguments in `Annotations.MaxOutputTokens` annotation method.
