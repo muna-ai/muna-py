@@ -1,5 +1,5 @@
 ## 0.0.88
-*INCOMPLETE*
++ Added `Parameter.SegmentationMap` annotation method to specify segmentation maps.
 
 ## 0.0.87
 + Added support for `mp3` respose format in `muna.beta.openai.audio.speech.create` method.

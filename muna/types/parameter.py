@@ -199,3 +199,22 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
             denotation="depth_map",
             **kwargs
         )
+
+    @classmethod
+    def SegmentationMap(
+        cls,
+        *,
+        description: str,
+        **kwargs
+    ) -> Parameter:
+        """
+        Segmentation map parameter.
+
+        This must be a boolean tensor with shape (H,W) or (N,H,W).
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="segmentation_map",
+            **kwargs
+        )
