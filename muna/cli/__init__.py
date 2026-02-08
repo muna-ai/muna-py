@@ -14,7 +14,6 @@ from .misc import cli_options
 from .predictions import create_prediction
 from .predictors import archive_predictor, delete_predictor, retrieve_predictor
 from .resources import app as resources_app
-from .sources import retrieve_source
 from .triage import triage_predictor
 
 # Define CLI
@@ -47,12 +46,6 @@ app.command(
     context_settings={ "allow_extra_args": True, "ignore_unknown_options": True },
     rich_help_panel="Compilation"
 )(create_prediction)
-app.command(
-    name="source",
-    help="Retrieve the generated C++ code for a given prediction.",
-    rich_help_panel="Compilation",
-    hidden=True
-)(retrieve_source)
 
 # Predictors
 app.command(

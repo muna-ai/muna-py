@@ -5,13 +5,14 @@
 
 from rich import print_json
 from typer import Argument
+from typing import Annotated
 
 from ..muna import Muna
 from ..logging import CustomProgress, CustomProgressTask
 from .auth import get_access_key
 
 def retrieve_predictor(
-    tag: str=Argument(..., help="Predictor tag.")
+    tag: Annotated[str, Argument(help="Predictor tag.")]
 ):
     with CustomProgress(transient=True):
         with CustomProgressTask(loading_text="Retrieving predictor..."):
@@ -21,7 +22,7 @@ def retrieve_predictor(
             print_json(data=predictor)
 
 def archive_predictor(
-    tag: str=Argument(..., help="Predictor tag.")
+    tag: Annotated[str, Argument(help="Predictor tag.")]
 ):
     with CustomProgress():
         with CustomProgressTask(
@@ -35,7 +36,7 @@ def archive_predictor(
             )
 
 def delete_predictor(
-    tag: str=Argument(..., help="Predictor tag.")
+    tag: Annotated[str, Argument(help="Predictor tag.")]
 ):
     with CustomProgress():
         with CustomProgressTask(

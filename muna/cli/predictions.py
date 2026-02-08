@@ -13,6 +13,7 @@ from PIL import Image
 from rich import print_json
 from tempfile import mkstemp
 from typer import Argument, Context, Option
+from typing import Annotated
 
 from ..muna import Muna
 from ..logging import CustomProgress, CustomProgressTask
@@ -20,9 +21,12 @@ from ..types import Prediction, Value
 from .auth import get_access_key
 
 def create_prediction(
-    tag: str=Argument(..., help="Predictor tag."),
-    quiet: bool=Option(False, "--quiet", help="Suppress verbose logging when creating the prediction."),
-    context: Context = 0
+    tag: Annotated[str, Argument(help="Predictor tag.")],
+    quiet: Annotated[bool, Option(
+        "--quiet",
+        help="Suppress verbose logging when creating the prediction."
+    )]=False,
+    context: Context=0
 ):
     run_async(_predict_async(tag, quiet=quiet, context=context))
 

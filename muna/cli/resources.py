@@ -17,8 +17,15 @@ app = Typer(no_args_is_help=True)
 
 @app.command(name="upload", help="Upload a prediction resource.")
 def upload(
-    path: Annotated[Path, Argument(..., help="Path to resource file.", resolve_path=True, exists=True)],
-    public: Annotated[bool, Option(..., "--public", help="Whether to make the resource publicly available.")]=False
+    path: Annotated[Path, Argument(
+        help="Path to resource file.",
+        resolve_path=True,
+        exists=True
+    )],
+    public: Annotated[bool, Option(
+        "--public",
+        help="Whether to make the resource publicly available."
+    )]=False
 ):
     if not path.is_file():
         raise ValueError(f"Cannot upload resource at path {path} because it is not a file")
@@ -31,7 +38,7 @@ def upload(
 
 @app.command(name="download", help="Download a prediction resource.")
 def download(
-    hash: Annotated[str, Argument(..., help="Prediction resource checksum.")],
+    hash: Annotated[str, Argument(help="Prediction resource checksum.")],
     path: Annotated[Path, Option(help="Output path.")]=None
 ):
     muna = Muna(get_access_key())

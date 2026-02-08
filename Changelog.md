@@ -1,5 +1,5 @@
 ## 0.0.89
-*INCOMPLETE*
++ Removed `muna source` CLI command.
 
 ## 0.0.88
 + Added `Parameter.SegmentationMap` annotation method to specify segmentation maps.

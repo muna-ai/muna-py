@@ -6,6 +6,7 @@
 from pathlib import Path
 from rich import print, print_json
 from typer import Argument, Typer
+from typing import Annotated
 
 from ..muna import Muna
 
@@ -13,7 +14,10 @@ app = Typer(no_args_is_help=True)
 
 @app.command(name="login", help="Login to Muna.")
 def login(
-    access_key: str=Argument(..., help="Muna access key.", envvar="MUNA_ACCESS_KEY")
+    access_key: Annotated[str, Argument(
+        help="Muna access key.",
+        envvar="MUNA_ACCESS_KEY"
+    )]
 ):
     muna = Muna(access_key=access_key)
     user = muna.users.retrieve()

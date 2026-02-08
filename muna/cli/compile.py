@@ -40,8 +40,8 @@ def compile_function(
     )],
     overwrite: Annotated[bool, Option(
         "--overwrite",
-        help="Whether to delete any existing predictor with the same tag before compiling.")
-    ]=False
+        help="Whether to delete any existing predictor with the same tag before compiling."
+    )]=False
 ):
     muna = Muna(get_access_key())
     path: Path = Path(path).resolve()
@@ -107,7 +107,10 @@ def compile_function(
                             task_queue.push_error(event)
                             raise CompileError(event.data.error)
     predictor_url = _compute_predictor_url(muna.client.api_url, spec.tag)
-    print_rich(f"\n[bold spring_green3]🎉 Predictor is now being compiled.[/bold spring_green3] Check it out at [link={predictor_url}]{predictor_url}[/link]")
+    print_rich(
+        f"\n[bold spring_green3]🎉 Predictor is now being compiled.[/bold spring_green3] "
+        "Check it out at [link={predictor_url}]{predictor_url}[/link]"
+    )
 
 def transpile_function(
     path: Annotated[
