@@ -40,14 +40,14 @@ app.command(
     help="Compile a Python function for deployment.",
     rich_help_panel="Compilation"
 )(compile_function)
+
+# Functions
 app.command(
     name="predict",
     help="Invoke a compiled Python function.",
     context_settings={ "allow_extra_args": True, "ignore_unknown_options": True },
-    rich_help_panel="Compilation"
+    rich_help_panel="Functions"
 )(create_prediction)
-
-# Predictors
 app.command(
     name="retrieve",
     help="Retrieve a compiled function.",

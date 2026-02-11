@@ -8,6 +8,7 @@ from typing import Literal
 
 from ._torch import PyTorchInferenceMetadataBase
 
+OnnxRuntimeExecutionProvider = Literal["cpu", "coreml", "cuda", "openvino", "xnnpack"]
 OnnxRuntimeOptimizationLevel = Literal["none", "basic", "extended"]
 
 class OnnxRuntimeInferenceMetadata(PyTorchInferenceMetadataBase):
@@ -26,5 +27,10 @@ class OnnxRuntimeInferenceMetadata(PyTorchInferenceMetadataBase):
     optimization: OnnxRuntimeOptimizationLevel = Field(
         default="none",
         description="ONNX model optimization level. Defaults to `none`.",
+        exclude=True
+    )
+    providers: list[OnnxRuntimeExecutionProvider] | None = Field(
+        default=None,
+        description="ONNXRuntime execution providers to build with.",
         exclude=True
     )

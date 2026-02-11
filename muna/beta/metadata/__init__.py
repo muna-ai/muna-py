@@ -9,10 +9,16 @@ from .executorch import ExecuTorchInferenceBackend, ExecuTorchInferenceMetadata
 from .iree import IREEInferenceBackend, IREEInferenceMetadata
 from .litert import LiteRTInferenceMetadata
 from .llama import LlamaCppBackend, LlamaCppInferenceMetadata
-from .onnx import OnnxRuntimeInferenceMetadata, OnnxRuntimeOptimizationLevel
+from .onnx import (
+    OnnxRuntimeInferenceMetadata, OnnxRuntimeExecutionProvider,
+    OnnxRuntimeOptimizationLevel
+)
 from .onnxruntime import OnnxRuntimeInferenceSessionMetadata
 from .openvino import OpenVINOInferenceMetadata
 from .qnn import QnnInferenceBackend, QnnInferenceMetadata, QnnInferenceQuantization
-from .tensorrt import CudaArchitecture, TensorRTInferenceMetadata, TensorRTHardwareCompatibility, TensorRTPrecision
+from .tensorrt import (
+    CudaArchitecture, TensorRTInferenceMetadata,
+    TensorRTHardwareCompatibility, TensorRTPrecision
+)
 from .tensorrt_rtx import TensorRTRTXInferenceMetadata
 from .tflite import TFLiteInterpreterMetadata

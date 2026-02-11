@@ -7,6 +7,8 @@ from pathlib import Path
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 from typing import Annotated, Literal
 
+from .onnx import OnnxRuntimeExecutionProvider
+
 def _validate_ort_inference_session(session: "onnxruntime.InferenceSession") -> "onnxruntime.InferenceSession": # type: ignore
     try:
         from onnxruntime import InferenceSession
@@ -31,5 +33,15 @@ class OnnxRuntimeInferenceSessionMetadata(BaseModel, **ConfigDict(arbitrary_type
     )
     model_path: str | Path = Field(
         description="ONNX model path. The model must exist at this path in the compiler sandbox.",
+        exclude=True
+    )
+    external_data_path: str | Path | None = Field(
+        default=None,
+        description="Path to ONNX external data file (e.g. .onnx.data).",
+        exclude=True
+    )
+    providers: list[OnnxRuntimeExecutionProvider] | None = Field(
+        default=None,
+        description="ONNXRuntime execution providers to build with.",
         exclude=True
     )

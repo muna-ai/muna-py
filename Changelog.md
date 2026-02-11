@@ -1,4 +1,7 @@
 ## 0.0.89
++ Added `OnnxRuntimeInferenceSessionMetadata.external_data_path` field for specifying the path to external data files.
++ Added `OnnxRuntimeInferenceSessionMetadata.providers` field for specifying enabled ONNXRuntime providers.
++ Added `OnnxRuntimeInferenceMetadata.providers` field for specifying enabled ONNXRuntime providers.
 + Removed `muna source` CLI command.
 
 ## 0.0.88
