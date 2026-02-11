@@ -1,3 +1,6 @@
+## 0.0.90
+*INCOMPLETE*
+
 ## 0.0.89
 + Added `OnnxRuntimeInferenceSessionMetadata.external_data_path` field for specifying the path to external data files.
 + Added `OnnxRuntimeInferenceSessionMetadata.providers` field for specifying enabled ONNXRuntime providers.
