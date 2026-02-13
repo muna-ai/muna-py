@@ -1,5 +1,5 @@
 ## 0.0.90
-*INCOMPLETE*
++ Added `optimum` exporter in `OnnxRuntimeInferenceMetadata` to export LLMs using 🤗 Optimum.
 
 ## 0.0.89
 + Added `OnnxRuntimeInferenceSessionMetadata.external_data_path` field for specifying the path to external data files.
