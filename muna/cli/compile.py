@@ -109,7 +109,7 @@ def compile_function(
     predictor_url = _compute_predictor_url(muna.client.api_url, spec.tag)
     print_rich(
         f"\n[bold spring_green3]🎉 Predictor is now being compiled.[/bold spring_green3] "
-        "Check it out at [link={predictor_url}]{predictor_url}[/link]"
+        f"Check it out at [link={predictor_url}]{predictor_url}[/link]"
     )
 
 def transpile_function(
