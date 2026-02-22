@@ -40,7 +40,7 @@ class EmbeddingService:
         model: str,
         dimensions: int | None=None,
         encoding_format: Literal["float", "base64"] | None=None,
-        acceleration: Acceleration | RemoteAcceleration="remote_auto"
+        acceleration: Acceleration | RemoteAcceleration="local_auto"
     ) -> EmbeddingCreateResponse:
         """
         Create an embedding vector representing the input text.

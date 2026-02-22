@@ -43,7 +43,7 @@ class SpeechService:
         response_format: SpeechResponseFormat="mp3",
         speed: float=1.,
         stream_format: SpeechStreamFormat="audio",
-        acceleration: Acceleration | RemoteAcceleration="remote_auto"
+        acceleration: Acceleration | RemoteAcceleration="local_auto"
     ) -> SpeechCreateResponse:
         """
         Generate audio from the input text.

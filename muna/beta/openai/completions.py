@@ -84,7 +84,7 @@ class ChatCompletionService:
         top_p: float | None=None,
         frequency_penalty: float | None=None,
         presence_penalty: float | None=None,
-        acceleration: Acceleration | RemoteAcceleration="remote_auto"
+        acceleration: Acceleration | RemoteAcceleration="local_auto"
     ) -> ChatCompletion | Iterator[ChatCompletionChunk]:
         """
         Create a chat completion.

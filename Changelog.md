@@ -1,5 +1,6 @@
 ## 0.0.91
 + Fixed sporadic memory corruption when creating predictions with image inputs on Windows.
++ Updated OpenAI client to default to local inference.
 
 ## 0.0.90
 + Added `optimum` exporter in `OnnxRuntimeInferenceMetadata` to export LLMs using 🤗 Optimum.

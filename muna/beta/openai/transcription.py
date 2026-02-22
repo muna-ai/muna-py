@@ -39,7 +39,7 @@ class TranscriptionService: # INCOMPLETE
         prompt: str | None=None,
         stream: bool=False,
         temperature: float=0.,
-        acceleration: Acceleration | RemoteAcceleration="remote_auto"
+        acceleration: Acceleration | RemoteAcceleration="local_auto"
     ) -> Transcription:
         """
         Transcribe audio into the input language.
