@@ -1,5 +1,5 @@
 ## 0.0.91
-*INCOMPLETE*
++ Fixed sporadic memory corruption when creating predictions with image inputs on Windows.
 
 ## 0.0.90
 + Added `optimum` exporter in `OnnxRuntimeInferenceMetadata` to export LLMs using 🤗 Optimum.

@@ -141,7 +141,7 @@ class Value:
                     obj.width,
                     obj.height,
                     tensor.shape[2],
-                    flags,
+                    flags | ValueFlags.COPY_DATA,
                     byref(value)
                 )
             case _:
