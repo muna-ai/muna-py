@@ -1,8 +1,8 @@
 # Muna for Python
 
-![Muna logo](https://raw.githubusercontent.com/muna-ai/.github/main/logo_wide.png)
+![Muna logo](https://raw.githubusercontent.com/muna-ai/.github/main/banner.png)
 
-Compile and run AI models anywhere.
+Compile and run AI models locally & in the cloud.
 
 ## Installing Muna
 Muna is distributed on PyPi. This distribution contains both the Python client and the command line interface (CLI). Run the following command in terminal:
@@ -32,6 +32,7 @@ completion = openai.chat.completions.create(
   messages=[
     { "role": "user", "content": "What is the capital of France?" }
   ],
+  acceleration="local_gpu"
 )
 ```
 
