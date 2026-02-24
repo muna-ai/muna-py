@@ -48,7 +48,7 @@ ___
 - [Check out several AI models we've compiled](https://github.com/muna-ai/muna-predictors).
 - [Join our Slack community](https://muna.ai/slack).
 - [Check out our docs](https://docs.muna.ai).
-- Learn more about us [on our blog](https://blog.muna.ai).
+- [Read our blog](https://muna.ai/blog).
 - Reach out to us at [hi@muna.ai](mailto:hi@muna.ai).
 
 Muna is a product of [NatML Inc](https://github.com/natmlx).
