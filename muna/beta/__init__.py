@@ -6,3 +6,4 @@
 from .annotations import Annotations
 from .metadata import *
 from .remote import RemoteAcceleration
+from .types import Audio

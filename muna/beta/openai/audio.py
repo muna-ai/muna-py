@@ -6,7 +6,7 @@
 from ...services import PredictorService, PredictionService
 from ..remote.remote import RemotePredictionService
 from .speech import SpeechService
-from .transcription import TranscriptionService
+from .transcriptions import TranscriptionService
 
 class AudioService:
     """

@@ -1,5 +1,5 @@
 ## 0.0.92
-*INCOMPLETE*
++ Added `muna.beta.Audio` type for creating transcriptions on raw audio buffers.
 
 ## 0.0.91
 + Fixed sporadic memory corruption when creating predictions with image inputs on Windows.
