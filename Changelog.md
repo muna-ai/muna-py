@@ -1,5 +1,8 @@
 ## 0.0.92
-+ Added `muna.beta.Audio` type for creating transcriptions on raw audio buffers.
++ Added `beta.MLXInferenceMetadata` to compile PyTorch models for inference with MLX on Apple Silicon.
++ Added `beta.MLXInferenceSessionMetadata` to compile ONNXRuntime `InferenceSession` instances for inference with MLX on Apple Silicon.
++ Added `beta.Audio` type for creating transcriptions on raw PCM audio buffers.
++ Removed `beta.OnnxInferenceMetadata.output_keys` field for specifying model output dictionary keys.
 
 ## 0.0.91
 + Fixed sporadic memory corruption when creating predictions with image inputs on Windows.

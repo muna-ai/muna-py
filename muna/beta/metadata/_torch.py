@@ -60,11 +60,6 @@ class PyTorchInferenceMetadataBase(BaseModel, **ConfigDict(arbitrary_types_allow
         description="Model input tensor shapes. Use this to specify dynamic axes.",
         exclude=True
     )
-    output_keys: list[str] | None = Field(
-        default=None,
-        description="Model output dictionary keys. Use this if the model returns a dictionary.",
-        exclude=True
-    )
     optimum_config: Annotated[object | None, BeforeValidator(_validate_optimum_exporter_config)] = Field(
         default=None,
         description="Optimum exporter configuration. Required when `exporter` is `optimum`.",

@@ -18,9 +18,8 @@ class OnnxRuntimeInferenceMetadata(PyTorchInferenceMetadataBase):
     Members:
         model (torch.nn.Module): PyTorch module to apply metadata to.
         exporter (TorchExporter): PyTorch exporter to use.
-        model_args (tuple[Tensor,...]): Positional inputs to the model.
+        model_args (tuple): Positional inputs to the model.
         input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
-        output_keys (list): Model output dictionary keys. Use this if the model returns a dictionary.
         optimum_config (optimum.ExporterConfig): Optimum exporter configuration. Required when `exporter` is `optimum`.
         optimization (OnnxRuntimeOptimizationLevel): ONNX model optimization level.
         providers (list): Execution providers that can be used to accelerate inference for this model.

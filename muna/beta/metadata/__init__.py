@@ -9,6 +9,7 @@ from .executorch import ExecuTorchInferenceBackend, ExecuTorchInferenceMetadata
 from .iree import IREEInferenceBackend, IREEInferenceMetadata
 from .litert import LiteRTInferenceMetadata
 from .llama import LlamaCppBackend, LlamaCppInferenceMetadata
+from .mlx import MLXInferenceMetadata, MLXInferenceSessionMetadata
 from .onnx import (
     OnnxRuntimeInferenceMetadata, OnnxRuntimeExecutionProvider,
     OnnxRuntimeOptimizationLevel

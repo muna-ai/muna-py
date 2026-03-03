@@ -25,10 +25,9 @@ class TensorRTInferenceMetadata(PyTorchInferenceMetadataBase):
 
     Members:
         model (torch.nn.Module): PyTorch module to apply metadata to.
-        model_args (tuple[Tensor,...]): Positional inputs to the model.
-        input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
-        output_keys (list): Model output dictionary keys. Use this if the model returns a dictionary.
         exporter (TorchExporter): PyTorch exporter to use.
+        model_args (tuple): Positional inputs to the model.
+        input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
         cuda_arch (CudaArchitecture): Target CUDA architecture for the TensorRT engine. Defaults to `sm_80` (Ampere).
         precision (TensorRTPrecision): TensorRT engine inference precision. Defaults to `fp16`.
         hardware_compatibility (TensorRTHardwareCompatibility): TensorRT engine hardware compatibility. Defaults to `none`.

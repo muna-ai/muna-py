@@ -10,7 +10,12 @@ from pydantic import BaseModel, ConfigDict, Field
 class Audio(BaseModel, **ConfigDict(arbitrary_types_allowed=True, frozen=True)):
     """
     Audio buffer.
+
+    Members:
+        samples (ndarray): Linear PCM audio samples with shape (F,C).
+        sample_rate (int): Audio sample rate (Hz).
+        channel_count (int): Audio channel count.
     """
-    samples: NDArray[float32] = Field(description="Audio samples with shape (F,C).")
+    samples: NDArray[float32] = Field(description="Linear PCM audio samples with shape (F,C).")
     sample_rate: int = Field(description="Audio sample rate (Hz).")
     channel_count: int = Field(description="Audio channel count.")

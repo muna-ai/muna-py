@@ -24,7 +24,9 @@ class OnnxRuntimeInferenceSessionMetadata(BaseModel, **ConfigDict(arbitrary_type
 
     Members:
         session (onnxruntime.InferenceSession): OnnxRuntime inference session to apply metadata to.
-        model_path (str | Path): ONNX model path. The model must exist at this path in the compiler sandbox.
+        model_path (str | Path): ONNX model path. The file must exist in the compiler sandbox.
+        external_data_path (str | Path): ONNX model external data path. This file must exist in the compiler sandbox.
+        providers (list): Execution providers that can be used to accelerate inference for this model.
     """
     kind: Literal["meta.inference.onnxruntime"] = Field(default="meta.inference.onnxruntime", init=False)
     session: Annotated[object, BeforeValidator(_validate_ort_inference_session)] = Field(
