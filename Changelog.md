@@ -1,3 +1,6 @@
+## 0.0.93
+*INCOMPLETE*
+
 ## 0.0.92
 + Added `beta.MLXInferenceMetadata` to compile PyTorch models for inference with MLX on Apple Silicon.
 + Added `beta.MLXInferenceSessionMetadata` to compile ONNXRuntime `InferenceSession` instances for inference with MLX on Apple Silicon.
