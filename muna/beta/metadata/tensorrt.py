@@ -28,6 +28,7 @@ class TensorRTInferenceMetadata(PyTorchInferenceMetadataBase):
         exporter (TorchExporter): PyTorch exporter to use.
         model_args (tuple): Positional inputs to the model.
         input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
+        optimum_config (optimum.ExporterConfig): Optimum exporter configuration. Required when `exporter` is `optimum`.
         cuda_arch (CudaArchitecture): Target CUDA architecture for the TensorRT engine. Defaults to `sm_80` (Ampere).
         precision (TensorRTPrecision): TensorRT engine inference precision. Defaults to `fp16`.
         hardware_compatibility (TensorRTHardwareCompatibility): TensorRT engine hardware compatibility. Defaults to `none`.
