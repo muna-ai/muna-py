@@ -3,22 +3,38 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
-from pathlib import Path
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
-from typing import Annotated, Literal
+from pydantic import Field
+from typing import Literal
 
-from .onnx import OnnxRuntimeExecutionProvider
+from ._ort import OnnxRuntimeExecutionProvider, OnnxRuntimeInferenceSessionMetadataBase, OnnxRuntimeOptimizationLevel
+from ._torch import PyTorchInferenceMetadataBase
 
-def _validate_ort_inference_session(session: "onnxruntime.InferenceSession") -> "onnxruntime.InferenceSession": # type: ignore
-    try:
-        from onnxruntime import InferenceSession
-        if not isinstance(session, InferenceSession):
-            raise ValueError(f"Expected `onnxruntime.InferenceSession` instance but got `{type(session).__qualname__}`")
-        return session
-    except ImportError:
-        raise ImportError("ONNXRuntime is required to create this metadata but it is not installed.")
+class OnnxRuntimeInferenceMetadata(PyTorchInferenceMetadataBase):
+    """
+    Metadata to compile a PyTorch model for inference with OnnxRuntime.
 
-class OnnxRuntimeInferenceSessionMetadata(BaseModel, **ConfigDict(arbitrary_types_allowed=True, frozen=True)):
+    Members:
+        model (torch.nn.Module): PyTorch module to apply metadata to.
+        exporter (TorchExporter): PyTorch exporter to use.
+        model_args (tuple): Positional inputs to the model.
+        input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
+        optimum_config (optimum.ExporterConfig): Optimum exporter configuration. Required when `exporter` is `optimum`.
+        optimization (OnnxRuntimeOptimizationLevel): ONNX model optimization level.
+        providers (list): Execution providers that can be used to accelerate inference for this model.
+    """
+    kind: Literal["meta.inference.onnx"] = Field(default="meta.inference.onnx", init=False)
+    optimization: OnnxRuntimeOptimizationLevel = Field(
+        default="none",
+        description="ONNX model optimization level. Defaults to `none`.",
+        exclude=True
+    )
+    providers: list[OnnxRuntimeExecutionProvider] | None = Field(
+        default=None,
+        description="ONNXRuntime execution providers to build with.",
+        exclude=True
+    )
+
+class OnnxRuntimeInferenceSessionMetadata(OnnxRuntimeInferenceSessionMetadataBase):
     """
     Metadata to compile an OnnxRuntime `InferenceSession` for inference.
 
@@ -29,19 +45,6 @@ class OnnxRuntimeInferenceSessionMetadata(BaseModel, **ConfigDict(arbitrary_type
         providers (list): Execution providers that can be used to accelerate inference for this model.
     """
     kind: Literal["meta.inference.onnxruntime"] = Field(default="meta.inference.onnxruntime", init=False)
-    session: Annotated[object, BeforeValidator(_validate_ort_inference_session)] = Field(
-        description="OnnxRuntime inference session to apply metadata to.",
-        exclude=True
-    )
-    model_path: str | Path = Field(
-        description="ONNX model path. The model must exist at this path in the compiler sandbox.",
-        exclude=True
-    )
-    external_data_path: str | Path | None = Field(
-        default=None,
-        description="Path to ONNX external data file (e.g. .onnx.data).",
-        exclude=True
-    )
     providers: list[OnnxRuntimeExecutionProvider] | None = Field(
         default=None,
         description="ONNXRuntime execution providers to build with.",

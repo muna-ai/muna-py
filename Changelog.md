@@ -1,9 +1,9 @@
 ## 0.0.93
-*INCOMPLETE*
++ Added `beta.TensorRTInferenceSessionMetadata` metadata type to compile ONNXRuntime `InferenceSession` instances for inference on Nvidia GPUs with TensorRT.
 
 ## 0.0.92
-+ Added `beta.MLXInferenceMetadata` to compile PyTorch models for inference with MLX on Apple Silicon.
-+ Added `beta.MLXInferenceSessionMetadata` to compile ONNXRuntime `InferenceSession` instances for inference with MLX on Apple Silicon.
++ Added `beta.MLXInferenceMetadata` metadata type to compile PyTorch models for inference with MLX on Apple Silicon.
++ Added `beta.MLXInferenceSessionMetadata` metadata type to compile ONNXRuntime `InferenceSession` instances for inference with MLX on Apple Silicon.
 + Added `beta.Audio` type for creating transcriptions on raw PCM audio buffers.
 + Removed `beta.OnnxInferenceMetadata.output_keys` field for specifying model output dictionary keys.
 

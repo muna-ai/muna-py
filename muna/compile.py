@@ -16,7 +16,7 @@ from .beta import (
     LiteRTInferenceMetadata, LlamaCppInferenceMetadata, MLXInferenceMetadata,
     MLXInferenceSessionMetadata, OnnxRuntimeInferenceMetadata,
     OnnxRuntimeInferenceSessionMetadata, OpenVINOInferenceMetadata,
-    QnnInferenceMetadata, TensorRTInferenceMetadata,
+    QnnInferenceMetadata, TensorRTInferenceMetadata, TensorRTInferenceSessionMetadata,
     TensorRTRTXInferenceMetadata, TFLiteInterpreterMetadata
 )
 from .sandbox import Sandbox
@@ -45,6 +45,7 @@ CompileMetadata = (
     OpenVINOInferenceMetadata           |
     QnnInferenceMetadata                |
     TensorRTInferenceMetadata           |
+    TensorRTInferenceSessionMetadata    |
     TensorRTRTXInferenceMetadata        |
     TFLiteInterpreterMetadata
 )

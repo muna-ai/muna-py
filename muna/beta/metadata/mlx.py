@@ -6,12 +6,12 @@
 from pydantic import Field
 from typing import Literal
 
+from ._ort import OnnxRuntimeInferenceSessionMetadataBase
 from ._torch import PyTorchInferenceMetadataBase
-from .onnxruntime import OnnxRuntimeInferenceSessionMetadata
 
 class MLXInferenceMetadata(PyTorchInferenceMetadataBase):
     """
-    Metadata to compile a PyTorch model for inference with MLX on Apple Silicon.
+    Metadata to compile a PyTorch model for inference on Apple Silicon with MLX.
 
     Members:
         model (torch.nn.Module): PyTorch module to apply metadata to.
@@ -22,9 +22,9 @@ class MLXInferenceMetadata(PyTorchInferenceMetadataBase):
     """
     kind: Literal["meta.inference.mlx"] = Field(default="meta.inference.mlx", init=False)
 
-class MLXInferenceSessionMetadata(OnnxRuntimeInferenceSessionMetadata):
+class MLXInferenceSessionMetadata(OnnxRuntimeInferenceSessionMetadataBase):
     """
-    Metadata to compile an OnnxRuntime `InferenceSession` for inference with MLX on Apple Silicon.
+    Metadata to compile an OnnxRuntime `InferenceSession` for inference on Apple Silicon with MLX.
 
     Members:
         session (onnxruntime.InferenceSession): OnnxRuntime inference session to apply metadata to.
@@ -32,4 +32,3 @@ class MLXInferenceSessionMetadata(OnnxRuntimeInferenceSessionMetadata):
         external_data_path (str | Path): ONNX model external data path. This file must exist in the compiler sandbox.
     """
     kind: Literal["meta.inference.mlx_onnx"] = Field(default="meta.inference.mlx_onnx", init=False)
-    providers: None = Field(default=None, init=False, exclude=True)
