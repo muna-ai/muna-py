@@ -69,3 +69,13 @@ def test_create_speech():
         acceleration="local_auto"
     )
     assert response
+
+def test_create_transcription():
+    openai = Muna().beta.openai
+    audio_path = Path("test/data/librispeech_sample.wav")
+    with audio_path.open("rb") as f:
+        transcription = openai.audio.transcriptions.create(
+            file=f,
+            model="@moonshine/moonshine-base",
+        )
+    assert transcription.text.lower().startswith("going along slushy country roads")

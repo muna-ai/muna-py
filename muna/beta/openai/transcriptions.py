@@ -4,8 +4,10 @@
 #
 
 from collections.abc import Callable
+from numpy import ndarray
 from typing import BinaryIO
 
+from ...c import Value
 from ...services import PredictorService, PredictionService
 from ...types import Acceleration, Dtype
 from ..annotations import get_parameter
@@ -75,7 +77,7 @@ class TranscriptionService:
         # Return
         return result
 
-    def __create_delegate(self, tag: str) -> TranscriptionDelegate: # INCOMPLETE
+    def __create_delegate(self, tag: str) -> TranscriptionDelegate:
         # Retrieve predictor
         predictor = self.__predictors.retrieve(tag)
         if not predictor:
@@ -93,7 +95,11 @@ class TranscriptionService:
                 "it has more than one required input parameter."
             )
         # Check that the input parameter is `float32` with `audio` denotation
-        _, audio_param = get_parameter(required_inputs, dtype=Dtype.float32, denotation="audio")
+        _, audio_param = get_parameter(
+            required_inputs,
+            dtype=Dtype.float32,
+            denotation="audio"
+        )
         if audio_param is None:
             raise ValueError(
                 f"{tag} cannot be used with OpenAI transcription API because "
@@ -115,6 +121,16 @@ class TranscriptionService:
             dtype={ Dtype.float32, Dtype.float64 },
             denotation="openai.chat.completions.temperature"
         )
+        # Get the transcription output param index
+        transcription_param_idx, transcription_param = get_parameter(
+            signature.outputs,
+            dtype=Dtype.string
+        )
+        if transcription_param is None:
+            raise ValueError(
+                f"{tag} cannot be used with OpenAI transcription API because "
+                "it has no output string parameter."
+            )
         # Define delegate
         def delegate(
             *,
@@ -126,6 +142,73 @@ class TranscriptionService:
             temperature: float,
             acceleration: Acceleration | RemoteAcceleration
         ) -> Transcription:
-            pass
+            # Get prediction creation function (local or remote)
+            create_prediction_func = (
+                self.__remote_predictions.create
+                if acceleration.startswith("remote_")
+                else self.__predictions.create
+            )
+            # Build prediction input map
+            samples = self.__read_audio_samples(
+                file,
+                sample_rate=audio_param.sample_rate
+            )
+            input_map = { audio_param.name: samples }
+            if language_param is not None and language is not None:
+                input_map[language_param.name] = language
+            if prompt_param is not None and prompt is not None:
+                input_map[prompt_param.name] = prompt
+            if temperature_param is not None:
+                input_map[temperature_param.name] = temperature
+            # Create prediction
+            prediction = create_prediction_func(
+                tag=model,
+                inputs=input_map,
+                acceleration=acceleration
+            )
+            # Check for error
+            if prediction.error:
+                raise RuntimeError(prediction.error)
+            # Extract transcription text
+            text = prediction.results[transcription_param_idx]
+            if not isinstance(text, str):
+                raise RuntimeError(f"{tag} returned object of type {type(text)} instead of a string")
+            # Create result
+            duration = samples.shape[0] / audio_param.sample_rate
+            result = Transcription(
+                text=text,
+                usage=Transcription.DurationUsage(
+                    type="duration",
+                    seconds=duration
+                )
+            )
+            # Return
+            return result
         # Return
         return delegate
+
+    def __read_audio_samples(
+        self,
+        file: BinaryIO | Audio,
+        *,
+        sample_rate: int
+    ) -> ndarray:
+        match file:
+            case Audio():
+                if file.sample_rate != sample_rate:
+                    raise ValueError(
+                        f"Audio sample rate {file.sample_rate}Hz does not match "
+                        f"the required sample rate of {sample_rate}Hz."
+                    )
+                return file.samples
+            case file if hasattr(file, "read"):
+                with Value.from_bytes(
+                    file.read(),
+                    f"audio/*;rate={sample_rate}"
+                ) as audio_value:
+                    return audio_value.to_object()
+            case _:
+                raise TypeError(
+                    f"Expected `BinaryIO` or `Audio` instance "
+                    f"but got `{type(file).__qualname__}`"
+                )
