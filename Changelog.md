@@ -1,3 +1,6 @@
+## 0.0.94
+*INCOMPLETE*
+
 ## 0.0.93
 + Added `muna.beta.openai.audio.transcriptions.create` method for using speech-to-text models via our OpenAI-compatible client.
 + Added `beta.TensorRTInferenceSessionMetadata` metadata type to compile ONNXRuntime `InferenceSession` instances for inference on Nvidia GPUs with TensorRT.
