@@ -1,5 +1,6 @@
 ## 0.0.94
-*INCOMPLETE*
++ Added `muna.beta.openai.images.create` method for using image generation models via our OpenAI-compatible client.
++ Added `beta.Annotations.ImageCount` annotation method to specify image generation count parameters.
 
 ## 0.0.93
 + Added `muna.beta.openai.audio.transcriptions.create` method for using speech-to-text models via our OpenAI-compatible client.

@@ -241,7 +241,28 @@ class Annotations:
             denotation="openai.audio.transcriptions.prompt",
             **kwargs
         )
-    
+
+    @classmethod
+    def ImageCount(
+        cls,
+        *,
+        description: str,
+        min: int | None=None,
+        max: int | None=None,
+        **kwargs
+    ) -> Parameter:
+        """
+        Image count parameter.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="openai.images.n",
+            min=min,
+            max=max,
+            **kwargs
+        )
+
 def get_parameter(
     parameters: list[Parameter],
     *,
