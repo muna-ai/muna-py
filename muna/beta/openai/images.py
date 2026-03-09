@@ -17,6 +17,17 @@ from ..remote import RemoteAcceleration
 from ..remote.remote import RemotePredictionService
 from .schema import ImageData, ImageResponse
 
+ImageSize = Literal[
+    "auto",
+    "1024x1024",
+    "1536x1024",
+    "1024x1536",
+    "256x256",
+    "512x512",
+    "1792x1024",
+    "1024x1792"
+]
+
 ImageDelegate = Callable[..., ImageResponse]
 
 class ImageService: # DEPLOY
@@ -44,6 +55,7 @@ class ImageService: # DEPLOY
         n: int | None=None,
         output_format: Literal["png", "jpeg", "webp", "raw"]=None,
         output_compression: int | None=None,
+        size: ImageSize | None=None,
         acceleration: Acceleration | RemoteAcceleration="local_auto"
     ) -> ImageResponse:
         """
@@ -56,8 +68,9 @@ class ImageService: # DEPLOY
             n (int): Number of images to generate. 
             output_compression (int): The compression level for the generated images in range [0,100].
             output_format (str): The format in which the generated images are returned.
+            size (str): The size of the generated images.
             acceleration (Acceleration | RemoteAcceleration): Prediction acceleration.
-        
+
         Returns:
             ImageRepsonse: Generated image.
         """
@@ -73,6 +86,7 @@ class ImageService: # DEPLOY
             n=n,
             output_compression=output_compression,
             output_format=output_format,
+            size=size,
             acceleration=acceleration
         )
         # Return
@@ -102,14 +116,23 @@ class ImageService: # DEPLOY
                 f"{tag} cannot be used with OpenAI image API because "
                 "it does not have a valid text prompt input parameter."
             )
+        # Get the generation width parameter (optional)
+        _, width_param = get_parameter(
+            signature.inputs,
+            dtype=_NUMERIC_DTYPES,
+            denotation="openai.images.width"
+        )
+        # Get the generation height parameter (optional)
+        _, height_param = get_parameter(
+            signature.inputs,
+            dtype=_NUMERIC_DTYPES,
+            denotation="openai.images.height"
+        )
         # Get the generation count parameter (optional)
         _, count_param = get_parameter(
             signature.inputs,
-            dtype={
-                Dtype.int8, Dtype.int16, Dtype.int32, Dtype.int64,
-                Dtype.uint8, Dtype.uint16, Dtype.uint32, Dtype.uint64
-            },
-            denotation="openai.images.n"
+            dtype=_NUMERIC_DTYPES,
+            denotation="openai.images.count"
         )
         # Get the image output parameter index
         image_param_idx, _ = get_parameter(signature.outputs, dtype=Dtype.image_list)
@@ -127,6 +150,7 @@ class ImageService: # DEPLOY
             n: int | None,
             output_format: Literal["png", "jpeg", "webp", "raw"],
             output_compression: int | None,
+            size: ImageSize | None,
             acceleration: Acceleration | RemoteAcceleration
         ) -> ImageResponse:
             # Get prediction creation function (local or remote)
@@ -136,9 +160,14 @@ class ImageService: # DEPLOY
                 else self.__predictions.create
             )
             # Build prediction input map
+            requested_width, requested_height = _get_image_size(size)
             input_map = { prompt_param.name: prompt }
             if n is not None and count_param is not None:
                 input_map[count_param.name] = n
+            if requested_width is not None and width_param is not None:
+                input_map[width_param.name] = requested_width
+            if requested_height is not None and height_param is not None:
+                input_map[height_param.name] = requested_height
             # Create prediction
             prediction = create_prediction_func(
                 tag=model,
@@ -150,7 +179,7 @@ class ImageService: # DEPLOY
                 raise RuntimeError(prediction.error)            
             # Create response
             images: list[Image.Image] = prediction.results[image_param_idx]
-            image_data = [self.__create_image_data(
+            image_data = [_create_image_data(
                 image,
                 output_format=output_format,
                 output_compression=output_compression
@@ -166,19 +195,30 @@ class ImageService: # DEPLOY
         # Return
         return delegate
 
-    def __create_image_data(
-        self,
-        image: Image.Image,
-        output_format: Literal["png", "jpeg", "webp", "raw"],
-        output_compression: int | None,
-    ) -> ImageData:
-        match output_format:
-            case "raw":     return ImageData(b64_json=None, image=image)
-            case "webp":    raise ValueError(f"webp output format is not yet supported")
-            case _:
-                mime = f"image/{output_format}"
-                if output_compression is not None:
-                    mime += f";quality={output_compression}"
-                with Value.from_object(image) as image_value:
-                    data = image_value.serialize(mime)
-                return ImageData(b64_json=b64encode(data).decode("ascii"), image=None)
+def _create_image_data(
+    image: Image.Image,
+    output_format: Literal["png", "jpeg", "webp", "raw"],
+    output_compression: int | None,
+) -> ImageData:
+    match output_format:
+        case "raw":     return ImageData(b64_json=None, image=image)
+        case "webp":    raise ValueError(f"webp output format is not yet supported")
+        case _:
+            mime = f"image/{output_format}"
+            if output_compression is not None:
+                mime += f";quality={output_compression}"
+            with Value.from_object(image) as image_value:
+                data = image_value.serialize(mime)
+            return ImageData(b64_json=b64encode(data).decode("ascii"), image=None)
+
+def _get_image_size(size: ImageSize | None) -> tuple[int | None, int | None]:
+    try:
+        w, h = size.split("x", 1)
+        return int(w), int(h)
+    except (ValueError, AttributeError):
+        return None, None
+
+_NUMERIC_DTYPES = {
+    Dtype.int8, Dtype.int16, Dtype.int32, Dtype.int64,
+    Dtype.uint8, Dtype.uint16, Dtype.uint32, Dtype.uint64
+}

@@ -257,7 +257,49 @@ class Annotations:
         return Parameter(
             name="",
             description=description,
-            denotation="openai.images.n",
+            denotation="openai.images.count",
+            min=min,
+            max=max,
+            **kwargs
+        )
+    
+    @classmethod
+    def ImageWidth(
+        cls,
+        *,
+        description: str,
+        min: int | None=None,
+        max: int | None=None,
+        **kwargs
+    ) -> Parameter:
+        """
+        Image width parameter.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="openai.images.width",
+            min=min,
+            max=max,
+            **kwargs
+        )
+
+    @classmethod
+    def ImageHeight(
+        cls,
+        *,
+        description: str,
+        min: int | None=None,
+        max: int | None=None,
+        **kwargs
+    ) -> Parameter:
+        """
+        Image height parameter.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="openai.images.height",
             min=min,
             max=max,
             **kwargs
