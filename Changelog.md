@@ -3,6 +3,7 @@
 + Added `beta.Annotations.ImageWidth` annotation method to specify image generation width parameters.
 + Added `beta.Annotations.ImageHeight` annotation method to specify image generation height parameters.
 + Added `beta.Annotations.ImageCount` annotation method to specify image generation count parameters.
++ Added `beta.QnnInferenceMetadata.quantization_samples` field for specifying quantization calibration data when targeting Hexagon Tensor Processor.
 
 ## 0.0.93
 + Added `muna.beta.openai.audio.transcriptions.create` method for using speech-to-text models via our OpenAI-compatible client.

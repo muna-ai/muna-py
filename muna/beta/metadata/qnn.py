@@ -22,7 +22,8 @@ class QnnInferenceMetadata(PyTorchInferenceMetadataBase):
         input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
         optimum_config (optimum.ExporterConfig): Optimum exporter configuration. Required when `exporter` is `optimum`.
         backend (QnnInferenceBackend): QNN inference backend. Defaults to `cpu`.
-        quantization (QnnInferenceQuantization): QNN model quantization mode. This MUST only be specified when backend is `htp`.
+        quantization (QnnInferenceQuantization): QNN model quantization mode. This is only supported when backend is `htp`.
+        quantization_samples (list): Representative model input samples for quantization calibration. This is required when `quantization` is specified.
     """
     kind: Literal["meta.inference.qnn"] = Field(default="meta.inference.qnn", init=False)
     backend: QnnInferenceBackend = Field(
@@ -33,5 +34,10 @@ class QnnInferenceMetadata(PyTorchInferenceMetadataBase):
     quantization: QnnInferenceQuantization | None = Field(
         default=None,
         description="QNN model quantization mode. This MUST only be specified when backend is `htp`.",
+        exclude=True
+    )
+    quantization_samples: list[tuple] | None = Field(
+        default=None,
+        description="Representative model input samples for quantization calibration. This is required when `quantization` is specified.",
         exclude=True
     )
