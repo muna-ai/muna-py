@@ -3,6 +3,7 @@
 + Added `beta.Annotations.ImageWidth` annotation method to specify image generation width parameters.
 + Added `beta.Annotations.ImageHeight` annotation method to specify image generation height parameters.
 + Added `beta.Annotations.ImageCount` annotation method to specify image generation count parameters.
++ Added support for `fp16` quantization when using Hexagon Tensor Processor backend with `beta.QnnInferenceMetadata`.
 + Added `beta.QnnInferenceMetadata.quantization_samples` field for specifying quantization calibration data when targeting Hexagon Tensor Processor.
 
 ## 0.0.93
