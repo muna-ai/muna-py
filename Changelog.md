@@ -1,3 +1,6 @@
+## 0.0.95
+*INCOMPLETE*
+
 ## 0.0.94
 + Added `muna.beta.openai.images.create` method for using image generation models via our OpenAI-compatible client.
 + Added `beta.Annotations.ImageWidth` annotation method to specify image generation width parameters.
