@@ -19,6 +19,12 @@ class EnumerationMember(BaseModel):
     name: str = Field(description="Enumeration member name.")
     value: str | int = Field(description="Enumeration member value.")
 
+class BatchConfig(BaseModel): # INCOMPLETE
+    """
+    Batch configuration.
+    """
+    max_count: int = Field(description="Maximum count for batching.", ge=1)
+
 class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
     """
     Predictor parameter.
@@ -75,6 +81,10 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
         description="Audio sample rate in Hertz.",
         serialization_alias="sampleRate",
         validation_alias=AliasChoices("sample_rate", "sampleRate")
+    )
+    batch: BatchConfig | None = Field(
+        default=None,
+        description="Batch inference configuration for this parameter."
     )
 
     @classmethod
