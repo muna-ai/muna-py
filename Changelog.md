@@ -1,5 +1,5 @@
 ## 0.0.95
-+ Added `Parameter.batch` field to specify inference batching configuration for parameters.
++ Added `BatchConfig` type and `Parameter.batch` field to specify inference batching configuration for parameters.
 
 ## 0.0.94
 + Added `muna.beta.openai.images.create` method for using image generation models via our OpenAI-compatible client.

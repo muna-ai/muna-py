@@ -19,11 +19,16 @@ class EnumerationMember(BaseModel):
     name: str = Field(description="Enumeration member name.")
     value: str | int = Field(description="Enumeration member value.")
 
-class BatchConfig(BaseModel): # INCOMPLETE
+class BatchConfig(BaseModel):
     """
     Batch configuration.
     """
-    max_count: int = Field(description="Maximum count for batching.", ge=1)
+    max_count: int = Field(
+        description="Maximum total item count across all merged requests.",
+        ge=1,
+        serialization_alias="maxCount",
+        validation_alias=AliasChoices("max_count", "maxCount")
+    )
 
 class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
     """
@@ -92,6 +97,7 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
         cls,
         *,
         description: str,
+        batch: BatchConfig | None=None,
         **kwargs
     ) -> Parameter:
         """
@@ -100,6 +106,7 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
         return Parameter(
             name="",
             description=description,
+            batch=batch,
             **kwargs
         )
 
