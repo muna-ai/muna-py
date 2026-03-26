@@ -1,3 +1,6 @@
+## 0.0.96
+*INCOMPLETE*
+
 ## 0.0.95
 + Added `BatchConfig` type and `Parameter.batch` field to specify inference batching configuration for parameters.
 
