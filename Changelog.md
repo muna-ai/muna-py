@@ -1,5 +1,6 @@
 ## 0.0.96
-*INCOMPLETE*
++ Removed `openvino` as a valid provider in `beta.OnnxRuntimeInferenceMetadata.providers` field.
++ Removed `xnnpack` as a valid provider in `beta.OnnxRuntimeInferenceMetadata.providers` field.
 
 ## 0.0.95
 + Added `BatchConfig` type and `Parameter.batch` field to specify inference batching configuration for parameters.

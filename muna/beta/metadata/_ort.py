@@ -7,7 +7,7 @@ from pathlib import Path
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 from typing import Annotated, Literal
 
-OnnxRuntimeExecutionProvider = Literal["cpu", "coreml", "cuda", "openvino", "xnnpack"]
+OnnxRuntimeExecutionProvider = Literal["cpu", "coreml", "cuda"]
 OnnxRuntimeOptimizationLevel = Literal["none", "basic", "extended"]
 
 def _validate_ort_inference_session(session: "onnxruntime.InferenceSession") -> "onnxruntime.InferenceSession": # type: ignore
