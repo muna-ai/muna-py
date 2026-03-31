@@ -25,19 +25,23 @@ class Dtype(StrEnum):
     uint16      = "uint16"
     uint32      = "uint32"
     uint64      = "uint64"
+    complex64   = "complex64"
+    complex128  = "complex128"
     bool        = "bool"
     string      = "string"
     list        = "list"
     dict        = "dict"
     image       = "image"
-    image_list  = "image_list"
     binary      = "binary"
+    array_list  = "array_list"
+    image_list  = "image_list"
 
 Value = (
     None                |
     float               |
     int                 |
     bool                |
+    complex             |
     ndarray             |
     str                 |
     list[object]        |

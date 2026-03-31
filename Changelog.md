@@ -1,4 +1,6 @@
 ## 0.0.96
++ Added support for making predictions with `list[ndarray]` lists of tensors.
++ Added support for making predictions with `complex` numbers.
 + Removed `openvino` as a valid provider in `beta.OnnxRuntimeInferenceMetadata.providers` field.
 + Removed `xnnpack` as a valid provider in `beta.OnnxRuntimeInferenceMetadata.providers` field.
 

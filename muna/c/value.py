@@ -6,7 +6,10 @@
 from __future__ import annotations
 from dataclasses import asdict, is_dataclass
 from enum import IntFlag
-from ctypes import byref, cast, c_char_p, c_int, c_int32, c_uint8, c_void_p, string_at, POINTER
+from ctypes import (
+    byref, cast, c_char_p, c_int, c_int32,
+    c_uint8, c_void_p, string_at, POINTER
+)
 from io import BytesIO
 from json import dumps, loads
 from numpy import array, dtype, generic, int32, ndarray, zeros
@@ -82,16 +85,36 @@ class Value:
         match self.dtype:
             case Dtype.null:    return None
             case t if t in _TENSOR_DTYPES:
-                ctype = as_ctypes_type(dtype(t))
+                np_dtype = dtype(t)
+                ctype = as_ctypes_type(np_dtype)
+                if np_dtype.kind == "c":
+                    byte_size = np_dtype.itemsize
+                    from numpy import frombuffer, prod
+                    count = prod(self.shape) if self.shape else 1
+                    buf = string_at(self.data, int(count) * byte_size)
+                    tensor = frombuffer(buf, dtype=np_dtype).reshape(self.shape if self.shape else ())
+                    return tensor.copy() if len(tensor.shape) else tensor.item()
                 tensor = as_array(cast(self.data, POINTER(ctype)), self.shape)
                 return tensor.copy() if len(tensor.shape) else tensor.item()
-            case Dtype.string:  return string_at(self.data).decode()
-            case Dtype.list:    return loads(string_at(self.data))
-            case Dtype.dict:    return loads(string_at(self.data))
+            case Dtype.string:
+                return string_at(self.data).decode()
+            case Dtype.list:
+                return loads(string_at(self.data))
+            case Dtype.dict:
+                return loads(string_at(self.data))
             case Dtype.image:
                 data = as_array(cast(self.data, POINTER(c_uint8)), self.shape).copy()
                 return Image.fromarray(data.squeeze())
-            case Dtype.binary:  return string_at(self.data, self.shape[0])
+            case Dtype.binary:
+                return string_at(self.data, self.shape[0])
+            case Dtype.array_list:
+                count = self.shape[0] if self.shape else 0
+                elements = cast(self.data, POINTER(c_void_p))
+                return [Value(c_void_p(elements[i]), owner=False).to_object() for i in range(count)]
+            case Dtype.image_list:
+                count = self.shape[0] if self.shape else 0
+                elements = cast(self.data, POINTER(c_void_p))
+                return [Value(c_void_p(elements[i]), owner=False).to_object() for i in range(count)]
             case _:             raise ValueError(f"Failed to convert value with type `{self.dtype}` to object because it is not supported")
 
     def __enter__(self):
@@ -121,6 +144,38 @@ class Value:
             case int():     return cls.from_object(array(obj, dtype=Dtype.int32), flags=flags | ValueFlags.COPY_DATA)
             case generic(): return cls.from_object(array(obj), flags=flags | ValueFlags.COPY_DATA)            
             case str():     status = get_fxnc().FXNValueCreateString(obj.encode(), byref(value))
+            case list() if all(isinstance(t, ndarray) for t in obj):
+                data_ptrs = (c_void_p * len(obj))(*[t.ctypes.data_as(c_void_p) for t in obj])
+                shapes = [(c_int32 * len(t.shape))(*t.shape) for t in obj]
+                shape_ptrs = (c_void_p * len(obj))()
+                for i, s in enumerate(shapes):
+                    shape_ptrs[i] = cast(s, c_void_p).value
+                dims = (c_int32 * len(obj))(*[len(t.shape) for t in obj])
+                dtypes = (c_int32 * len(obj))(*[_dtype_to_c(t.dtype.name) for t in obj])
+                status = get_fxnc().FXNValueCreateArrayList(
+                    data_ptrs,
+                    shape_ptrs,
+                    dims,
+                    dtypes,
+                    len(obj),
+                    flags | ValueFlags.COPY_DATA,
+                    byref(value)
+                )
+            case list() if all(isinstance(img, Image.Image) for img in obj):
+                tensors = [array(img) for img in obj]
+                pixel_buffers = (c_void_p * len(obj))(*[t.ctypes.data_as(c_void_p) for t in tensors])
+                widths = (c_int32 * len(obj))(*[img.width for img in obj])
+                heights = (c_int32 * len(obj))(*[img.height for img in obj])
+                channels = (c_int32 * len(obj))(*[t.shape[2] if len(t.shape) == 3 else 1 for t in tensors])
+                status = get_fxnc().FXNValueCreateImageList(
+                    pixel_buffers,
+                    widths,
+                    heights,
+                    channels,
+                    len(obj),
+                    flags | ValueFlags.COPY_DATA,
+                    byref(value)
+                )
             case list():    status = get_fxnc().FXNValueCreateList(dumps(obj).encode(), byref(value))
             case dict():    status = get_fxnc().FXNValueCreateDict(dumps(obj).encode(), byref(value))
             case BytesIO(): return cls.from_object(obj.getvalue(), flags=flags | ValueFlags.COPY_DATA)
@@ -145,7 +200,7 @@ class Value:
                     byref(value)
                 )
             case _:
-                raise ValueFlags(f"Failed to convert object to prediction value because object has an unsupported type: {type(obj)}")
+                raise ValueError(f"Failed to convert object to prediction value because object has an unsupported type: {type(obj)}")
         if status != FXNStatus.OK:
             raise RuntimeError(f"Failed to create string value with error: {status_to_error(status)}")
         return Value(value)
@@ -207,6 +262,9 @@ def _dtype_to_c(type: Dtype) -> int:
         case Dtype.binary:      return 17
         case Dtype.bfloat16:    return 18
         case Dtype.image_list:  return 19
+        case Dtype.array_list:  return 20
+        case Dtype.complex64:   return 21
+        case Dtype.complex128:  return 22
         case _:                 raise ValueError(f"Failed to convert data type because it is not supported: {type}")
 
 def _dtype_from_c(type: int) -> Dtype:
@@ -231,12 +289,15 @@ def _dtype_from_c(type: int) -> Dtype:
         case 17:    return Dtype.binary
         case 18:    return Dtype.bfloat16
         case 19:    return Dtype.image_list
+        case 20:    return Dtype.array_list
+        case 21:    return Dtype.complex64
+        case 22:    return Dtype.complex128
         case _:     raise ValueError(f"Failed to convert data type because it is not supported: {type}")
 
 _TENSOR_DTYPES = {
     Dtype.bfloat16, Dtype.float16, Dtype.float32, Dtype.float64,
     Dtype.int8, Dtype.int16, Dtype.int32, Dtype.int64,
     Dtype.uint8, Dtype.uint16, Dtype.uint32, Dtype.uint64,
-    Dtype.bool,
+    Dtype.complex64, Dtype.complex128, Dtype.bool,
 }
 _TENSOR_ISH_DTYPES = _TENSOR_DTYPES | { Dtype.image, Dtype.binary }

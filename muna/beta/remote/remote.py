@@ -6,8 +6,7 @@
 from base64 import b64encode
 from io import BytesIO
 from json import dumps, loads
-from numpy import array, generic, load as npz_load, ndarray, savez_compressed
-from numpy.lib.npyio import NpzFile
+from numpy import array, generic, ndarray, savez_compressed
 from PIL import Image
 from pydantic import BaseModel
 from requests import get
@@ -15,7 +14,7 @@ from typing import Iterator, Literal
 from urllib.request import urlopen
 
 from ...c import Configuration
-from ...c.value import _ensure_object_serializable, _TENSOR_DTYPES
+from ...c.value import _ensure_object_serializable, Value as CValue, _TENSOR_DTYPES
 from ...client import MunaClient
 from ...types import Dtype, Prediction, Value
 from .schema import RemoteAcceleration, RemotePrediction, RemoteValue
@@ -112,6 +111,16 @@ def _create_remote_value(obj: Value) -> RemoteValue:
             buffer = BytesIO(obj.encode())
             data = _upload_value_data(buffer, mime="text/plain")
             return RemoteValue(data=data, dtype=Dtype.string)
+        case list() if all(isinstance(img, Image.Image) for img in obj):
+            value = CValue.from_object(obj)
+            buffer = BytesIO(value.serialize(mime="image/avif"))
+            data = _upload_value_data(buffer, mime="image/avif")
+            return RemoteValue(data=data, dtype=Dtype.image_list)
+        case list() if all(isinstance(t, ndarray) for t in obj):
+            buffer = BytesIO()
+            savez_compressed(buffer, *obj, allow_pickle=False)
+            data = _upload_value_data(buffer, mime="application/x-npz")
+            return RemoteValue(data=data, dtype=Dtype.array_list)
         case list():
             buffer = BytesIO(dumps(obj).encode())
             data = _upload_value_data(buffer, mime="application/json")
@@ -140,15 +149,20 @@ def _parse_remote_value(value: RemoteValue) -> Value:
         case Dtype.null:
             return None
         case _ if is_tensor:
-            archive: NpzFile = npz_load(buffer)
-            array = next(iter(archive.values()))
-            return array if len(array.shape) else array.item()
+            c_value = CValue.from_bytes(buffer.getvalue(), mime="application/vnd.muna.tensor")
+            return c_value.to_object()
         case Dtype.string:
             return buffer.getvalue().decode("utf-8")
         case Dtype.list | Dtype.dict:
             return loads(buffer.getvalue().decode("utf-8"))
         case Dtype.image:
             return Image.open(buffer)
+        case Dtype.array_list:
+            c_value = CValue.from_bytes(buffer.getvalue(), mime="application/x-npz")
+            return c_value.to_object()
+        case Dtype.image_list:
+            c_value = CValue.from_bytes(buffer.getvalue(), mime="image/avif")
+            return c_value.to_object()
         case Dtype.binary:
             return buffer
         case _:
