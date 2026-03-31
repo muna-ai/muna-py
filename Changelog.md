@@ -3,6 +3,7 @@
 + Added support for making predictions with `complex` numbers.
 + Removed `openvino` as a valid provider in `beta.OnnxRuntimeInferenceMetadata.providers` field.
 + Removed `xnnpack` as a valid provider in `beta.OnnxRuntimeInferenceMetadata.providers` field.
++ Upgraded to Function C 0.0.43.
 
 ## 0.0.95
 + Added `BatchConfig` type and `Parameter.batch` field to specify inference batching configuration for parameters.
