@@ -1,3 +1,6 @@
+## 0.0.97
+*INCOMPLETE*
+
 ## 0.0.96
 + Added support for making predictions with `list[ndarray]` lists of tensors.
 + Added support for making predictions with `complex` numbers.
