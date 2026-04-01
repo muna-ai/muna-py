@@ -1,3 +1,6 @@
+## 0.0.98
+*INCOMPLETE*
+
 ## 0.0.97
 + Added support for batched transcription models in `openai.audio.transcriptions.create` method.
 + Fixed bug where array list and image list values are empty when making predictions.
