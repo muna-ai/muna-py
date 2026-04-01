@@ -111,16 +111,16 @@ def _create_remote_value(obj: Value) -> RemoteValue:
             buffer = BytesIO(obj.encode())
             data = _upload_value_data(buffer, mime="text/plain")
             return RemoteValue(data=data, dtype=Dtype.string)
-        case list() if all(isinstance(img, Image.Image) for img in obj):
-            value = CValue.from_object(obj)
-            buffer = BytesIO(value.serialize(mime="image/avif"))
-            data = _upload_value_data(buffer, mime="image/avif")
-            return RemoteValue(data=data, dtype=Dtype.image_list)
         case list() if all(isinstance(t, ndarray) for t in obj):
             buffer = BytesIO()
             savez_compressed(buffer, *obj, allow_pickle=False)
             data = _upload_value_data(buffer, mime="application/x-npz")
             return RemoteValue(data=data, dtype=Dtype.array_list)
+        case list() if all(isinstance(img, Image.Image) for img in obj):
+            value = CValue.from_object(obj)
+            buffer = BytesIO(value.serialize(mime="image/avif"))
+            data = _upload_value_data(buffer, mime="image/avif")
+            return RemoteValue(data=data, dtype=Dtype.image_list)
         case list():
             buffer = BytesIO(dumps(obj).encode())
             data = _upload_value_data(buffer, mime="application/json")

@@ -94,10 +94,10 @@ class TranscriptionService:
                 f"{tag} cannot be used with OpenAI transcription API because "
                 "it has more than one required input parameter."
             )
-        # Check that the input parameter is `float32` with `audio` denotation
+        # Check that the input parameter is `float32` or `array_list` with `audio` denotation
         _, audio_param = get_parameter(
             required_inputs,
-            dtype=Dtype.float32,
+            dtype={ Dtype.float32, Dtype.array_list },
             denotation="audio"
         )
         if audio_param is None:
@@ -124,7 +124,7 @@ class TranscriptionService:
         # Get the transcription output param index
         transcription_param_idx, transcription_param = get_parameter(
             signature.outputs,
-            dtype=Dtype.string
+            dtype={ Dtype.string, Dtype.list }
         )
         if transcription_param is None:
             raise ValueError(
@@ -153,7 +153,8 @@ class TranscriptionService:
                 file,
                 sample_rate=audio_param.sample_rate
             )
-            input_map = { audio_param.name: samples }
+            audio_input = [samples] if audio_param.dtype == Dtype.array_list else samples
+            input_map = { audio_param.name: audio_input }
             if language_param is not None and language is not None:
                 input_map[language_param.name] = language
             if prompt_param is not None and prompt is not None:
@@ -171,6 +172,8 @@ class TranscriptionService:
                 raise RuntimeError(prediction.error)
             # Extract transcription text
             text = prediction.results[transcription_param_idx]
+            if isinstance(text, list):
+                text = text[0]
             if not isinstance(text, str):
                 raise RuntimeError(f"{tag} returned object of type {type(text)} instead of a string")
             # Create result

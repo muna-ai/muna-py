@@ -1,5 +1,6 @@
 ## 0.0.97
-*INCOMPLETE*
++ Added support for batched transcription models in `openai.audio.transcriptions.create` method.
++ Fixed bug where array list and image list values are empty when making predictions.
 
 ## 0.0.96
 + Added support for making predictions with `list[ndarray]` lists of tensors.

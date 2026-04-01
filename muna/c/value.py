@@ -50,7 +50,7 @@ class Value:
 
     @property
     def shape(self) -> tuple[int, ...] | None:
-        if self.dtype not in _TENSOR_ISH_DTYPES:
+        if self.dtype not in _SHAPED_DTYPES:
             return None
         fxnc = get_fxnc()
         dims = c_int32()
@@ -300,4 +300,7 @@ _TENSOR_DTYPES = {
     Dtype.uint8, Dtype.uint16, Dtype.uint32, Dtype.uint64,
     Dtype.complex64, Dtype.complex128, Dtype.bool,
 }
-_TENSOR_ISH_DTYPES = _TENSOR_DTYPES | { Dtype.image, Dtype.binary }
+_SHAPED_DTYPES = _TENSOR_DTYPES | {
+    Dtype.image, Dtype.binary, Dtype.array_list,
+    Dtype.image_list
+}
