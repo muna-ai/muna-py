@@ -16,7 +16,7 @@ from .openvino import OpenVINOInferenceMetadata
 from .qnn import QnnInferenceBackend, QnnInferenceMetadata, QnnInferenceQuantization
 from .tensorrt import (
     CudaArchitecture, TensorRTInferenceMetadata, TensorRTInferenceSessionMetadata,
-    TensorRTHardwareCompatibility, TensorRTPrecision
+    TensorRTHardwareCompatibility
 )
 from .tensorrt_rtx import TensorRTRTXInferenceMetadata
 from .tflite import TFLiteInterpreterMetadata

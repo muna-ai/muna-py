@@ -16,19 +16,16 @@ CudaArchitecture = Literal[
     "sm_90",    # Hopper (H100)
     "sm_100",   # Blackwell (B200)
 ]
-
-TensorRTPrecision = Literal["bf16", "fp4", "fp8", "fp16", "fp32", "int8"]
-TensorRTHardwareCompatibility = Literal["none", "same_compatibility", "forward_compatibility"]
+TensorRTHardwareCompatibility = Literal[
+    "none",
+    "same_compatibility",
+    "forward_compatibility"
+]
 
 class _TensorRTInferenceMetadataBase(BaseModel, **ConfigDict(frozen=True)):
     cuda_arch: CudaArchitecture = Field(
         default="sm_80",
         description="Target CUDA architecture for the TensorRT engine.",
-        exclude=True
-    )
-    precision: TensorRTPrecision = Field(
-        default="fp32",
-        description="TensorRT engine inference precision.",
         exclude=True
     )
     hardware_compatibility: TensorRTHardwareCompatibility = Field(
@@ -47,9 +44,9 @@ class TensorRTInferenceMetadata(_TensorRTInferenceMetadataBase, PyTorchInference
         model_args (tuple): Positional inputs to the model.
         input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
         optimum_config (optimum.ExporterConfig): Optimum exporter configuration. Required when `exporter` is `optimum`.
+        kv_cache (KVCacheConfig): KV cache configuration for autoregressive models.
         cuda_arch (CudaArchitecture): Target CUDA architecture for the TensorRT engine. Defaults to `sm_80` (Ampere).
-        precision (TensorRTPrecision): TensorRT engine inference precision. Defaults to `fp16`.
-        hardware_compatibility (TensorRTHardwareCompatibility): TensorRT engine hardware compatibility. Defaults to `none`.
+        hardware_compatibility (TensorRTHardwareCompatibility): TensorRT engine hardware compatibility. Defaults to `forward_compatibility`.
     """
     kind: Literal["meta.inference.tensorrt"] = Field(default="meta.inference.tensorrt", init=False)
 
@@ -62,7 +59,6 @@ class TensorRTInferenceSessionMetadata(_TensorRTInferenceMetadataBase, OnnxRunti
         model_path (str | Path): ONNX model path. The file must exist in the compiler sandbox.
         external_data_path (str | Path): ONNX model external data path. This file must exist in the compiler sandbox.
         cuda_arch (CudaArchitecture): Target CUDA architecture for the TensorRT engine. Defaults to `sm_80` (Ampere).
-        precision (TensorRTPrecision): TensorRT engine inference precision. Defaults to `fp16`.
-        hardware_compatibility (TensorRTHardwareCompatibility): TensorRT engine hardware compatibility. Defaults to `none`.
+        hardware_compatibility (TensorRTHardwareCompatibility): TensorRT engine hardware compatibility. Defaults to `forward_compatibility`.
     """
     kind: Literal["meta.inference.tensorrt_onnx"] = Field(default="meta.inference.tensorrt_onnx", init=False)

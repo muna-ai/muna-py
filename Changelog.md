@@ -1,5 +1,7 @@
 ## 0.0.100
-*INCOMPLETE*
++ Removed `muna.beta.TensorRTInferenceMetadata.precision` field. The compiler will always use explicit precision defined by the model.
++ Removed `muna.beta.TensorRTRTXInferenceMetadata.precision` field. The compiler will always use explicit precision defined by the model.
++ Removed `muna.beta.TensorRTPrecision` literal type.
 
 ## 0.0.99
 + Added support for remote and adaptive `acceleration` in `muna.preditions.create` method.
