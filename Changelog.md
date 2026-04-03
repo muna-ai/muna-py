@@ -1,3 +1,6 @@
+## 0.0.100
+*INCOMPLETE*
+
 ## 0.0.99
 + Added support for remote and adaptive `acceleration` in `muna.preditions.create` method.
 + Added `muna.beta.KVCacheConfig` for specifying how to compile autoregressive models with KV caching.
