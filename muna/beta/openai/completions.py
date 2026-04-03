@@ -11,8 +11,6 @@ from typing import overload, Iterator, Literal
 from ...services import PredictorService, PredictionService
 from ...types import Acceleration, Dtype, Prediction
 from ..annotations import get_parameter
-from ..remote import RemoteAcceleration
-from ..remote.remote import RemotePredictionService
 from .schema import (
     ChatCompletion, ChatCompletionChunk, ChatCompletionReasoningEffort,
     Choice, DeltaMessage, Message, _MessageDict, _ResponseFormatDict,
@@ -29,12 +27,10 @@ class ChatCompletionService:
     def __init__(
         self,
         predictors: PredictorService,
-        predictions: PredictionService,
-        remote_predictions: RemotePredictionService
+        predictions: PredictionService
     ):
         self.__predictors = predictors
         self.__predictions = predictions
-        self.__remote_predictions = remote_predictions
         self.__cache = dict[str, ChatCompletionDelegate]()
 
     @overload
@@ -51,7 +47,7 @@ class ChatCompletionService:
         top_p: float | None=None,
         frequency_penalty: float | None=None,
         presence_penalty: float | None=None,
-        acceleration: Acceleration | RemoteAcceleration="remote_auto"
+        acceleration: Acceleration="local_auto"
     ) -> ChatCompletion: ...
 
     @overload
@@ -68,7 +64,7 @@ class ChatCompletionService:
         top_p: float | None=None,
         frequency_penalty: float | None=None,
         presence_penalty: float | None=None,
-        acceleration: Acceleration | RemoteAcceleration="remote_auto"
+        acceleration: Acceleration="local_auto"
     ) -> Iterator[ChatCompletionChunk]: ...
 
     def create(
@@ -84,7 +80,7 @@ class ChatCompletionService:
         top_p: float | None=None,
         frequency_penalty: float | None=None,
         presence_penalty: float | None=None,
-        acceleration: Acceleration | RemoteAcceleration="local_auto"
+        acceleration: Acceleration="local_auto"
     ) -> ChatCompletion | Iterator[ChatCompletionChunk]:
         """
         Create a chat completion.
@@ -100,7 +96,7 @@ class ChatCompletionService:
             top_p (float): Nucleus sampling coefficient.
             frequency_penalty (float): Token frequency penalty.
             presence_penalty (float): Token presence penalty.
-            acceleration (Acceleration | RemoteAcceleration): Prediction acceleration.
+            acceleration (Acceleration): Prediction acceleration.
 
         Returns:
             ChatCompletion | Iterator[ChatCompletionChunk]: Chat completion or chat completion chunks if streaming.
@@ -216,14 +212,8 @@ class ChatCompletionService:
             top_p: float | None,
             frequency_penalty: float | None,
             presence_penalty: float | None,
-            acceleration: Acceleration | RemoteAcceleration
+            acceleration: Acceleration
         ) -> ChatCompletion | Iterator[ChatCompletionChunk]:
-            # Get prediction creation and streaming functions (local or remote)
-            stream_prediction_func = (
-                self.__remote_predictions.stream
-                if acceleration.startswith("remote_")
-                else self.__predictions.stream
-            )
             # Build prediction input map
             input_map = { input_param.name: messages }
             if response_format_param and response_format:
@@ -241,7 +231,7 @@ class ChatCompletionService:
             if presence_penalty_param and presence_penalty is not None:
                 input_map[presence_penalty_param.name] = presence_penalty
             # Predict
-            prediction_stream = stream_prediction_func(
+            prediction_stream = self.__predictions.stream(
                 tag=model,
                 inputs=input_map,
                 acceleration=acceleration

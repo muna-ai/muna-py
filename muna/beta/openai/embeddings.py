@@ -11,8 +11,6 @@ from typing import Literal
 from ...services import PredictorService, PredictionService
 from ...types import Acceleration, Dtype
 from ..annotations import get_parameter
-from ..remote import RemoteAcceleration
-from ..remote.remote import RemotePredictionService
 from .schema import EmbeddingCreateResponse, Embedding
 
 EmbeddingDelegate = Callable[..., EmbeddingCreateResponse]
@@ -25,12 +23,10 @@ class EmbeddingService:
     def __init__(
         self,
         predictors: PredictorService,
-        predictions: PredictionService,
-        remote_predictions: RemotePredictionService
+        predictions: PredictionService
     ):
         self.__predictors = predictors
         self.__predictions = predictions
-        self.__remote_predictions = remote_predictions
         self.__cache = dict[str, EmbeddingDelegate]()
 
     def create(
@@ -40,7 +36,7 @@ class EmbeddingService:
         model: str,
         dimensions: int | None=None,
         encoding_format: Literal["float", "base64"] | None=None,
-        acceleration: Acceleration | RemoteAcceleration="local_auto"
+        acceleration: Acceleration="local_auto"
     ) -> EmbeddingCreateResponse:
         """
         Create an embedding vector representing the input text.
@@ -50,7 +46,7 @@ class EmbeddingService:
             model (str): Embedding model tag.
             dimensions (int): The number of dimensions the resulting output embeddings should have. Only supported by Matryoshka embedding models.
             encoding_format (str): The format to return the embeddings in.
-            acceleration (Acceleration | RemoteAcceleration): Prediction acceleration.
+            acceleration (Acceleration): Prediction acceleration.
         """
         input = [input] if isinstance(input, str) else input
         # Ensure we have a delegate
@@ -125,20 +121,14 @@ class EmbeddingService:
             model: str,
             dimensions: int | None,
             encoding_format: Literal["float", "base64"],
-            acceleration: Acceleration | RemoteAcceleration
+            acceleration: Acceleration
         ) -> EmbeddingCreateResponse:
-            # Get prediction creation function (local or remote)
-            create_prediction_func = (
-                self.__remote_predictions.create
-                if acceleration.startswith("remote_")
-                else self.__predictions.create
-            )
             # Build prediction input map
             input_map = { input_param.name: input }
             if dimensions is not None and matryoshka_param is not None:
                 input_map[matryoshka_param.name] = dimensions
             # Create prediction
-            prediction = create_prediction_func(
+            prediction = self.__predictions.create(
                 tag=model,
                 inputs=input_map,
                 acceleration=acceleration

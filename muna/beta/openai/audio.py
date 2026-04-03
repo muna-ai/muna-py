@@ -4,7 +4,6 @@
 #
 
 from ...services import PredictorService, PredictionService
-from ..remote.remote import RemotePredictionService
 from .speech import SpeechService
 from .transcriptions import TranscriptionService
 
@@ -18,8 +17,7 @@ class AudioService:
     def __init__(
         self,
         predictors: PredictorService,
-        predictions: PredictionService,
-        remote_predictions: RemotePredictionService
+        predictions: PredictionService
     ):
-        self.speech = SpeechService(predictors, predictions, remote_predictions)
-        self.transcriptions = TranscriptionService(predictors, predictions, remote_predictions)
+        self.speech = SpeechService(predictors, predictions)
+        self.transcriptions = TranscriptionService(predictors, predictions)

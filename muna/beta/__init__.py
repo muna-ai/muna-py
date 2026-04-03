@@ -4,6 +4,6 @@
 #
 
 from .annotations import Annotations
+from .endpoint import get_prediction_request, prediction_endpoint
 from .metadata import *
-from .remote import RemoteAcceleration
 from .types import Audio

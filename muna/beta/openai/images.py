@@ -13,8 +13,6 @@ from ...c import Value
 from ...services import PredictorService, PredictionService
 from ...types import Acceleration, Dtype
 from ..annotations import get_parameter
-from ..remote import RemoteAcceleration
-from ..remote.remote import RemotePredictionService
 from .schema import ImageData, ImageResponse
 
 ImageSize = Literal[
@@ -38,12 +36,10 @@ class ImageService: # DEPLOY
     def __init__(
         self,
         predictors: PredictorService,
-        predictions: PredictionService,
-        remote_predictions: RemotePredictionService
+        predictions: PredictionService
     ):
         self.__predictors = predictors
         self.__predictions = predictions
-        self.__remote_predictions = remote_predictions
         self.__cache = dict[str, ImageDelegate]()
 
     def create(
@@ -56,7 +52,7 @@ class ImageService: # DEPLOY
         output_format: Literal["png", "jpeg", "webp", "raw"]=None,
         output_compression: int | None=None,
         size: ImageSize | None=None,
-        acceleration: Acceleration | RemoteAcceleration="local_auto"
+        acceleration: Acceleration="local_auto"
     ) -> ImageResponse:
         """
         Create an image given a prompt.
@@ -69,7 +65,7 @@ class ImageService: # DEPLOY
             output_compression (int): The compression level for the generated images in range [0,100].
             output_format (str): The format in which the generated images are returned.
             size (str): The size of the generated images.
-            acceleration (Acceleration | RemoteAcceleration): Prediction acceleration.
+            acceleration (Acceleration): Prediction acceleration.
 
         Returns:
             ImageRepsonse: Generated image.
@@ -151,14 +147,8 @@ class ImageService: # DEPLOY
             output_format: Literal["png", "jpeg", "webp", "raw"],
             output_compression: int | None,
             size: ImageSize | None,
-            acceleration: Acceleration | RemoteAcceleration
+            acceleration: Acceleration
         ) -> ImageResponse:
-            # Get prediction creation function (local or remote)
-            create_prediction_func = (
-                self.__remote_predictions.create
-                if acceleration.startswith("remote_")
-                else self.__predictions.create
-            )
             # Build prediction input map
             requested_width, requested_height = _get_image_size(size)
             input_map = { prompt_param.name: prompt }
@@ -169,7 +159,7 @@ class ImageService: # DEPLOY
             if requested_height is not None and height_param is not None:
                 input_map[height_param.name] = requested_height
             # Create prediction
-            prediction = create_prediction_func(
+            prediction = self.__predictions.create(
                 tag=model,
                 inputs=input_map,
                 acceleration=acceleration

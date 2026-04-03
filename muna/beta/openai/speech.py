@@ -12,8 +12,6 @@ from ...c import Value
 from ...services import PredictorService, PredictionService
 from ...types import Acceleration, Dtype
 from ..annotations import get_parameter
-from ..remote import RemoteAcceleration
-from ..remote.remote import RemotePredictionService
 from .schema import SpeechCreateResponse, SpeechResponseFormat, SpeechStreamFormat
 
 SpeechDelegate = Callable[..., object]
@@ -26,12 +24,10 @@ class SpeechService:
     def __init__(
         self,
         predictors: PredictorService,
-        predictions: PredictionService,
-        remote_predictions: RemotePredictionService
+        predictions: PredictionService
     ):
         self.__predictors = predictors
         self.__predictions = predictions
-        self.__remote_predictions = remote_predictions
         self.__cache = dict[str, SpeechDelegate]()
     
     def create(
@@ -43,7 +39,7 @@ class SpeechService:
         response_format: SpeechResponseFormat="mp3",
         speed: float=1.,
         stream_format: SpeechStreamFormat="audio",
-        acceleration: Acceleration | RemoteAcceleration="local_auto"
+        acceleration: Acceleration="local_auto"
     ) -> SpeechCreateResponse:
         """
         Generate audio from the input text.
@@ -55,7 +51,7 @@ class SpeechService:
             response_format ("mp3" | "opus" | "aac" | "flac" | "wav" | "pcm"): Audio output format.
             speed (float): The speed of the generated audio. Defaults to 1.0.
             stream_format ("audio" | "sse"):  The format to stream the audio in.
-            acceleration (Acceleration | RemoteAcceleration): Prediction acceleration.
+            acceleration (Acceleration): Prediction acceleration.
         """
         # Ensure we have a delegate
         if model not in self.__cache:
@@ -135,7 +131,7 @@ class SpeechService:
             response_format: SpeechResponseFormat,
             speed: float,
             stream_format: SpeechStreamFormat,
-            acceleration: Acceleration | RemoteAcceleration
+            acceleration: Acceleration
         ) -> SpeechCreateResponse:
             # Check stream format
             if stream_format != "audio":
@@ -143,12 +139,6 @@ class SpeechService:
                     f"Cannot create speech with stream format `{stream_format}` "
                     f"because only `audio` is currently supported."
                 )
-            # Get prediction creation function (local or remote)
-            create_prediction_func = (
-                self.__remote_predictions.create
-                if acceleration.startswith("remote_")
-                else self.__predictions.create
-            )
             # Build prediction input map
             input_map = {
                 input_param.name: input,
@@ -157,7 +147,7 @@ class SpeechService:
             if speed_param is not None:
                 input_map[speed_param.name] = speed
             # Create prediction
-            prediction = create_prediction_func(
+            prediction = self.__predictions.create(
                 tag=model,
                 inputs=input_map,
                 acceleration=acceleration

@@ -4,7 +4,7 @@
 #
 
 from ._ort import OnnxRuntimeExecutionProvider, OnnxRuntimeOptimizationLevel
-from ._torch import TorchExporter
+from ._torch import KVCacheConfig, TorchExporter
 from .coreml import CoreMLInferenceMetadata
 from .executorch import ExecuTorchInferenceBackend, ExecuTorchInferenceMetadata
 from .iree import IREEInferenceBackend, IREEInferenceMetadata

@@ -35,18 +35,20 @@ def test_stream_prediction():
 
 def test_create_remote_prediction():
     muna = Muna()
-    prediction = muna.beta.predictions.remote.create(
-        tag="@fxn/greeting",
-        inputs={ "name": "Yusuf" }
+    prediction = muna.predictions.create(
+        tag="@yusuf/area",
+        inputs={ "radius": 2 },
+        acceleration="remote_auto"
     )
     assert prediction.results
     assert isinstance(prediction.results[0], str)
 
 def test_stream_remote_prediction():
     muna = Muna()
-    stream = muna.beta.predictions.remote.stream(
+    stream = muna.predictions.stream(
         tag="@yusuf/generator",
-        inputs={ "sentence": "The fat cat sat on the mat." }
+        inputs={ "sentence": "The fat cat sat on the mat." },
+        acceleration="remote_auto"
     )
     for prediction in stream:
         assert prediction.results

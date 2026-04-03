@@ -4,22 +4,19 @@
 #
 
 from ..client import MunaClient
-from ..services import PredictorService, PredictionService as EdgePredictionService
+from ..services import PredictorService, PredictionService
 from .openai import OpenAIClient
-from .remote import PredictionService
 
 class BetaClient:
     """
     Client for incubating features.
     """
-    predictions: PredictionService
     openai: OpenAIClient
     
     def __init__(
         self,
         client: MunaClient,
         predictors: PredictorService,
-        predictions: EdgePredictionService
+        predictions: PredictionService
     ):
-        self.predictions = PredictionService(client)
-        self.openai = OpenAIClient(predictors, predictions, self.predictions.remote)
+        self.openai = OpenAIClient(predictors, predictions)

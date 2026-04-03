@@ -13,11 +13,10 @@ from requests import get
 from typing import Iterator, Literal
 from urllib.request import urlopen
 
-from ...c import Configuration
-from ...c.value import _ensure_object_serializable, Value as CValue, _TENSOR_DTYPES
-from ...client import MunaClient
-from ...types import Dtype, Prediction, Value
-from .schema import RemoteAcceleration, RemotePrediction, RemoteValue
+from ..c import Configuration
+from ..c.value import _ensure_object_serializable, Value as CValue, _TENSOR_DTYPES
+from ..client import MunaClient
+from ..types import Acceleration, Dtype, Prediction, RemotePrediction, RemoteValue, Value
 
 class RemotePredictionService:
     """
@@ -32,7 +31,7 @@ class RemotePredictionService:
         tag: str,
         *,
         inputs: dict[str, Value],
-        acceleration: RemoteAcceleration="remote_auto"
+        acceleration: Acceleration
     ) -> Prediction:
         """
         Create a remote prediction.
@@ -40,7 +39,7 @@ class RemotePredictionService:
         Parameters:
             tag (str): Predictor tag.
             inputs (dict): Input values.
-            acceleration (RemoteAcceleration): Prediction acceleration.
+            acceleration (Acceleration): Prediction acceleration.
 
         Returns:
             Prediction: Created prediction.
@@ -65,7 +64,7 @@ class RemotePredictionService:
         tag: str,
         *,
         inputs: dict[str, Value],
-        acceleration: RemoteAcceleration="remote_auto"
+        acceleration: Acceleration
     ) -> Iterator[Prediction]:
         """
         Stream a remote prediction.

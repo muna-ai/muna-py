@@ -7,6 +7,7 @@ from enum import StrEnum
 from io import BytesIO
 from numpy import ndarray
 from PIL import Image
+from pydantic import AliasChoices, BaseModel, Field
 
 class Dtype(StrEnum):
     """
@@ -50,3 +51,10 @@ Value = (
     bytes               |
     BytesIO
 )
+
+class RemoteValue(BaseModel):
+    """
+    Remote value.
+    """
+    data: str | None = Field(description="Value URL. This is a remote or data URL.")
+    dtype: Dtype = Field(description="Value type.", validation_alias=AliasChoices("dtype", "type"))

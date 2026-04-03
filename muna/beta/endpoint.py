@@ -17,8 +17,8 @@ from time import perf_counter
 from traceback import format_exc
 from typing import Callable, ParamSpec, TypeVar
 
-from .remote import _create_remote_value, _parse_remote_value
-from .schema import RemoteAcceleration, RemotePrediction, RemoteValue
+from ..services.remote import _create_remote_value, _parse_remote_value
+from ..types import Acceleration, RemotePrediction, RemoteValue
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -225,5 +225,5 @@ class CreatePredictionInput(BaseModel):
     inputs: dict[str, RemoteValue] = Field(description="Prediction inputs.")
     api_url: str | None = Field(default=None, description="Muna API URL.")
     access_key: str | None = Field(default=None, description="Muna access key.")
-    acceleration: RemoteAcceleration | str | None = Field(default=None, description="Prediction acceleration.")
+    acceleration: Acceleration | None = Field(default=None, description="Prediction acceleration.")
     stream: bool = Field(default=False, description="Whether to stream predictions.")

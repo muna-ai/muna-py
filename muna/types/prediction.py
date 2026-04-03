@@ -6,7 +6,24 @@
 from pydantic import BaseModel, Field
 from typing import Literal
 
-Acceleration = Literal["local_auto", "local_cpu", "local_gpu", "local_npu"]
+from .value import RemoteValue
+
+Acceleration = Literal[
+    "local_auto",
+    "local_cpu",
+    "local_gpu",
+    "local_npu",
+    "remote_auto",
+    "remote_cpu",
+    "remote_a10",
+    "remote_l40s",
+    "remote_a100",
+    "remote_h200",
+    "remote_b200",
+    "remote_mi350x",
+    "remote_mi355x",
+    "remote_qaic100"
+] | str
 
 class PredictionResource(BaseModel):
     """
@@ -45,3 +62,9 @@ class Prediction(BaseModel):
     error: str | None = Field(default=None, description="Prediction error. This is `None` if the prediction completed successfully.")
     logs: str | None = Field(default=None, description="Prediction logs.")
     created: str = Field(description="Date created.")
+
+class RemotePrediction(Prediction):
+    """
+    Remote prediction.
+    """
+    results: list[RemoteValue] | None = Field(default=None, description="Prediction results.")

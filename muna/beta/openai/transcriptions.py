@@ -11,8 +11,6 @@ from ...c import Value
 from ...services import PredictorService, PredictionService
 from ...types import Acceleration, Dtype
 from ..annotations import get_parameter
-from ..remote import RemoteAcceleration
-from ..remote.remote import RemotePredictionService
 from ..types import Audio
 from .schema import Transcription
 
@@ -26,12 +24,10 @@ class TranscriptionService:
     def __init__(
         self,
         predictors: PredictorService,
-        predictions: PredictionService,
-        remote_predictions: RemotePredictionService
+        predictions: PredictionService
     ):
         self.__predictors = predictors
         self.__predictions = predictions
-        self.__remote_predictions = remote_predictions
         self.__cache = dict[str, TranscriptionDelegate]()
 
     def create(
@@ -43,7 +39,7 @@ class TranscriptionService:
         prompt: str | None=None,
         stream: bool=False,
         temperature: float=0.,
-        acceleration: Acceleration | RemoteAcceleration="local_auto"
+        acceleration: Acceleration="local_auto"
     ) -> Transcription:
         """
         Transcribe audio into the input language.
@@ -55,7 +51,7 @@ class TranscriptionService:
             prompt (str): Text to guide the model's style or continue a previous audio segment.
             stream (bool): Whether to stream transcription events.
             temperature (float): The sampling temperature, between 0 and 1.
-            acceleration (Acceleration | RemoteAcceleration): Prediction acceleration.
+            acceleration (Acceleration): Prediction acceleration.
 
         Returns:
             Transcription: Result transcription.
@@ -140,14 +136,8 @@ class TranscriptionService:
             prompt: str | None,
             stream: bool,
             temperature: float,
-            acceleration: Acceleration | RemoteAcceleration
+            acceleration: Acceleration
         ) -> Transcription:
-            # Get prediction creation function (local or remote)
-            create_prediction_func = (
-                self.__remote_predictions.create
-                if acceleration.startswith("remote_")
-                else self.__predictions.create
-            )
             # Build prediction input map
             samples = self.__read_audio_samples(
                 file,
@@ -162,7 +152,7 @@ class TranscriptionService:
             if temperature_param is not None:
                 input_map[temperature_param.name] = temperature
             # Create prediction
-            prediction = create_prediction_func(
+            prediction = self.__predictions.create(
                 tag=model,
                 inputs=input_map,
                 acceleration=acceleration
