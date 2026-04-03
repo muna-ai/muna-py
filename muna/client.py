@@ -11,11 +11,13 @@ from math import ceil
 from pathlib import Path
 from pydantic import BaseModel, Field, TypeAdapter
 from requests import get, put, request
+from requests.exceptions import ConnectionError, SSLError
 from rich.progress import (
     Progress, BarColumn, DownloadColumn, TextColumn,
     TimeRemainingColumn, TransferSpeedColumn
 )
 from tempfile import NamedTemporaryFile
+from time import sleep
 from typing import BinaryIO, Iterator, Literal, Type, TypeVar
 from urllib.parse import urlparse
 
@@ -312,16 +314,24 @@ class MunaClient:
         *,
         url: str,
         progress: Progress,
-        task_id: int
+        task_id: int,
+        max_retries: int=5
     ) -> str:
         """
         Upload a single part and return ETag.
         """
         chunk = stream.read(MULTIPART_CHUNK_SIZE)
-        reader = _ProgressReader(chunk, progress, task_id)
-        response = put(url, data=reader)
-        response.raise_for_status()
-        return response.headers.get("ETag", "")
+        for attempt in range(max_retries):
+            reader = _ProgressReader(chunk, progress, task_id)
+            try:
+                response = put(url, data=reader)
+                response.raise_for_status()
+                return response.headers.get("ETag", "")
+            except (SSLError, ConnectionError):
+                if attempt >= max_retries - 1:
+                    raise
+                progress.advance(task_id, -reader._offset)
+                sleep(2 ** attempt)
 
 def _parse_sse_event(event: str, data: str, type: Type[T]=None) -> T:
     result = { "event": event, "data": loads(data) }

@@ -1,5 +1,5 @@
 ## 0.0.98
-*INCOMPLETE*
++ Minor stability improvements.
 
 ## 0.0.97
 + Added support for batched transcription models in `openai.audio.transcriptions.create` method.
