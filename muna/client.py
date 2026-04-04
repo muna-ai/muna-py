@@ -11,7 +11,7 @@ from math import ceil
 from pathlib import Path
 from pydantic import BaseModel, Field, TypeAdapter
 from requests import get, put, request
-from requests.exceptions import ConnectionError, SSLError
+from requests.exceptions import ConnectionError, HTTPError, SSLError
 from rich.progress import (
     Progress, BarColumn, DownloadColumn, TextColumn,
     TimeRemainingColumn, TransferSpeedColumn
@@ -26,6 +26,7 @@ T = TypeVar("T", bound=BaseModel)
 RESOURCE_URL_BASE = "https://cdn.fxn.ai/resources"
 MULTIPART_THRESHOLD = 100 * 1024 * 1024  # 100 MB
 MULTIPART_CHUNK_SIZE = 50 * 1024 * 1024  # 50 MB
+RETRYABLE_STATUS_CODES = { 400, 408, 429, 500, 502, 503, 504 }
 
 class MunaAPIError(Exception):
 
@@ -327,8 +328,12 @@ class MunaClient:
                 response = put(url, data=reader)
                 response.raise_for_status()
                 return response.headers.get("ETag", "")
-            except (SSLError, ConnectionError):
-                if attempt >= max_retries - 1:
+            except (SSLError, ConnectionError, HTTPError) as e:
+                retryable = (
+                    not isinstance(e, HTTPError) or
+                    e.response.status_code in RETRYABLE_STATUS_CODES
+                )
+                if attempt >= max_retries - 1 or not retryable:
                     raise
                 progress.advance(task_id, -reader._offset)
                 sleep(2 ** attempt)
