@@ -93,7 +93,9 @@ class RemotePredictionService:
             prediction = _parse_remote_prediction(event.data)
             yield prediction
 
-def _create_remote_value(obj: Value) -> RemoteValue:
+def _create_remote_value(obj: Value | RemoteValue) -> RemoteValue:
+    if isinstance(obj, RemoteValue):
+        return obj
     obj = _ensure_object_serializable(obj)
     match obj:
         case None:      return RemoteValue(data=None, dtype=Dtype.null)
