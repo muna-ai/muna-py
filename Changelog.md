@@ -1,3 +1,6 @@
+## 0.0.101
+*INCOMPLETE*
+
 ## 0.0.100
 + Added `beta.TensorRTLLMInferenceMetadata` metadata type to compile large language models for inference in Nvidia AI factories with TensorRT-LLM.
 + Removed `muna transpile` CLI command. Use `muna compile` command instead.
