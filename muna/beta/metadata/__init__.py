@@ -18,5 +18,9 @@ from .tensorrt import (
     CudaArchitecture, TensorRTInferenceMetadata, TensorRTInferenceSessionMetadata,
     TensorRTHardwareCompatibility
 )
+from .tensorrt_llm import (
+    TensorRTLLMInferenceMetadata, TensorRTLLMQuantization,
+    TensorRTLLMKVCacheQuantization
+)
 from .tensorrt_rtx import TensorRTRTXInferenceMetadata
 from .tflite import TFLiteInterpreterMetadata

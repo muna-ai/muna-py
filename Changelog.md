@@ -1,4 +1,6 @@
 ## 0.0.100
++ Added `beta.TensorRTLLMInferenceMetadata` metadata type to compile large language models for inference in Nvidia AI factories with TensorRT-LLM.
++ Removed `muna transpile` CLI command. Use `muna compile` command instead.
 + Removed `muna.beta.TensorRTInferenceMetadata.precision` field. The compiler will always use explicit precision defined by the model.
 + Removed `muna.beta.TensorRTRTXInferenceMetadata.precision` field. The compiler will always use explicit precision defined by the model.
 + Removed `muna.beta.TensorRTPrecision` literal type.

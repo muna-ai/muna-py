@@ -17,7 +17,8 @@ from .beta import (
     MLXInferenceSessionMetadata, OnnxRuntimeInferenceMetadata,
     OnnxRuntimeInferenceSessionMetadata, OpenVINOInferenceMetadata,
     QnnInferenceMetadata, TensorRTInferenceMetadata, TensorRTInferenceSessionMetadata,
-    TensorRTRTXInferenceMetadata, TFLiteInterpreterMetadata
+    TensorRTLLMInferenceMetadata, TensorRTRTXInferenceMetadata,
+    TFLiteInterpreterMetadata
 )
 from .sandbox import Sandbox
 from .types import PredictorAccess
@@ -46,6 +47,7 @@ CompileMetadata = (
     QnnInferenceMetadata                |
     TensorRTInferenceMetadata           |
     TensorRTInferenceSessionMetadata    |
+    TensorRTLLMInferenceMetadata        |
     TensorRTRTXInferenceMetadata        |
     TFLiteInterpreterMetadata
 )

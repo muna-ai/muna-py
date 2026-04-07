@@ -8,7 +8,6 @@ from importlib.util import module_from_spec, spec_from_file_location
 from inspect import getmembers, getmodulename, isfunction
 from os import environ
 from pathlib import Path
-import platform
 from pydantic import BaseModel
 import re
 from requests import get as http_get
@@ -26,7 +25,6 @@ from ..compile import PredictorSpec
 from ..logging import CustomProgress, CustomProgressTask
 from ..muna import Muna
 from ..sandbox import EntrypointCommand
-from ..types import PredictionResource
 from .auth import get_access_key
 
 def compile_function(
@@ -36,7 +34,7 @@ def compile_function(
         readable=True,
         file_okay=True,
         dir_okay=False,
-        help="Python source path."
+        help="Python source path or URL."
     )],
     overwrite: Annotated[bool, Option(
         "--overwrite",
@@ -112,89 +110,6 @@ def compile_function(
         f"Check it out at [link={predictor_url}]{predictor_url}[/link]"
     )
 
-def transpile_function(
-    path: Annotated[
-        str,
-        Argument(help="Python source path or GitHub URL.")
-    ],
-    output: Annotated[Path, Option(
-        resolve_path=True,
-        exists=False,
-        writable=True,
-        help="Output path for generated C++ sources."
-    )]=Path("cpp"),
-    trust_remote_code: Annotated[bool, Option(
-        "--trust-remote-code",
-        help="Trust and execute code from remote URLs. Required when using GitHub URLs."
-    )]=False,
-    install_deps: Annotated[bool, Option(
-        "--install-deps",
-        help="Install dependencies defined by the Python script. Requires that `uv` is installed."
-    )]=False,
-):
-    muna = Muna(get_access_key())
-    # Resolve path
-    path: Path = _resolve_source_path(path, trust_remote_code=trust_remote_code)
-    # Check output
-    if output.exists():
-        raise ValueError(f"Cannot transpile because output directory already exists: {output}")
-    # Install deps
-    if install_deps:
-        _sync_and_load_script_env(path)
-    with CustomProgress():
-        # Load
-        with CustomProgressTask(loading_text="Loading predictor...") as task:
-            func = _load_predictor_func(path)
-            entrypoint = EntrypointCommand(
-                from_path=str(path),
-                to_path=f"./{path.name}",
-                name=func.__name__
-            )
-            spec: PredictorSpec = func.__predictor_spec
-            spec.targets = (
-                spec.targets
-                if spec.targets is not None
-                else [_get_current_target()]
-            )
-            task.finish(f"Loaded Python function: [bold cyan]{func.__module__}.{func.__name__}[/bold cyan]")
-        # Populate
-        sandbox = spec.sandbox
-        sandbox.commands.append(entrypoint)
-        with CustomProgressTask(loading_text="Uploading sandbox...", done_text="Uploaded sandbox"):
-            sandbox.populate(muna=muna)
-        # Compile
-        with CustomProgressTask(loading_text="Running codegen...", done_text="Completed codegen"):
-            with ProgressLogQueue() as task_queue:
-                for event in muna.client.stream(
-                    method="POST",
-                    path=f"/transpile",
-                    body=spec.model_dump(
-                        mode="json",
-                        exclude=spec.model_extra.keys(),
-                        by_alias=True
-                    ),
-                    response_type=_LogEvent | _ErrorEvent | _SourceEvent
-                ):
-                    match event.event:
-                        case "log":
-                            task_queue.push_log(event)
-                        case "error":
-                            task_queue.push_error(event)
-                            raise CompileError(event.data.error)
-                        case "sources":
-                            source: _TranspiledSource = event.data[0]
-        # Write source files
-        output.mkdir()
-        _write_file(source.code, dir=output, muna=muna)
-        _write_file(source.cmake, dir=output, muna=muna)
-        _write_file(source.readme, dir=output, muna=muna)
-        _write_file(source.example, dir=output, muna=muna)
-        if source.resources:
-            resource_path = output / "resources"
-            resource_path.mkdir()
-            for res in source.resources:
-                _write_file(res.url, name=res.name, dir=resource_path, muna=muna)
-
 def _load_predictor_func(path: str) -> Callable[...,object]:
     if "" not in sys.path:
         sys.path.insert(0, "")
@@ -219,27 +134,6 @@ def _compute_predictor_url(api_url: str, tag: str) -> str:
     netloc = hostname if not parsed_url.port else f"{hostname}:{parsed_url.port}"
     predictor_url = urlunparse(parsed_url._replace(netloc=netloc, path=f"{tag}"))
     return predictor_url
-
-def _get_current_target() -> str:
-    match (platform.system().lower(), platform.machine().lower()):
-        case ("darwin", "arm64"):       return "arm64-apple-darwin"
-        case ("linux", "aarch64"):      return "aarch64-unknown-linux-gnu"
-        case ("linux", "x86_64"):       return "x86_64-unknown-linux-gnu"
-        case ("windows", "arm64"):      return "aarch64-pc-windows-msvc"
-        case ("windows", "amd64"):      return "x86_64-pc-windows-msvc"
-        case (system, arch):            raise ValueError(f"Cannot transpile because your system target is unsupported: {system} {arch}")
-
-def _write_file(
-    url: str,
-    *,
-    name: str=None,
-    dir: Path,
-    muna: Muna,
-) -> Path:
-    name = name or Path(urlparse(url).path).name
-    path = dir / name
-    muna.client.download(url, path, progress=True)
-    return path
 
 def _resolve_source_path(
     path: str,
@@ -345,17 +239,6 @@ class _ErrorData(BaseModel):
 class _ErrorEvent(BaseModel):
     event: Literal["error"]
     data: _ErrorData
-
-class _TranspiledSource(BaseModel):
-    code: str
-    cmake: str
-    readme: str
-    example: str
-    resources: list[PredictionResource]
-
-class _SourceEvent(BaseModel):
-    event: Literal["sources"]
-    data: list[_TranspiledSource]
 
 class CompileError(Exception):
     pass

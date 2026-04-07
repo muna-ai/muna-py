@@ -9,7 +9,7 @@ from ..logging import TracebackMarkupConsole
 from ..version import __version__
 
 from .auth import app as auth_app
-from .compile import compile_function, transpile_function
+from .compile import compile_function
 from .misc import cli_options
 from .predictions import create_prediction
 from .predictors import archive_predictor, delete_predictor, retrieve_predictor
@@ -30,11 +30,6 @@ app = typer.Typer(
 app.callback()(cli_options)
 
 # Compilation
-app.command(
-    name="transpile",
-    help="Transpile a Python function to C++ source code.",
-    rich_help_panel="Compilation"
-)(transpile_function)
 app.command(
     name="compile",
     help="Compile a Python function for deployment.",
