@@ -28,6 +28,7 @@ class TensorRTLLMInferenceMetadata(BaseModel, **ConfigDict(arbitrary_types_allow
     Members:
         model (torch.nn.Module): Large language model to compile.
         quantization (TensorRTLLMQuantization): Weight/activation quantization format.
+        quantization_samples (list[str]): Text samples for quantization calibration.
         kv_cache (TensorRTLLMKVCacheQuantization): KV cache quantization format.
         tensor_parallel (int): Number of GPUs for tensor parallelism.
         max_batch_size (int): Maximum concurrent batch size.
@@ -44,6 +45,11 @@ class TensorRTLLMInferenceMetadata(BaseModel, **ConfigDict(arbitrary_types_allow
     quantization: TensorRTLLMQuantization = Field(
         default="fp16",
         description="Weight and activation quantization format for the TensorRT-LLM engine.",
+        exclude=True
+    )
+    quantization_samples: list[str] | None = Field(
+        default=None,
+        description="Text samples for quantization calibration. Required when quantization is not fp16 or bf16.",
         exclude=True
     )
     kv_cache: TensorRTLLMKVCacheQuantization | None = Field(
