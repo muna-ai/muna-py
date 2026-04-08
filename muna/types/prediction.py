@@ -18,6 +18,7 @@ Acceleration = Literal[
     "remote_a10",
     "remote_l40s",
     "remote_a100",
+    "remote_h100",
     "remote_h200",
     "remote_b200",
     "remote_mi350x",
