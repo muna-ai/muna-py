@@ -1,5 +1,6 @@
 ## 0.0.101
-*INCOMPLETE*
++ Added `BatchConfig.mode` to specify that a parameter supports static, dynamic, or continuous batching.
++ Refactored `BatchConfig.max_count` field to `capacity`.
 
 ## 0.0.100
 + Added `beta.TensorRTLLMInferenceMetadata` metadata type to compile large language models for inference in Nvidia AI factories with TensorRT-LLM.

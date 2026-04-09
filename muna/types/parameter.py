@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from typing import Literal
 
 from .value import Dtype
 
@@ -21,13 +22,13 @@ class EnumerationMember(BaseModel):
 
 class BatchConfig(BaseModel):
     """
-    Batch configuration.
+    Batching configuration.
     """
-    max_count: int = Field(
-        description="Maximum total item count across all merged requests.",
+    mode: Literal["static", "dynamic", "continuous"] = Field(description="Batching mode.")
+    capacity: int = Field(
+        description="Batch capacity.",
         ge=1,
-        serialization_alias="maxCount",
-        validation_alias=AliasChoices("max_count", "maxCount")
+        validation_alias=AliasChoices("capacity", "max_count", "maxCount")
     )
 
 class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
