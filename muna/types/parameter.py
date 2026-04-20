@@ -22,9 +22,9 @@ class EnumerationMember(BaseModel):
 
 class BatchConfig(BaseModel):
     """
-    Batching configuration.
+    Batch configuration.
     """
-    mode: Literal["static", "dynamic", "continuous"] = Field(description="Batching mode.")
+    mode: Literal["static", "dynamic", "continuous"] = Field(description="Batch mode.")
     capacity: int = Field(
         description="Batch capacity.",
         ge=1,

@@ -11,15 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from types import ModuleType
 from typing import Callable, Literal, ParamSpec, TypeVar, cast
 
-from .beta import (
-    CoreMLInferenceMetadata, ExecuTorchInferenceMetadata, IREEInferenceMetadata,
-    LiteRTInferenceMetadata, LlamaCppInferenceMetadata, MLXInferenceMetadata,
-    MLXInferenceSessionMetadata, OnnxRuntimeInferenceMetadata,
-    OnnxRuntimeInferenceSessionMetadata, OpenVINOInferenceMetadata,
-    QnnInferenceMetadata, TensorRTInferenceMetadata, TensorRTInferenceSessionMetadata,
-    TensorRTLLMInferenceMetadata, TensorRTRTXInferenceMetadata,
-    TFLiteInterpreterMetadata
-)
+from .beta import InferenceMetadata
 from .sandbox import Sandbox
 from .types import PredictorAccess
 
@@ -34,22 +26,7 @@ CompileTarget = Literal[
 ]
 
 CompileMetadata = (
-    CoreMLInferenceMetadata             |
-    ExecuTorchInferenceMetadata         |
-    IREEInferenceMetadata               |
-    LiteRTInferenceMetadata             |
-    LlamaCppInferenceMetadata           |
-    MLXInferenceMetadata                |
-    MLXInferenceSessionMetadata         |
-    OnnxRuntimeInferenceMetadata        |
-    OnnxRuntimeInferenceSessionMetadata |
-    OpenVINOInferenceMetadata           |
-    QnnInferenceMetadata                |
-    TensorRTInferenceMetadata           |
-    TensorRTInferenceSessionMetadata    |
-    TensorRTLLMInferenceMetadata        |
-    TensorRTRTXInferenceMetadata        |
-    TFLiteInterpreterMetadata
+    InferenceMetadata
 )
 
 P = ParamSpec("P")

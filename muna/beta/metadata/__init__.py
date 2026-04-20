@@ -14,6 +14,7 @@ from .mlx import MLXInferenceMetadata, MLXInferenceSessionMetadata
 from .onnxruntime import OnnxRuntimeInferenceMetadata, OnnxRuntimeInferenceSessionMetadata
 from .openvino import OpenVINOInferenceMetadata
 from .qnn import QnnInferenceBackend, QnnInferenceMetadata, QnnInferenceQuantization
+from .sglang import SGLangInferenceMetadata
 from .tensorrt import (
     CudaArchitecture, TensorRTInferenceMetadata, TensorRTInferenceSessionMetadata,
     TensorRTHardwareCompatibility
@@ -24,3 +25,25 @@ from .tensorrt_llm import (
 )
 from .tensorrt_rtx import TensorRTRTXInferenceMetadata
 from .tflite import TFLiteInterpreterMetadata
+from .vllm import vLLMInferenceMetadata
+
+InferenceMetadata = (
+    CoreMLInferenceMetadata             |
+    ExecuTorchInferenceMetadata         |
+    IREEInferenceMetadata               |
+    LiteRTInferenceMetadata             |
+    LlamaCppInferenceMetadata           |
+    MLXInferenceMetadata                |
+    MLXInferenceSessionMetadata         |
+    OnnxRuntimeInferenceMetadata        |
+    OnnxRuntimeInferenceSessionMetadata |
+    OpenVINOInferenceMetadata           |
+    QnnInferenceMetadata                |
+    SGLangInferenceMetadata             |
+    TensorRTInferenceMetadata           |
+    TensorRTInferenceSessionMetadata    |
+    TensorRTLLMInferenceMetadata        |
+    TensorRTRTXInferenceMetadata        |
+    TFLiteInterpreterMetadata           |
+    vLLMInferenceMetadata
+)
