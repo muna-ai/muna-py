@@ -27,8 +27,8 @@ class BatchConfig(BaseModel):
     mode: Literal["static", "dynamic", "continuous"] = Field(description="Batch mode.")
     capacity: int = Field(
         description="Batch capacity.",
+        validation_alias=AliasChoices("capacity", "max_count", "maxCount"),
         ge=1,
-        validation_alias=AliasChoices("capacity", "max_count", "maxCount")
     )
 
 class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
@@ -90,13 +90,15 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
         default=None,
         description="Video frame rate.",
         serialization_alias="frameRate",
-        validation_alias=AliasChoices("frame_rate", "frameRate")
+        validation_alias=AliasChoices("frame_rate", "frameRate"),
+        gt=0
     )
     sample_rate: int | None = Field(
         default=None,
         description="Audio sample rate.",
         serialization_alias="sampleRate",
-        validation_alias=AliasChoices("sample_rate", "sampleRate")
+        validation_alias=AliasChoices("sample_rate", "sampleRate"),
+        gt=0
     )
 
     @classmethod
