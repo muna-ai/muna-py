@@ -56,6 +56,10 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
         default=None,
         description="Parameter description."
     )
+    batch: BatchConfig | None = Field(
+        default=None,
+        description="Batch inference configuration."
+    )
     denotation: str | None = Field(
         default=None,
         description="Parameter denotation for specialized data types."
@@ -82,15 +86,17 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
         default=None,
         description="Parameter maximum value."
     )
+    frame_rate: float | None = Field(
+        default=None,
+        description="Video frame rate.",
+        serialization_alias="frameRate",
+        validation_alias=AliasChoices("frame_rate", "frameRate")
+    )
     sample_rate: int | None = Field(
         default=None,
-        description="Audio sample rate in Hertz.",
+        description="Audio sample rate.",
         serialization_alias="sampleRate",
         validation_alias=AliasChoices("sample_rate", "sampleRate")
-    )
-    batch: BatchConfig | None = Field(
-        default=None,
-        description="Batch inference configuration for this parameter."
     )
 
     @classmethod
@@ -128,6 +134,25 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
             description=description,
             min=min,
             max=max,
+            **kwargs
+        )
+
+    @classmethod
+    def Video(
+        cls,
+        *,
+        description: str,
+        frame_rate: float,
+        **kwargs
+    ) -> Parameter:
+        """
+        Video parameter.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="video",
+            frame_rate=frame_rate,
             **kwargs
         )
 

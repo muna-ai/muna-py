@@ -1,6 +1,7 @@
 ## 0.0.101
 + Added `beta.SGLangInferenceMetadata` metadata type to compile large language models for inference with SGLang.
 + Added `beta.vLLMInferenceMetadata` metadata type to compile large language models for inference with vLLM.
++ Added `Parameter.Video` annotation method to specify video input or output parameters for generative media models.
 + Added `BatchConfig.mode` to specify that a parameter supports static, dynamic, or continuous batching.
 + Refactored `BatchConfig.max_count` field to `capacity`.
 
