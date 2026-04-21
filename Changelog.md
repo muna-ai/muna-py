@@ -1,5 +1,8 @@
 ## 0.0.102
-*INCOMPLETE*
++ Added `beta.GeneratedCudaKernelInferenceMetadata` metadata type to compile PyTorch models for inference on Nvidia GPUs with AI-generated CUDA kernels.
++ Removed `beta.TensorRTInferenceMetadata.hardware_compatibility` field.
++ Removed `beta.TensorRTInferenceSessionMetadata.hardware_compatibility` field.
++ Removed `beta.TensorRTHardwareCompatibility` literal type.
 
 ## 0.0.101
 + Added `beta.SGLangInferenceMetadata` metadata type to compile large language models for inference with SGLang.

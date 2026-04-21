@@ -8,29 +8,12 @@ from typing import Literal
 
 from ._ort import OnnxRuntimeInferenceSessionMetadataBase
 from ._torch import PyTorchInferenceMetadataBase
-
-CudaArchitecture = Literal[
-    "sm_80",    # Ampere (A100)
-    "sm_86",    # Ampere (A10)
-    "sm_89",    # Ada Lovelace (L40)
-    "sm_90",    # Hopper (H100)
-    "sm_100",   # Blackwell (B200)
-]
-TensorRTHardwareCompatibility = Literal[
-    "none",
-    "same_compatibility",
-    "forward_compatibility"
-]
+from .cuda import CudaArchitecture
 
 class _TensorRTInferenceMetadataBase(BaseModel, **ConfigDict(frozen=True)):
     cuda_arch: CudaArchitecture = Field(
-        default="sm_80",
+        default="sm_80+",
         description="Target CUDA architecture for the TensorRT engine.",
-        exclude=True
-    )
-    hardware_compatibility: TensorRTHardwareCompatibility = Field(
-        default="forward_compatibility",
-        description="TensorRT hardware compatibility mode.",
         exclude=True
     )
 
@@ -45,7 +28,7 @@ class TensorRTInferenceMetadata(_TensorRTInferenceMetadataBase, PyTorchInference
         input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
         optimum_config (optimum.ExporterConfig): Optimum exporter configuration. Required when `exporter` is `optimum`.
         kv_cache (KVCacheConfig): KV cache configuration for autoregressive models.
-        cuda_arch (CudaArchitecture): Target CUDA architecture for the TensorRT engine. Defaults to `sm_80` (Ampere).
+        cuda_arch (CudaArchitecture): Target CUDA architecture for the TensorRT engine. Defaults to `sm_80+` (Ampere or newer).
         hardware_compatibility (TensorRTHardwareCompatibility): TensorRT engine hardware compatibility. Defaults to `forward_compatibility`.
     """
     kind: Literal["meta.inference.tensorrt"] = Field(default="meta.inference.tensorrt", init=False)
@@ -58,7 +41,7 @@ class TensorRTInferenceSessionMetadata(_TensorRTInferenceMetadataBase, OnnxRunti
         session (onnxruntime.InferenceSession): OnnxRuntime inference session to apply metadata to.
         model_path (str | Path): ONNX model path. The file must exist in the compiler sandbox.
         external_data_path (str | Path): ONNX model external data path. This file must exist in the compiler sandbox.
-        cuda_arch (CudaArchitecture): Target CUDA architecture for the TensorRT engine. Defaults to `sm_80` (Ampere).
+        cuda_arch (CudaArchitecture): Target CUDA architecture for the TensorRT engine. Defaults to `sm_80+` (Ampere or newer).
         hardware_compatibility (TensorRTHardwareCompatibility): TensorRT engine hardware compatibility. Defaults to `forward_compatibility`.
     """
     kind: Literal["meta.inference.tensorrt_onnx"] = Field(default="meta.inference.tensorrt_onnx", init=False)
