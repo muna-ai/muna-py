@@ -25,10 +25,10 @@ from .tensorrt_rtx import TensorRTRTXInferenceMetadata
 from .tflite import TFLiteInterpreterMetadata
 from .vllm import vLLMInferenceMetadata
 
-InferenceMetadata = (
+CompileMetadata = (
     CoreMLInferenceMetadata                 |
     ExecuTorchInferenceMetadata             |
-    GeneratedCudaKernelInferenceMetadata    |
+    #GeneratedCudaKernelInferenceMetadata    | # WIP
     IREEInferenceMetadata                   |
     LiteRTInferenceMetadata                 |
     LlamaCppInferenceMetadata               |

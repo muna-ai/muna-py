@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from types import ModuleType
 from typing import Callable, Literal, ParamSpec, TypeVar, cast
 
-from .beta import InferenceMetadata
+from .beta import CompileDialect, CompileMetadata
 from .sandbox import Sandbox
 from .types import PredictorAccess
 
@@ -25,10 +25,6 @@ CompileTarget = Literal[
     "windows"
 ]
 
-CompileMetadata = (
-    InferenceMetadata
-)
-
 P = ParamSpec("P")
 R = TypeVar("R")
 
@@ -39,20 +35,34 @@ class PredictorSpec(BaseModel, **ConfigDict(arbitrary_types_allowed=True, extra=
     tag: str | None = Field(description="Predictor tag.")
     description: str | None = Field(description="Predictor description. MUST be less than 100 characters long.", min_length=4, max_length=100)
     sandbox: Sandbox = Field(description="Sandbox to compile the function.")
-    targets: list[str] | None = Field(description="Targets to compile this predictor for. Pass `None` to compile for our default targets.")
-    metadata: list[object] = Field(default=[], description="Metadata to use while compiling the function.")
+    targets: list[str] | None = Field(description="Targets to compile this predictor for.")
+    metadata: list[CompileMetadata] | None = Field(
+        default=None,
+        description="Metadata to use when compiling the function."
+    )
+    dialects: list[CompileDialect] | None = Field(
+        default=None,
+        description="Custom dialects to use when compiling the function."
+    )
     access: PredictorAccess = Field(description="Predictor access.")
-    card: str | None = Field(default=None, description="Predictor card (markdown).")
-    license: str | None = Field(default=None, description="Predictor license URL. This is required for public predictors.")
+    card: str | None = Field(
+        default=None,
+        description="Predictor card (markdown)."
+    )
+    license: str | None = Field(
+        default=None,
+        description="Predictor license URL. This is required for public predictors."
+    )
 
 def compile(
     *,
     tag: str=None,
     description: str=None,
     sandbox: Sandbox=None,
-    trace_modules: list[ModuleType]=[],
-    targets: list[CompileTarget]=None,
-    metadata: list[CompileMetadata]=[],
+    trace_modules: list[ModuleType] = [],
+    targets: list[CompileTarget] = None,
+    metadata: list[CompileMetadata] | None = None,
+    dialects: list[CompileDialect] | None = None,
     access: PredictorAccess="private",
     card: str | Path=None,
     license: str=None,
@@ -67,7 +77,8 @@ def compile(
         sandbox (Sandbox): Sandbox to compile the function.
         trace_modules (list): Modules to trace and compile.
         targets (list): Targets to compile this predictor for. Pass `None` to compile for our default targets.
-        metadata (list): Metadata to use while compiling the function.
+        metadata (list): Metadata to use when compiling the function.
+        dialects (list): Custom dialects to use when compiling the function.
         access (PredictorAccess): Predictor access.
         card (str | Path): Predictor card markdown string or path to card.
         license (str): Predictor license URL. This is required for public predictors.
@@ -89,6 +100,7 @@ def compile(
             license=license,
             trace_modules=trace_modules,
             metadata=metadata,
+            dialects=dialects,
             **kwargs
         )
         # Wrap
