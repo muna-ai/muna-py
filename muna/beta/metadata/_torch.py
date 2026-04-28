@@ -95,8 +95,3 @@ class PyTorchInferenceMetadataBase(BaseModel, **ConfigDict(arbitrary_types_allow
         description="Optimum exporter configuration. Required when `exporter` is `optimum`.",
         exclude=True
     )
-    kv_cache: KVCacheConfig | None = Field(
-        default=None,
-        description="KV cache configuration for models with autoregressive decoding. When set, the factory builds separate engines for each stage with GPU-resident KV cache management.",
-        exclude=True
-    )

@@ -18,6 +18,5 @@ class TensorRTRTXInferenceMetadata(PyTorchInferenceMetadataBase):
         model_args (tuple): Positional inputs to the model.
         input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
         optimum_config (optimum.ExporterConfig): Optimum exporter configuration. Required when `exporter` is `optimum`.
-        kv_cache (KVCacheConfig): KV cache configuration for autoregressive models.
     """
     kind: Literal["meta.inference.tensorrt_rtx"] = Field(default="meta.inference.tensorrt_rtx", init=False)

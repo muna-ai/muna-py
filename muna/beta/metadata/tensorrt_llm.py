@@ -9,27 +9,12 @@ from typing import Annotated, Literal
 from ._torch import _validate_torch_module
 from .tensorrt import CudaArchitecture
 
-TensorRTLLMQuantization = Literal[
-    "fp16",
-    "bf16",
-    "fp8",
-    "int8_sq",
-    "int4_awq",
-    "int4_gptq",
-    "nvfp4",
-]
-
-TensorRTLLMKVCacheQuantization = Literal["fp8", "int8", "nvfp4"]
-
 class TensorRTLLMInferenceMetadata(BaseModel, **ConfigDict(arbitrary_types_allowed=True, frozen=True)):
     """
     Metadata to compile a large language model for multi-GPU inference with TensorRT-LLM.
 
     Members:
         model (torch.nn.Module): Large language model to compile.
-        quantization (TensorRTLLMQuantization): Weight/activation quantization format.
-        quantization_samples (list[str]): Text samples for quantization calibration.
-        kv_cache (TensorRTLLMKVCacheQuantization): KV cache quantization format.
         tensor_parallel (int): Number of GPUs for tensor parallelism.
         max_batch_size (int): Maximum concurrent batch size.
         max_input_len (int): Maximum input sequence length.
@@ -40,21 +25,6 @@ class TensorRTLLMInferenceMetadata(BaseModel, **ConfigDict(arbitrary_types_allow
     kind: Literal["meta.inference.tensorrt_llm"] = Field(default="meta.inference.tensorrt_llm", init=False)
     model: Annotated[object, BeforeValidator(_validate_torch_module)] = Field(
         description="Large language model to compile.",
-        exclude=True
-    )
-    quantization: TensorRTLLMQuantization = Field(
-        default="fp16",
-        description="Weight and activation quantization format for the TensorRT-LLM engine.",
-        exclude=True
-    )
-    quantization_samples: list[str] | None = Field(
-        default=None,
-        description="Text samples for quantization calibration. Required when quantization is not fp16 or bf16.",
-        exclude=True
-    )
-    kv_cache: TensorRTLLMKVCacheQuantization | None = Field(
-        default=None,
-        description="KV cache quantization format. When `None`, inherits from model quantization.",
         exclude=True
     )
     tensor_parallel: int = Field(
