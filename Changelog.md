@@ -1,5 +1,5 @@
 ## 0.0.103
-*INCOMPLETE*
++ Removed `beta.IREEInferenceMetadata` metadata type as IREE's performance has been inadequate.
 
 ## 0.0.102
 + Removed `beta.TensorRTInferenceMetadata.hardware_compatibility` field.
