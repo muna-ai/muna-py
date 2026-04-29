@@ -106,7 +106,7 @@ class CompileResource(BaseModel, **ConfigDict(frozen=True)):
         """
         Unique identifier for this resource.
         """
-        return f"MUNA_RESOURCE_{self._uid}"
+        return f"res_{self._uid}"
 
     @classmethod
     def from_bytes(cls, data: bytes) -> CompileResource:
