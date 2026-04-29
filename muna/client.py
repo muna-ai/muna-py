@@ -3,6 +3,7 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
+from collections.abc import Callable
 from contextlib import nullcontext
 from hashlib import file_digest
 from io import SEEK_END, SEEK_SET
@@ -176,7 +177,8 @@ class MunaClient:
         self,
         path: str | Path | BinaryIO,
         *,
-        progress: bool=True
+        progress: bool=True,
+        on_progress: Callable[[int], None] | None=None
     ) -> str:
         """
         Upload a resource and return the resource URL.
@@ -212,14 +214,16 @@ class MunaClient:
                 path,
                 file_size=file_size,
                 resource_hash=resource_hash,
-                progress=progress
+                progress=progress,
+                on_progress=on_progress
             )
         else:
             self.__upload_resource_single(
                 path,
                 file_size=file_size,
                 resource_hash=resource_hash,
-                progress=progress
+                progress=progress,
+                on_progress=on_progress
             )
         # Return
         return f"{RESOURCE_URL_BASE}/{resource_hash}"
@@ -230,7 +234,8 @@ class MunaClient:
         *,
         file_size: int,
         resource_hash: str,
-        progress: bool
+        progress: bool,
+        on_progress: Callable[[int], None] | None=None
     ) -> str:
         """
         Upload a resource using single upload.
@@ -240,6 +245,21 @@ class MunaClient:
             path=f"/resources/{resource_hash}",
             response_type=_CreateResourceResponse
         )
+        if on_progress is not None:
+            with (
+                source.open("rb")
+                if isinstance(source, Path)
+                else nullcontext(source)
+            ) as f:
+                reader = _ProgressReader(
+                    f.read(),
+                    None,
+                    None,
+                    on_progress=on_progress
+                )
+                response = put(resource.url, data=reader)
+                response.raise_for_status()
+                return response.headers.get("ETag", "")
         with Progress(
             TextColumn("[bold blue]{task.description}"),
             BarColumn(),
@@ -249,7 +269,11 @@ class MunaClient:
             disable=not progress
         ) as progress_bar:
             task_id = progress_bar.add_task(resource_hash, total=file_size)
-            with (source.open("rb") if isinstance(source, Path) else nullcontext(source)) as f:
+            with (
+                source.open("rb")
+                if isinstance(source, Path)
+                else nullcontext(source)
+            ) as f:
                 reader = _ProgressReader(f.read(), progress_bar, task_id)
                 response = put(resource.url, data=reader)
                 response.raise_for_status()
@@ -261,7 +285,8 @@ class MunaClient:
         *,
         file_size: int,
         resource_hash: str,
-        progress: bool
+        progress: bool,
+        on_progress: Callable[[int], None] | None=None
     ) -> None:
         """
         Upload a resource using multipart upload.
@@ -274,25 +299,45 @@ class MunaClient:
             response_type=_CreateResourceMultipartResponse
         )
         try:
-            with Progress(
-                TextColumn("[bold blue]{task.description}"),
-                BarColumn(),
-                DownloadColumn(),
-                TransferSpeedColumn(),
-                TimeRemainingColumn(),
-                disable=not progress
-            ) as progress_bar:
-                task_id = progress_bar.add_task(resource_hash, total=file_size)
-                etags = list[str]()
-                with (source.open("rb") if isinstance(source, Path) else nullcontext(source)) as f:
+            etags = list[str]()
+            if on_progress is not None:
+                with (
+                    source.open("rb")
+                    if isinstance(source, Path)
+                    else nullcontext(source)
+                ) as f:
                     for url in resource.urls:
                         etag = self.__upload_resource_part(
                             f,
                             url=url,
-                            progress=progress_bar,
-                            task_id=task_id
+                            progress=None,
+                            task_id=None,
+                            on_progress=on_progress
                         )
                         etags.append(etag)
+            else:
+                with Progress(
+                    TextColumn("[bold blue]{task.description}"),
+                    BarColumn(),
+                    DownloadColumn(),
+                    TransferSpeedColumn(),
+                    TimeRemainingColumn(),
+                    disable=not progress
+                ) as progress_bar:
+                    task_id = progress_bar.add_task(resource_hash, total=file_size)
+                    with (
+                        source.open("rb")
+                        if isinstance(source, Path)
+                        else nullcontext(source)
+                    ) as f:
+                        for url in resource.urls:
+                            etag = self.__upload_resource_part(
+                                f,
+                                url=url,
+                                progress=progress_bar,
+                                task_id=task_id
+                            )
+                            etags.append(etag)
             parts = [{ "partNumber": i + 1, "etag": etag } for i, etag in enumerate(etags)]
             self.request(
                 method="POST",
@@ -314,8 +359,9 @@ class MunaClient:
         stream: BinaryIO,
         *,
         url: str,
-        progress: Progress,
-        task_id: int,
+        progress: Progress | None,
+        task_id: int | None,
+        on_progress: Callable[[int], None] | None=None,
         max_retries: int=5
     ) -> str:
         """
@@ -323,7 +369,12 @@ class MunaClient:
         """
         chunk = stream.read(MULTIPART_CHUNK_SIZE)
         for attempt in range(max_retries):
-            reader = _ProgressReader(chunk, progress, task_id)
+            reader = _ProgressReader(
+                chunk,
+                progress,
+                task_id,
+                on_progress=on_progress
+            )
             try:
                 response = put(url, data=reader)
                 response.raise_for_status()
@@ -335,7 +386,10 @@ class MunaClient:
                 )
                 if attempt >= max_retries - 1 or not retryable:
                     raise
-                progress.advance(task_id, -reader._offset)
+                if progress is not None:
+                    progress.advance(task_id, -reader._offset)
+                if on_progress is not None:
+                    on_progress(-reader._offset)
                 sleep(2 ** attempt)
 
 def _parse_sse_event(event: str, data: str, type: Type[T]=None) -> T:
@@ -358,11 +412,18 @@ class _CreateResourceMultipartResponse(BaseModel):
 
 class _ProgressReader:
 
-    def __init__(self, data: bytes, progress: Progress, task_id: int):
+    def __init__(
+        self,
+        data: bytes,
+        progress: Progress | None,
+        task_id: int | None,
+        on_progress: Callable[[int], None] | None=None
+    ):
         self._data = data
         self._offset = 0
         self._progress = progress
         self._task_id = task_id
+        self._on_progress = on_progress
 
     def read(self, size: int=-1) -> bytes:
         if size == -1:
@@ -371,7 +432,10 @@ class _ProgressReader:
         else:
             chunk = self._data[self._offset:self._offset + size]
             self._offset += len(chunk)
-        self._progress.advance(self._task_id, len(chunk))
+        if self._progress is not None:
+            self._progress.advance(self._task_id, len(chunk))
+        if self._on_progress is not None:
+            self._on_progress(len(chunk))
         return chunk
 
     def __len__(self):

@@ -20,6 +20,7 @@ from typer import Argument, Option
 from typing import Annotated, Callable, Literal
 from urllib.parse import urlparse, urlunparse
 
+from ..beta.compile import CompileDialect
 from ..client import MunaAPIError
 from ..compile import PredictorSpec
 from ..logging import CustomProgress, CustomProgressTask
@@ -65,11 +66,17 @@ def compile_function(
                     )
                 spec.description = func.__doc__.strip()
             task.finish(f"Loaded Python function: [bold cyan]{spec.tag}[/bold cyan]")
-        # Populate
+        # Populate sandbox
         sandbox = spec.sandbox
         sandbox.commands.append(entrypoint)
-        with CustomProgressTask(loading_text="Uploading sandbox...", done_text="Uploaded sandbox"):
+        with CustomProgressTask(
+            loading_text="Uploading sandbox...",
+            done_text="Uploaded sandbox"
+        ):
             sandbox.populate(muna=muna)
+        # Populate dialects
+        if spec.dialects:
+            spec.dialects = [_populate_dialect(d, muna=muna) for d in spec.dialects]
         # Compile
         with CustomProgressTask(loading_text="Running codegen...", done_text="Completed codegen"):
             with CustomProgressTask(loading_text="Creating predictor..."):
@@ -109,6 +116,30 @@ def compile_function(
         f"\n[bold spring_green3]🎉 Predictor is now being compiled.[/bold spring_green3] "
         f"Check it out at [link={predictor_url}]{predictor_url}[/link]"
     )
+
+def _populate_dialect(dialect: CompileDialect, *, muna: Muna) -> CompileDialect:
+    if dialect.kind == "builtin":
+        return dialect
+    if dialect.url is not None:
+        return dialect
+    label = _describe_dialect(dialect)
+    with CustomProgressTask(
+        loading_text=f"Uploading dialect [yellow2]{label}[/yellow2]...",
+        done_text=f"Uploaded dialect [yellow2]{label}[/yellow2]"
+    ):
+        return dialect.populate(muna=muna)
+
+def _describe_dialect(dialect: CompileDialect) -> str:
+    if dialect._path is not None:
+        try:
+            return str(dialect._path.relative_to(Path.cwd()))
+        except ValueError:
+            return str(dialect._path)
+    if dialect._git_url is not None:
+        if dialect._git_revision:
+            return f"{dialect._git_url}@{dialect._git_revision}"
+        return dialect._git_url
+    return "<unknown>"
 
 def _load_predictor_func(path: str) -> Callable[...,object]:
     if "" not in sys.path:

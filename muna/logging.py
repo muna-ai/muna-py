@@ -8,6 +8,7 @@ from rich.console import Console, ConsoleOptions, RenderResult
 from rich.progress import Progress, ProgressColumn, SpinnerColumn, TextColumn
 from rich.text import Text
 from rich.traceback import Traceback
+from subprocess import CalledProcessError, Popen, PIPE, STDOUT
 from types import MethodType
 
 current_progress = ContextVar("current_progress", default=None)
@@ -35,7 +36,9 @@ class CustomSpinnerColumn(SpinnerColumn):
         return done_text if task.finished else self.spinner
 
 class CustomTextColumn(TextColumn):
-    """Custom text column that changes color based on task status"""
+    """
+    Custom text column that changes color based on task status.
+    """
     
     def __init__(self, text_format="{task.description}"):
         super().__init__(text_format)
@@ -179,7 +182,34 @@ class CustomProgressTask:
 
     def finish (self, message: str):
         self.done_text = message
-    
+
+def run_streamed(cmd: list[str]) -> None:
+    """
+    Run a subprocess, streaming combined stdout/stderr through the active
+    `CustomProgress` console as dim grey lines above the Live region.
+    Falls back to plain printing when no progress is active.
+    """
+    progress = current_progress.get()
+    console = progress.console if progress is not None else None
+    proc = Popen(
+        cmd,
+        stdout=PIPE,
+        stderr=STDOUT,
+        text=True,
+        bufsize=1,
+    )
+    for line in proc.stdout:
+        line = line.rstrip()
+        if not line:
+            continue
+        if console is not None:
+            console.print(f"[grey50]{line}[/grey50]", highlight=False)
+        else:
+            print(line)
+    proc.wait()
+    if proc.returncode != 0:
+        raise CalledProcessError(proc.returncode, cmd)
+
 class TracebackMarkupConsole(Console):
 
     def print(

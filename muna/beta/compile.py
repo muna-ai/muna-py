@@ -9,9 +9,19 @@ from contextvars import ContextVar
 from enum import IntFlag
 from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+from rich.progress import (
+    BarColumn, DownloadColumn, TimeRemainingColumn,
+    TransferSpeedColumn
+)
+import shutil
+from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import TypeVar
+from typing import Literal, TypeVar
+from urllib.parse import urlparse
 from uuid import uuid4
+
+from ..logging import CustomProgressTask, run_streamed
+from ..muna import Muna
 
 _active_registry: ContextVar[list | None] = ContextVar(
     "muna_active_compile_registry",
@@ -160,30 +170,28 @@ class CompileDialect(BaseModel, **ConfigDict(frozen=True)):
     """
     Compile dialect.
     """
+    kind: Literal["builtin", "url"]
+    url: str | None = Field(default=None, description="Dialect URL.")
+    sha256: str | None = Field(default=None, description="Dialect tarball checksum.")
     _path: Path | None = PrivateAttr(default=None)
     _git_url: str | None = PrivateAttr(default=None)
     _git_revision: str | None = PrivateAttr(default=None)
     _git_subdir: str | None = PrivateAttr(default=None)
-    _url: str | None = PrivateAttr(default=None)
-    _sha256: str | None = PrivateAttr(default=None)
-    _builtin: bool = PrivateAttr(default=False)
 
     @classmethod
     def from_builtin(cls) -> CompileDialect:
         """
         Muna's built-in dialect.
         """
-        instance = cls()
-        instance._builtin = True
-        return instance
+        return cls(kind="builtin")
 
     @classmethod
     def from_path(cls, path: Path) -> CompileDialect:
         """
         Create a dialect rooted at a local directory.
         """
-        instance = cls()
-        instance._path = path
+        instance = cls(kind="url")
+        instance._path = Path(path).resolve()
         return instance
 
     @classmethod
@@ -196,7 +204,7 @@ class CompileDialect(BaseModel, **ConfigDict(frozen=True)):
         """
         Create a dialect rooted at a Git repository.
         """
-        instance = cls()
+        instance = cls(kind="url")
         instance._git_url = url
         instance._git_revision = revision
         instance._git_subdir = subdir
@@ -211,10 +219,62 @@ class CompileDialect(BaseModel, **ConfigDict(frozen=True)):
         """
         Create a dialect rooted at a zip or tarball URL.
         """
-        instance = cls()
-        instance._url = url
-        instance._sha256 = sha256
-        return instance
+        return cls(kind="url", url=url, sha256=sha256)
+
+    def populate(self, muna: Muna = None) -> CompileDialect:
+        """
+        Upload this dialect.
+        """
+        if self.kind == "builtin":
+            return self
+        if self.url is not None:
+            return self
+        muna = muna or Muna()
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            if self._path is not None:
+                source_root = self._path
+            elif self._git_url is not None:
+                clone_dir = tmp_path / "clone"
+                run_streamed([
+                    "git", "clone", "--depth", "1", #"--progress",
+                    *(["--branch", self._git_revision] if self._git_revision else []),
+                    self._git_url, str(clone_dir),
+                ])
+                source_root = clone_dir / self._git_subdir if self._git_subdir else clone_dir
+            else:
+                raise ValueError("CompileDialect has no source set")
+            archive_path = shutil.make_archive(
+                base_name=str(tmp_path / "dialect"),
+                format="gztar",
+                root_dir=str(source_root),
+            )
+            file_size = Path(archive_path).stat().st_size
+            with CustomProgressTask(
+                loading_text=f"[grey50]Uploading {Path(archive_path).name}[/grey50]",
+                columns=[
+                    BarColumn(),
+                    DownloadColumn(),
+                    TransferSpeedColumn(),
+                    TimeRemainingColumn(),
+                ],
+            ) as upload_task:
+                upload_task.update(total=file_size)
+                archive_url = muna.client.upload(
+                    archive_path,
+                    progress=False,
+                    on_progress=lambda n: upload_task.update(advance=n),
+                )
+            archive_checksum = next(
+                component
+                for component in reversed(urlparse(archive_url).path.split('/'))
+                if component
+            )
+        return CompileDialect(
+            kind="url",
+            url=archive_url,
+            sha256=archive_checksum
+        )
 
 T = TypeVar("T")
 
