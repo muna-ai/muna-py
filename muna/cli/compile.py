@@ -117,7 +117,11 @@ def compile_function(
         f"Check it out at [link={predictor_url}]{predictor_url}[/link]"
     )
 
-def _populate_dialect(dialect: CompileDialect, *, muna: Muna) -> CompileDialect:
+def _populate_dialect(
+    dialect: CompileDialect,
+    *,
+    muna: Muna
+) -> CompileDialect:
     if dialect.kind == "builtin":
         return dialect
     if dialect.url is not None:
@@ -156,7 +160,10 @@ def _load_predictor_func(path: str) -> Callable[...,object]:
     main_func = next(func for _, func in getmembers(module, isfunction) if hasattr(func, "__predictor_spec"))
     return main_func
 
-def _compute_predictor_url(api_url: str, tag: str) -> str:
+def _compute_predictor_url(
+    api_url: str,
+    tag: str
+) -> str:
     parsed_url = urlparse(api_url)
     hostname_parts = parsed_url.hostname.split(".")
     if hostname_parts[0] == "api":

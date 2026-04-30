@@ -33,7 +33,11 @@ class PredictorSpec(BaseModel, **ConfigDict(arbitrary_types_allowed=True, extra=
     Descriptor of a predictor to be compiled.
     """
     tag: str | None = Field(description="Predictor tag.")
-    description: str | None = Field(description="Predictor description. MUST be less than 100 characters long.", min_length=4, max_length=100)
+    description: str | None = Field(
+        description="Predictor description. MUST be less than 100 characters long.",
+        min_length=4,
+        max_length=100
+    )
     sandbox: Sandbox = Field(description="Sandbox to compile the function.")
     targets: list[str] | None = Field(description="Targets to compile this predictor for.")
     metadata: list[CompileMetadata] | None = Field(
