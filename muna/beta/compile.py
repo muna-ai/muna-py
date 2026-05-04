@@ -96,10 +96,10 @@ class CompileResource(BaseModel, **ConfigDict(frozen=True)):
     Compile resource.
     """
     _uid: str = PrivateAttr(default_factory=lambda: uuid4().hex[:16])
-    _data: bytes | None = PrivateAttr(default=None)
-    _path: Path | None = PrivateAttr(default=None)
-    _url: str | None = PrivateAttr(default=None)
-    _sha256: str | None = PrivateAttr(default=None)
+    data: bytes | None = Field(default=None, repr=False, description="Resource data.")
+    path: Path | None = Field(default=None, description="Resource path.")
+    url: str | None = Field(default=None, description="Resource URL.")
+    sha256: str | None = Field(default=None, description="Resource SHA256 checksum.")
 
     @property
     def id(self) -> str:
@@ -113,32 +113,52 @@ class CompileResource(BaseModel, **ConfigDict(frozen=True)):
         """
         Create a compile resource from data in memory.
         """
-        instance = cls()
-        instance._data = data
-        return instance
+        return cls(data=data)
 
     @classmethod
     def from_path(cls, path: Path) -> CompileResource:
         """
         Create a compile resource from a file at a given path.
         """
-        instance = cls()
-        instance._path = path
-        return instance
+        return cls(path=path)
 
     @classmethod
     def from_url(
         cls,
         url: str,
-        sha256: str=None
+        *,
+        sha256: str | None=None
     ) -> CompileResource:
         """
         Create a compile resource from a file at a given URL.
         """
-        instance = cls()
-        instance._url = url
-        instance._sha256 = sha256
-        return instance
+        return cls(url=url, sha256=sha256)
+
+    @classmethod
+    def from_hf_hub(
+        cls,
+        repo_id: str,
+        *files: str,
+        revision: str | None=None
+    ) -> tuple[CompileResource, ...]:
+        """
+        Create compile resources from a file in a Huggingface Hub repository.
+        """
+        try:
+            from huggingface_hub import HfApi
+        except ImportError:
+            raise RuntimeError("The `huggingface_hub` package is required to create a compile resource from a Huggingface Hub repository. Install it with `pip install huggingface_hub`.")
+        api = HfApi()
+        revision = revision or api.repo_info(repo_id).sha
+        sha_by_path = {
+            p.path: (p.lfs.sha256 if getattr(p, "lfs", None) else None)
+            for p in api.get_paths_info(repo_id, list(files), revision=revision)
+        }
+        resources = [cls(
+            url=f"hf://{repo_id}@{revision}/{f}",
+            sha256=sha_by_path.get(f),
+        ) for f in files]
+        return tuple(resources)
 
 class CompileConstant(BaseModel, **ConfigDict(frozen=True)):
     """

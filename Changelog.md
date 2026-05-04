@@ -1,5 +1,5 @@
 ## 0.0.104
-*INCOMPLETE*
++ Added `beta.CompileResource.from_hf_hub` method for defining compile resources from Huggingface Hub repositories.
 
 ## 0.0.103
 + Removed `beta.IREEInferenceMetadata` metadata type as IREE's performance has been inadequate.
