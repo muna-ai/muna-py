@@ -1,3 +1,6 @@
+## 0.1.0
+*INCOMPLETE*
+
 ## 0.0.104
 + Added `beta.CompileResource.from_hf_hub` method for defining compile resources from Huggingface Hub repositories.
 
