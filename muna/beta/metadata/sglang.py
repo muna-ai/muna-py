@@ -15,7 +15,7 @@ class SGLangInferenceMetadata(BaseModel, **ConfigDict(arbitrary_types_allowed=Tr
     Members:
         model (torch.nn.Module): Large language model to compile.
     """
-    kind: Literal["meta.inference.vllm"] = Field(default="meta.inference.sglang", init=False)
+    kind: Literal["meta.inference.sglang"] = Field(default="meta.inference.sglang", init=False)
     model: Annotated[object, BeforeValidator(_validate_torch_module)] = Field(
         description="Large language model to compile.",
         exclude=True
