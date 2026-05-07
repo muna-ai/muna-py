@@ -1,3 +1,6 @@
+## 0.1.1
+*INCOMPLETE*
+
 ## 0.1.0
 + Added `beta.DFlashSpeculativeDecoding` type for configuring DFlash speculative decoding for LLM inference.
 + Added `beta.Eagle3SpeculativeDecoding` type for configuring DFlash speculative decoding for LLM inference.
