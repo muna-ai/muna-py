@@ -8,7 +8,7 @@ from collections.abc import Callable
 from contextvars import ContextVar
 from enum import IntFlag
 from pathlib import Path
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, PrivateAttr
 from rich.progress import (
     BarColumn, DownloadColumn, TimeRemainingColumn,
     TransferSpeedColumn
@@ -184,6 +184,10 @@ class CompileConstant(BaseModel, **ConfigDict(frozen=True)):
     resources: tuple[CompileResource, ...] = Field(
         default=(),
         description="Resources required by the constant."
+    )
+    meta: dict[str, JsonValue] = Field(
+        default_factory=dict,
+        description="Constant metadata."
     )
 
 class CompileDialect(BaseModel, **ConfigDict(frozen=True)):
