@@ -20,6 +20,7 @@ class SGLangInferenceMetadata(
         model (torch.nn.Module): Large language model to compile.
         speculative_decoding (SpeculativeDecodingConfig | None): Speculative decoding configuration.
         max_running_requests (int | None): Maximum concurrent in-flight requests at the scheduler.
+        max_total_tokens (int | None): Total KV cache capacity.
     """
     kind: Literal["meta.inference.sglang"] = Field(default="meta.inference.sglang", init=False)
     model: Annotated[object, BeforeValidator(_validate_torch_module)] = Field(
@@ -36,4 +37,9 @@ class SGLangInferenceMetadata(
         description="Maximum concurrent in-flight requests at the scheduler.",
         ge=1,
         exclude=True,
+    )
+    max_total_tokens: int | None = Field(
+        default=None,
+        ge=1,
+        description="Total KV cache capacity."
     )

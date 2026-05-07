@@ -3,6 +3,7 @@
 + Added `beta.Eagle3SpeculativeDecoding` type for configuring DFlash speculative decoding for LLM inference.
 + Added `beta.SGLangInferenceMetadata.speculative_decoding` parameter for specifying speculative decoding models for accelerated LLM inference.
 + Added `beta.SGLangInferenceMetadata.max_running_requests` parameter for configuring SGLang engine concurrency.
++ Added `beta.SGLangInferenceMetadata.max_total_tokens` parameter for configuring SGLang engine KV cache size.
 + Updated `BatchConfig.capacity` parameter to be optional for `continuous` batching.
 
 ## 0.0.104
