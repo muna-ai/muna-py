@@ -40,6 +40,7 @@ class SGLangInferenceMetadata(
     )
     max_total_tokens: int | None = Field(
         default=None,
+        description="Total KV cache capacity.",
         ge=1,
-        description="Total KV cache capacity."
+        exclude=True,
     )
