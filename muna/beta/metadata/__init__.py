@@ -4,6 +4,10 @@
 #
 
 from ._ort import OnnxRuntimeExecutionProvider, OnnxRuntimeOptimizationLevel
+from ._speculative import (
+    DFlashSpeculativeDecoding, Eagle3SpeculativeDecoding,
+    SpeculativeDecodingConfig
+)
 from ._torch import KVCacheConfig, TorchExporter
 from .coreml import CoreMLInferenceMetadata
 from .cuda import CudaArchitecture, GeneratedCudaKernelInferenceMetadata

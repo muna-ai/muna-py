@@ -40,7 +40,10 @@ def _validate_optimum_exporter_config(config: object) -> object:
     except ImportError:
         pass
 
-class KVCacheConfig(BaseModel, **ConfigDict(arbitrary_types_allowed=True, frozen=True)):
+class KVCacheConfig(
+    BaseModel,
+    **ConfigDict(arbitrary_types_allowed=True, frozen=True)
+):
     """
     Configuration for KV-cached autoregressive decoding.
 
@@ -70,7 +73,10 @@ class KVCacheConfig(BaseModel, **ConfigDict(arbitrary_types_allowed=True, frozen
         exclude=True
     )
 
-class PyTorchInferenceMetadataBase(BaseModel, **ConfigDict(arbitrary_types_allowed=True, frozen=True)):
+class PyTorchInferenceMetadataBase(
+    BaseModel,
+    **ConfigDict(arbitrary_types_allowed=True, frozen=True)
+):
     model: Annotated[object, BeforeValidator(_validate_torch_module)] = Field(
         description="PyTorch module to apply metadata to.",
         exclude=True

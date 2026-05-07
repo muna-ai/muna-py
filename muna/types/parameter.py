@@ -23,10 +23,15 @@ class EnumerationMember(BaseModel):
 class BatchConfig(BaseModel):
     """
     Batch configuration.
+
+    Members:
+        mode (str): Batching mode.
+        capacity (int | None): Batch capacity. Required for `static` and `dynamic` modes.
     """
-    mode: Literal["static", "dynamic", "continuous"] = Field(description="Batch mode.")
-    capacity: int = Field(
-        description="Batch capacity.",
+    mode: Literal["static", "dynamic", "continuous"] = Field(description="Batching mode.")
+    capacity: int | None = Field(
+        default=None,
+        description="Batch capacity. Required for `static` and `dynamic` modes.",
         validation_alias=AliasChoices("capacity", "max_count", "maxCount"),
         ge=1,
     )
