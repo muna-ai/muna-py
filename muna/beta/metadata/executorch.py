@@ -6,11 +6,11 @@
 from pydantic import Field
 from typing import Literal
 
-from ._torch import PyTorchInferenceMetadataBase
+from ._torch import TorchInferenceMetadataBase
 
 ExecuTorchInferenceBackend = Literal["xnnpack", "vulkan"]
 
-class ExecuTorchInferenceMetadata(PyTorchInferenceMetadataBase):
+class ExecuTorchInferenceMetadata(TorchInferenceMetadataBase):
     """
     Metadata to compile a PyTorch model for inference with ExecuTorch.
 

@@ -40,40 +40,7 @@ def _validate_optimum_exporter_config(config: object) -> object:
     except ImportError:
         pass
 
-class KVCacheConfig(
-    BaseModel,
-    **ConfigDict(arbitrary_types_allowed=True, frozen=True)
-):
-    """
-    Configuration for KV-cached autoregressive decoding.
-
-    Specifies the sub-modules that the factory will export as separate engines.
-    The factory chains tensor inference through the stages to auto-derive
-    `model_args`, `input_shapes`, and KV dimensions for each engine.
-
-    For encoder-decoder models (Whisper, BART, T5), provide all three modules.
-    For decode-only models (Llama, GPT), omit ``encoder``.
-
-    Members:
-        encoder (torch.nn.Module): Encoder module that produces hidden states from input features.
-        prefill (torch.nn.Module): Prefill module that processes the full prompt and returns logits and initial KV cache tensors.
-        decode (torch.nn.Module): Decode step module that processes a single token with KV cache tensors and returns logits and updated KV tensors.
-    """
-    encoder: Annotated[object, BeforeValidator(_validate_torch_module)] | None = Field(
-        default=None,
-        description="Encoder module that produces hidden states from input features. Required for encoder-decoder models (Whisper, BART, T5). Omit for decode-only models (Llama, GPT).",
-        exclude=True
-    )
-    prefill: Annotated[object, BeforeValidator(_validate_torch_module)] = Field(
-        description="Prefill module. Processes the full prompt and returns logits and initial KV cache tensors.",
-        exclude=True
-    )
-    decode: Annotated[object, BeforeValidator(_validate_torch_module)] = Field(
-        description="Decode step module. Processes a single token with KV cache tensors and returns logits and updated KV tensors.",
-        exclude=True
-    )
-
-class PyTorchInferenceMetadataBase(
+class TorchInferenceMetadataBase(
     BaseModel,
     **ConfigDict(arbitrary_types_allowed=True, frozen=True)
 ):

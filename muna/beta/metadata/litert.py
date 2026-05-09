@@ -6,9 +6,9 @@
 from pydantic import Field
 from typing import Literal
 
-from ._torch import PyTorchInferenceMetadataBase
+from ._torch import TorchInferenceMetadataBase
 
-class LiteRTInferenceMetadata(PyTorchInferenceMetadataBase):
+class TorchToLiteRTInferenceMetadata(TorchInferenceMetadataBase):
     """
     Metadata to compile a PyTorch model for inference with LiteRT.
 

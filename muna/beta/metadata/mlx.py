@@ -7,9 +7,9 @@ from pydantic import Field
 from typing import Literal
 
 from ._ort import OnnxRuntimeInferenceSessionMetadataBase
-from ._torch import PyTorchInferenceMetadataBase
+from ._torch import TorchInferenceMetadataBase
 
-class MLXInferenceMetadata(PyTorchInferenceMetadataBase):
+class TorchToMLXInferenceMetadata(TorchInferenceMetadataBase):
     """
     Metadata to compile a PyTorch model for inference on Apple Silicon with MLX.
 
@@ -22,7 +22,7 @@ class MLXInferenceMetadata(PyTorchInferenceMetadataBase):
     """
     kind: Literal["meta.inference.mlx"] = Field(default="meta.inference.mlx", init=False)
 
-class MLXInferenceSessionMetadata(OnnxRuntimeInferenceSessionMetadataBase):
+class OnnxRuntimeToMLXInferenceMetadata(OnnxRuntimeInferenceSessionMetadataBase):
     """
     Metadata to compile an OnnxRuntime `InferenceSession` for inference on Apple Silicon with MLX.
 

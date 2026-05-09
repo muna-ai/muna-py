@@ -1,5 +1,8 @@
 ## 0.1.1
-*INCOMPLETE*
++ Added `beta.OnnxToCoreMLInferenceMetadata` metadata type to compile ONNXRuntime `InferenceSession` instances for inference on Apple Silicon with CoreML.
++ Refactored `beta.vLLMInferenceMetadata` metadata type to `beta.TorchTovLLMInferenceMetadata`.
++ Removed `muna.beta.TensorRTLLMInferenceMetadata` metadata type.
++ Removed `muna.beta.KVCacheConfig` metadata type.
 
 ## 0.1.0
 + Added `beta.DFlashSpeculativeDecoding` type for configuring DFlash speculative decoding for LLM inference.

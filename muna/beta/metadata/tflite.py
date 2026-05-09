@@ -25,7 +25,10 @@ def _validate_tflite_interpreter(interpreter: "tensorflow.lite.Interpreter") -> 
         raise ValueError(f"Expected `tensorflow.lite.Interpreter` instance but got `{type(interpreter).__qualname__}`")
     return interpreter
 
-class TFLiteInterpreterMetadata(BaseModel, **ConfigDict(arbitrary_types_allowed=True, frozen=True)):
+class TFLiteInterpreterMetadata(
+    BaseModel,
+    **ConfigDict(arbitrary_types_allowed=True, frozen=True)
+):
     """
     Metadata to compile a TensorFlow Lite `Interpreter` for inference.
 

@@ -6,12 +6,15 @@
 from pydantic import Field
 from typing import Literal
 
-from ._ort import OnnxRuntimeExecutionProvider, OnnxRuntimeInferenceSessionMetadataBase, OnnxRuntimeOptimizationLevel
-from ._torch import PyTorchInferenceMetadataBase
+from ._ort import (
+    OnnxRuntimeExecutionProvider, OnnxRuntimeInferenceSessionMetadataBase,
+    OnnxRuntimeOptimizationLevel
+)
+from ._torch import TorchInferenceMetadataBase
 
-class OnnxRuntimeInferenceMetadata(PyTorchInferenceMetadataBase):
+class TorchToOnnxRuntimeInferenceMetadata(TorchInferenceMetadataBase):
     """
-    Metadata to compile a PyTorch model for inference with OnnxRuntime.
+    Metadata to compile a PyTorch model for inference with ONNXRuntime.
 
     Members:
         model (torch.nn.Module): PyTorch module to apply metadata to.
@@ -36,10 +39,10 @@ class OnnxRuntimeInferenceMetadata(PyTorchInferenceMetadataBase):
 
 class OnnxRuntimeInferenceSessionMetadata(OnnxRuntimeInferenceSessionMetadataBase):
     """
-    Metadata to compile an OnnxRuntime `InferenceSession` for inference.
+    Metadata to compile an ONNXRuntime `InferenceSession` for inference.
 
     Members:
-        session (onnxruntime.InferenceSession): OnnxRuntime inference session to apply metadata to.
+        session (onnxruntime.InferenceSession): ONNXRuntime inference session to apply metadata to.
         model_path (str | Path): ONNX model path. The file must exist in the compiler sandbox.
         external_data_path (str | Path): ONNX model external data path. This file must exist in the compiler sandbox.
         providers (list): Execution providers that can be used to accelerate inference for this model.

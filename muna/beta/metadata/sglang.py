@@ -9,7 +9,7 @@ from typing import Annotated, Literal
 from ._speculative import SpeculativeDecodingConfig
 from ._torch import _validate_torch_module
 
-class SGLangInferenceMetadata(
+class TorchToSGLangInferenceMetadata(
     BaseModel,
     **ConfigDict(arbitrary_types_allowed=True, frozen=True)
 ):

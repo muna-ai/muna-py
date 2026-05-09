@@ -8,40 +8,58 @@ from ._speculative import (
     DFlashSpeculativeDecoding, Eagle3SpeculativeDecoding,
     SpeculativeDecodingConfig
 )
-from ._torch import KVCacheConfig, TorchExporter
-from .coreml import CoreMLInferenceMetadata
-from .cuda import CudaArchitecture, GeneratedCudaKernelInferenceMetadata
+from ._torch import TorchExporter
+from .coreml import (
+    CoreMLComputeUnit, OnnxRuntimeToCoreMLInferenceMetadata,
+    TorchToCoreMLInferenceMetadata
+)
 from .executorch import ExecuTorchInferenceBackend, ExecuTorchInferenceMetadata
-from .litert import LiteRTInferenceMetadata
+from .litert import TorchToLiteRTInferenceMetadata
 from .llama import LlamaCppBackend, LlamaCppInferenceMetadata
-from .mlx import MLXInferenceMetadata, MLXInferenceSessionMetadata
-from .onnxruntime import OnnxRuntimeInferenceMetadata, OnnxRuntimeInferenceSessionMetadata
-from .openvino import OpenVINOInferenceMetadata
-from .qnn import QnnInferenceBackend, QnnInferenceMetadata, QnnInferenceQuantization
-from .sglang import SGLangInferenceMetadata
-from .tensorrt import TensorRTInferenceMetadata, TensorRTInferenceSessionMetadata
-from .tensorrt_llm import TensorRTLLMInferenceMetadata
-from .tensorrt_rtx import TensorRTRTXInferenceMetadata
+from .mlx import OnnxRuntimeToMLXInferenceMetadata, TorchToMLXInferenceMetadata
+from .onnxruntime import OnnxRuntimeInferenceSessionMetadata, TorchToOnnxRuntimeInferenceMetadata
+from .openvino import TorchToOpenVINOInferenceMetadata
+from .qnn import QnnInferenceBackend, QnnInferenceQuantization, TorchToQnnInferenceMetadata
+from .sglang import TorchToSGLangInferenceMetadata
+from .tensorrt import (
+    CudaArchitecture, TorchToTensorRTInferenceMetadata,
+    OnnxRuntimeToTensorRTInferenceMetadata
+)
+from .tensorrt_rtx import TorchToTensorRTRTXInferenceMetadata
 from .tflite import TFLiteInterpreterMetadata
-from .vllm import vLLMInferenceMetadata
+from .vllm import TorchTovLLMInferenceMetadata
 
 CompileMetadata = (
-    CoreMLInferenceMetadata                 |
+    # PyTorch
     ExecuTorchInferenceMetadata             |
-    #GeneratedCudaKernelInferenceMetadata    | # WIP
-    LiteRTInferenceMetadata                 |
-    LlamaCppInferenceMetadata               |
-    MLXInferenceMetadata                    |
-    MLXInferenceSessionMetadata             |
-    OnnxRuntimeInferenceMetadata            |
+    TorchToCoreMLInferenceMetadata          |
+    TorchToLiteRTInferenceMetadata          |
+    TorchToMLXInferenceMetadata             |
+    TorchToOnnxRuntimeInferenceMetadata     |
+    TorchToOpenVINOInferenceMetadata        |
+    TorchToQnnInferenceMetadata             |
+    TorchToSGLangInferenceMetadata          |
+    TorchToTensorRTInferenceMetadata        |
+    TorchToTensorRTRTXInferenceMetadata     |
+    TorchTovLLMInferenceMetadata            |
+    # ONNX
     OnnxRuntimeInferenceSessionMetadata     |
-    OpenVINOInferenceMetadata               |
-    QnnInferenceMetadata                    |
-    SGLangInferenceMetadata                 |
-    TensorRTInferenceMetadata               |
-    TensorRTInferenceSessionMetadata        |
-    TensorRTLLMInferenceMetadata            |
-    TensorRTRTXInferenceMetadata            |
-    TFLiteInterpreterMetadata               |
-    vLLMInferenceMetadata
+    OnnxRuntimeToCoreMLInferenceMetadata    |
+    OnnxRuntimeToMLXInferenceMetadata       |
+    OnnxRuntimeToTensorRTInferenceMetadata  |
+    # Misc
+    LlamaCppInferenceMetadata               |
+    TFLiteInterpreterMetadata
 )
+
+CoreMLInferenceMetadata = TorchToCoreMLInferenceMetadata
+LiteRTInferenceMetadata = TorchToLiteRTInferenceMetadata
+MLXInferenceMetadata = TorchToMLXInferenceMetadata
+MLXInferenceSessionMetadata = OnnxRuntimeToMLXInferenceMetadata
+OnnxRuntimeInferenceMetadata = TorchToOnnxRuntimeInferenceMetadata
+OpenVINOInferenceMetadata = TorchToOpenVINOInferenceMetadata
+QnnInferenceMetadata = TorchToQnnInferenceMetadata
+SGLangInferenceMetadata = TorchToSGLangInferenceMetadata
+TensorRTRTXInferenceMetadata = TorchToTensorRTRTXInferenceMetadata
+TensorRTInferenceMetadata = TorchToTensorRTInferenceMetadata
+TensorRTInferenceSessionMetadata = OnnxRuntimeToTensorRTInferenceMetadata

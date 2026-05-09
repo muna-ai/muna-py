@@ -19,7 +19,10 @@ def _validate_ort_inference_session(session: "onnxruntime.InferenceSession") -> 
     except ImportError:
         raise ImportError("ONNXRuntime is required to create this metadata but it is not installed.")
 
-class OnnxRuntimeInferenceSessionMetadataBase(BaseModel, **ConfigDict(arbitrary_types_allowed=True, frozen=True)):
+class OnnxRuntimeInferenceSessionMetadataBase(
+    BaseModel,
+    **ConfigDict(arbitrary_types_allowed=True, frozen=True)
+):
     session: Annotated[object, BeforeValidator(_validate_ort_inference_session)] = Field(
         description="OnnxRuntime inference session to apply metadata to.",
         exclude=True

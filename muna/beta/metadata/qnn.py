@@ -6,12 +6,12 @@
 from pydantic import Field
 from typing import Literal
 
-from ._torch import PyTorchInferenceMetadataBase
+from ._torch import TorchInferenceMetadataBase
 
 QnnInferenceBackend = Literal["cpu", "gpu", "htp"]
 QnnInferenceQuantization = Literal["w8a8", "w8a16", "w4a8", "w4a16"]
 
-class QnnInferenceMetadata(PyTorchInferenceMetadataBase):
+class TorchToQnnInferenceMetadata(TorchInferenceMetadataBase):
     """
     Metadata to compile a PyTorch model for inference on Qualcomm accelerators with QNN SDK.
 

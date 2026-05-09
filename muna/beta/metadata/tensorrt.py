@@ -7,8 +7,16 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal
 
 from ._ort import OnnxRuntimeInferenceSessionMetadataBase
-from ._torch import PyTorchInferenceMetadataBase
-from .cuda import CudaArchitecture
+from ._torch import TorchInferenceMetadataBase
+
+CudaArchitecture = Literal[
+    "sm_80",    # Ampere
+    "sm_80+",   # Ampere or newer
+    "sm_86",    # Ampere
+    "sm_89",    # Ada Lovelace
+    "sm_90",    # Hopper
+    "sm_100",   # Blackwell
+]
 
 class _TensorRTInferenceMetadataBase(BaseModel, **ConfigDict(frozen=True)):
     cuda_arch: CudaArchitecture = Field(
@@ -17,7 +25,10 @@ class _TensorRTInferenceMetadataBase(BaseModel, **ConfigDict(frozen=True)):
         exclude=True
     )
 
-class TensorRTInferenceMetadata(_TensorRTInferenceMetadataBase, PyTorchInferenceMetadataBase):
+class TorchToTensorRTInferenceMetadata(
+    _TensorRTInferenceMetadataBase,
+    TorchInferenceMetadataBase
+):
     """
     Metadata to compile a PyTorch model for inference on Nvidia GPUs with TensorRT.
 
@@ -32,12 +43,15 @@ class TensorRTInferenceMetadata(_TensorRTInferenceMetadataBase, PyTorchInference
     """
     kind: Literal["meta.inference.tensorrt"] = Field(default="meta.inference.tensorrt", init=False)
 
-class TensorRTInferenceSessionMetadata(_TensorRTInferenceMetadataBase, OnnxRuntimeInferenceSessionMetadataBase):
+class OnnxRuntimeToTensorRTInferenceMetadata(
+    _TensorRTInferenceMetadataBase,
+    OnnxRuntimeInferenceSessionMetadataBase
+):
     """
-    Metadata to compile an OnnxRuntime `InferenceSession` for inference on Nvidia GPUs with TensorRT.
+    Metadata to compile an ONNXRuntime `InferenceSession` for inference on Nvidia GPUs with TensorRT.
 
     Members:
-        session (onnxruntime.InferenceSession): OnnxRuntime inference session to apply metadata to.
+        session (onnxruntime.InferenceSession): ONNXRuntime inference session to apply metadata to.
         model_path (str | Path): ONNX model path. The file must exist in the compiler sandbox.
         external_data_path (str | Path): ONNX model external data path. This file must exist in the compiler sandbox.
         cuda_arch (CudaArchitecture): Target CUDA architecture for the TensorRT engine. Defaults to `sm_80+` (Ampere or newer).
