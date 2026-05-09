@@ -1,3 +1,6 @@
+## 0.1.2
+*INCOMPLETE*
+
 ## 0.1.1
 + Added `beta.OnnxToCoreMLInferenceMetadata` metadata type to compile ONNXRuntime `InferenceSession` instances for inference on Apple Silicon with CoreML.
 + Refactored `beta.vLLMInferenceMetadata` metadata type to `beta.TorchTovLLMInferenceMetadata`.
