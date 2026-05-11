@@ -153,25 +153,42 @@ class MunaClient:
         name = Path(urlparse(url).path).name
         completed = 0
         color = progress if isinstance(progress, str) else "dark_orange"
-        with (
-            Progress(
-                TextColumn(f"[{color}]{{task.description}}"),
-                BarColumn(),
-                DownloadColumn(),
-                TransferSpeedColumn(),
-                TimeRemainingColumn(),
-                disable=not color
-            ) as progress_bar,
-            NamedTemporaryFile(mode="wb", delete=False) as tmp_file
-        ):
-            task_id = progress_bar.add_task(name, total=size)
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    tmp_file.write(chunk)
-                    completed += len(chunk)
-                    progress_bar.update(task_id, total=size, completed=completed)
-        Path(tmp_file.name).replace(path)
-        return path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path: Path | None = None
+        try:
+            with (
+                Progress(
+                    TextColumn(f"[{color}]{{task.description}}"),
+                    BarColumn(),
+                    DownloadColumn(),
+                    TransferSpeedColumn(),
+                    TimeRemainingColumn(),
+                    disable=not color
+                ) as progress_bar,
+                NamedTemporaryFile(
+                    mode="wb",
+                    delete=False,
+                    dir=path.parent,
+                    prefix=f"{path.name}.",
+                    suffix=".part",
+                ) as tmp_file
+            ):
+                tmp_path = Path(tmp_file.name)
+                task_id = progress_bar.add_task(name, total=size)
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        tmp_file.write(chunk)
+                        completed += len(chunk)
+                        progress_bar.update(task_id, total=size, completed=completed)
+            tmp_path.replace(path)
+            tmp_path = None
+            return path
+        finally:
+            if tmp_path is not None:
+                try:
+                    tmp_path.unlink()
+                except FileNotFoundError:
+                    pass
 
     def upload(
         self,

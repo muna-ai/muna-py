@@ -1,5 +1,5 @@
 ## 0.1.2
-*INCOMPLETE*
++ Added support for overriding Muna resource cache directory with `MUNA_CACHE_DIR` environment variable.
 
 ## 0.1.1
 + Added `beta.OnnxToCoreMLInferenceMetadata` metadata type to compile ONNXRuntime `InferenceSession` instances for inference on Apple Silicon with CoreML.

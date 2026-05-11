@@ -4,6 +4,7 @@
 #
 
 from datetime import datetime, timezone
+from os import environ
 from pathlib import Path
 from tempfile import gettempdir
 from typing import Iterator
@@ -18,7 +19,7 @@ class LocalPredictionService:
     def __init__(self, client: MunaClient):
         self.client = client
         self.__cache = dict[str, Predictor]()
-        self.__cache_dir = _get_home_dir() / ".fxn" / "cache"
+        self.__cache_dir = _get_cache_dir()
         self.__cache_dir.mkdir(parents=True, exist_ok=True)
 
     def __del__(self):
@@ -192,6 +193,12 @@ def _parse_local_prediction(
         logs=prediction.logs,
         created=datetime.now(timezone.utc).isoformat()
     )
+
+def _get_cache_dir() -> Path:
+    override = environ.get("MUNA_CACHE_DIR")
+    if override:
+        return Path(override).expanduser()
+    return _get_home_dir() / ".fxn" / "cache"
 
 def _get_home_dir() -> Path:
     try:
