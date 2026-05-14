@@ -16,12 +16,11 @@ from rich.progress import (
 import shutil
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Literal, TypeVar
+from typing import cast, Literal, TypeVar
 from urllib.parse import urlparse
 from uuid import uuid4
 
 from ..logging import CustomProgressTask, run_streamed
-from ..muna import Muna
 
 _active_registry: ContextVar[list | None] = ContextVar(
     "muna_active_compile_registry",
@@ -56,6 +55,16 @@ class Platform(IntFlag):
     WINDOWS_ARM64   = 1 << 11
     WINDOWS         = WINDOWS_X64 | WINDOWS_ARM64
     ALL             = ANDROID | IOS | MACOS | LINUX | VISIONOS | WASM | WINDOWS # -1 might have issues in Pydantic
+
+CompileTarget = Literal[
+    "android",
+    "ios",
+    "linux",
+    "macos",
+    "visionos",
+    "wasm",
+    "windows"
+] | str
 
 class CompileLibrary(BaseModel, **ConfigDict(frozen=True)):
     """
@@ -245,15 +254,16 @@ class CompileDialect(BaseModel, **ConfigDict(frozen=True)):
         """
         return cls(kind="url", url=url, sha256=sha256)
 
-    def populate(self, muna: Muna = None) -> CompileDialect:
+    def populate(self, muna=None) -> CompileDialect:
         """
         Upload this dialect.
         """
+        from ..muna import Muna
         if self.kind == "builtin":
             return self
         if self.url is not None:
             return self
-        muna = muna or Muna()
+        muna = cast(Muna, muna) or Muna()
         with TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             if self._path is not None:

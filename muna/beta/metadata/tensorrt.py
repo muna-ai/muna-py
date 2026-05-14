@@ -37,7 +37,7 @@ class TorchToTensorRTInferenceMetadata(
         exporter (TorchExporter): PyTorch exporter to use.
         model_args (tuple): Positional inputs to the model.
         input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
-        optimum_config (optimum.ExporterConfig): Optimum exporter configuration. Required when `exporter` is `optimum`.
+        targets (list | None): Compile targets where this metadata applies.
         cuda_arch (CudaArchitecture): Target CUDA architecture for the TensorRT engine. Defaults to `sm_80+` (Ampere or newer).
         hardware_compatibility (TensorRTHardwareCompatibility): TensorRT engine hardware compatibility. Defaults to `forward_compatibility`.
     """
@@ -54,6 +54,7 @@ class OnnxRuntimeToTensorRTInferenceMetadata(
         session (onnxruntime.InferenceSession): ONNXRuntime inference session to apply metadata to.
         model_path (str | Path): ONNX model path. The file must exist in the compiler sandbox.
         external_data_path (str | Path): ONNX model external data path. This file must exist in the compiler sandbox.
+        targets (list | None): Compile targets where this metadata applies.
         cuda_arch (CudaArchitecture): Target CUDA architecture for the TensorRT engine. Defaults to `sm_80+` (Ampere or newer).
         hardware_compatibility (TensorRTHardwareCompatibility): TensorRT engine hardware compatibility. Defaults to `forward_compatibility`.
     """

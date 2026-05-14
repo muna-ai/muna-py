@@ -9,26 +9,19 @@ from inspect import isasyncgenfunction, iscoroutinefunction
 from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field
 from types import ModuleType
-from typing import Callable, Literal, ParamSpec, TypeVar, cast
+from typing import Callable, ParamSpec, TypeVar, cast
 
-from .beta import CompileDialect, CompileMetadata
+from .beta import CompileDialect, CompileMetadata, CompileTarget
 from .sandbox import Sandbox
 from .types import PredictorAccess
-
-CompileTarget = Literal[
-    "android",
-    "ios",
-    "linux",
-    "macos",
-    "visionos",
-    "wasm",
-    "windows"
-]
 
 P = ParamSpec("P")
 R = TypeVar("R")
 
-class PredictorSpec(BaseModel, **ConfigDict(arbitrary_types_allowed=True, extra="allow")):
+class PredictorSpec(
+    BaseModel,
+    **ConfigDict(arbitrary_types_allowed=True, extra="allow")
+):
     """
     Descriptor of a predictor to be compiled.
     """

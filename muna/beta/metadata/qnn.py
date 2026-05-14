@@ -20,7 +20,7 @@ class TorchToQnnInferenceMetadata(TorchInferenceMetadataBase):
         exporter (TorchExporter): PyTorch exporter to use.
         model_args (tuple): Positional inputs to the model.
         input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
-        optimum_config (optimum.ExporterConfig): Optimum exporter configuration. Required when `exporter` is `optimum`.
+        targets (list | None): Compile targets where this metadata applies.
         backend (QnnInferenceBackend): QNN inference backend. Defaults to `cpu`.
         quantization (QnnInferenceQuantization): QNN model quantization mode. This is only supported when backend is `htp`.
         quantization_samples (list): Representative model input samples for quantization calibration. This is required when `quantization` is specified.

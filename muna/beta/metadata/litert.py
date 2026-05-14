@@ -16,6 +16,7 @@ class TorchToLiteRTInferenceMetadata(TorchInferenceMetadataBase):
         model (torch.nn.Module): PyTorch module to apply metadata to.
         model_args (tuple): Positional inputs to the model.
         input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
+        targets (list | None): Compile targets where this metadata applies.
     """
     kind: Literal["meta.inference.litert"] = Field(default="meta.inference.litert", init=False)
     exporter: None = Field(default=None, init=False, exclude=True)

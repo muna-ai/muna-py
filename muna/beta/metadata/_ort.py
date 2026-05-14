@@ -7,6 +7,8 @@ from pathlib import Path
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 from typing import Annotated, Literal
 
+from ..compile import CompileTarget
+
 OnnxRuntimeExecutionProvider = Literal["cpu", "coreml", "cuda"]
 OnnxRuntimeOptimizationLevel = Literal["none", "basic", "extended"]
 
@@ -34,5 +36,10 @@ class OnnxRuntimeInferenceSessionMetadataBase(
     external_data_path: str | Path | None = Field(
         default=None,
         description="Path to ONNX external data file (e.g. .onnx.data).",
+        exclude=True
+    )
+    targets: list[CompileTarget] | None = Field(
+        default=None,
+        description="Compile targets where this metadata should apply.",
         exclude=True
     )

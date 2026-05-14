@@ -6,7 +6,9 @@
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 from typing import Annotated, Literal
 
-TorchExporter = Literal["none", "dynamo", "torchscript", "optimum"]
+from ..compile import CompileTarget
+
+TorchExporter = Literal["none", "dynamo", "torchscript"]
 
 def _validate_torch_module(module: "torch.nn.Module") -> "torch.nn.Module": # type: ignore
     try:
@@ -29,17 +31,6 @@ def _validate_torch_tensor_args(args: list) -> list | None:
     except ImportError:
         raise ImportError("PyTorch is required to create this metadata but it is not installed.")
 
-def _validate_optimum_exporter_config(config: object) -> object:
-    if config is None:
-        return config
-    try:
-        from optimum.exporters.base import ExporterConfig
-        if not isinstance(config, ExporterConfig):
-            raise ValueError(f"Expected `optimum.exporters.base.ExporterConfig` instance for `optimum_config` but got `{type(config).__qualname__}`")
-        return config
-    except ImportError:
-        pass
-
 class TorchInferenceMetadataBase(
     BaseModel,
     **ConfigDict(arbitrary_types_allowed=True, frozen=True)
@@ -55,7 +46,7 @@ class TorchInferenceMetadataBase(
     )
     model_args: Annotated[list[object] | None, BeforeValidator(_validate_torch_tensor_args)] = Field(
         default=None,
-        description="Positional inputs to the model. Required except when `exporter` is `optimum`.",
+        description="Positional inputs to the model.",
         exclude=True
     )
     input_shapes: list[tuple] | None = Field(
@@ -63,8 +54,8 @@ class TorchInferenceMetadataBase(
         description="Model input tensor shapes. Use this to specify dynamic axes.",
         exclude=True
     )
-    optimum_config: Annotated[object | None, BeforeValidator(_validate_optimum_exporter_config)] = Field(
+    targets: list[CompileTarget] | None = Field(
         default=None,
-        description="Optimum exporter configuration. Required when `exporter` is `optimum`.",
+        description="Compile targets where this metadata should apply.",
         exclude=True
     )

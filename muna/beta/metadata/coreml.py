@@ -10,6 +10,7 @@ from ._ort import OnnxRuntimeInferenceSessionMetadataBase
 from ._torch import TorchInferenceMetadataBase
 
 CoreMLComputeUnit = Literal["cpu", "gpu", "ane"]
+CoreMLComputePrecision = Literal["fp16", "fp32"]
 
 class _CoreMLInferenceMetadataBase(
     BaseModel,
@@ -19,6 +20,11 @@ class _CoreMLInferenceMetadataBase(
         default=None,
         description="CoreML compute units.",
         exclude=True,
+    )
+    compute_precision: CoreMLComputePrecision | None = Field(
+        default=None,
+        description="CoreML compute precision.",
+        exclude=True
     )
     ios_deployment_target: int | None = Field(
         default=None,
@@ -53,7 +59,9 @@ class TorchToCoreMLInferenceMetadata(
         exporter (TorchExporter): PyTorch exporter to use.
         model_args (tuple): Positional inputs to the model.
         input_shapes (list | None): Model input tensor shapes. Use this to specify dynamic axes.
+        targets (list | None): Compile targets where this metadata applies.
         compute_units (list | None): CoreML compute units.
+        compute_precision (CoreMLComputePreision): CoreML compute precision.
         ios_deployment_target (int | None): Minimum iOS deployment target.
         macos_deployment_target (int | None): Minimum macOS deployment target.
     """
@@ -70,7 +78,9 @@ class OnnxRuntimeToCoreMLInferenceMetadata(
         session (onnxruntime.InferenceSession): OnnxRuntime inference session to apply metadata to.
         model_path (str | Path): ONNX model path. The file must exist in the compiler sandbox.
         external_data_path (str | Path): ONNX model external data path. This file must exist in the compiler sandbox.
+        targets (list | None): Compile targets where this metadata applies.
         compute_units (list): CoreML compute units.
+        compute_precision (CoreMLComputePreision): CoreML compute precision.
         ios_deployment_target (int | None): Minimum iOS deployment target.
         macos_deployment_target (int | None): Minimum macOS deployment target.
     """

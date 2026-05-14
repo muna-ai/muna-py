@@ -21,7 +21,7 @@ class TorchToOnnxRuntimeInferenceMetadata(TorchInferenceMetadataBase):
         exporter (TorchExporter): PyTorch exporter to use.
         model_args (tuple): Positional inputs to the model.
         input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
-        optimum_config (optimum.ExporterConfig): Optimum exporter configuration. Required when `exporter` is `optimum`.
+        targets (list | None): Compile targets where this metadata applies.
         optimization (OnnxRuntimeOptimizationLevel): ONNX model optimization level.
         providers (list): Execution providers that can be used to accelerate inference for this model.
     """
@@ -45,6 +45,7 @@ class OnnxRuntimeInferenceSessionMetadata(OnnxRuntimeInferenceSessionMetadataBas
         session (onnxruntime.InferenceSession): ONNXRuntime inference session to apply metadata to.
         model_path (str | Path): ONNX model path. The file must exist in the compiler sandbox.
         external_data_path (str | Path): ONNX model external data path. This file must exist in the compiler sandbox.
+        targets (list | None): Compile targets where this metadata applies.
         providers (list): Execution providers that can be used to accelerate inference for this model.
     """
     kind: Literal["meta.inference.onnxruntime"] = Field(default="meta.inference.onnxruntime", init=False)

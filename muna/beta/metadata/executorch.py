@@ -18,6 +18,7 @@ class ExecuTorchInferenceMetadata(TorchInferenceMetadataBase):
         model (torch.nn.Module): PyTorch module to apply metadata to.
         model_args (tuple): Positional inputs to the model.
         input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
+        targets (list | None): Compile targets where this metadata applies.
         backend (ExecuTorchInferenceBackend): ExecuTorch backend to execute the model.
     """
     kind: Literal["meta.inference.executorch"] = Field(default="meta.inference.executorch", init=False)

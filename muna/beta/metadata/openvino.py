@@ -17,6 +17,6 @@ class TorchToOpenVINOInferenceMetadata(TorchInferenceMetadataBase):
         exporter (TorchExporter): PyTorch exporter to use.
         model_args (tuple): Positional inputs to the model.
         input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
-        optimum_config (optimum.ExporterConfig): Optimum exporter configuration. Required when `exporter` is `optimum`.
+        targets (list | None): Compile targets where this metadata applies.
     """
     kind: Literal["meta.inference.openvino"] = Field(default="meta.inference.openvino", init=False)

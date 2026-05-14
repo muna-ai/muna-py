@@ -1,5 +1,7 @@
 ## 0.1.3
-*INCOMPLETE*
++ Added `beta.TorchToCoreMLInferenceMetadata.compute_precision` field for specifying compute precision when compiling PyTorch models to CoreML.
++ Added `beta.OnnxRuntimeToCoreMLInferenceMetadata.compute_precision` field for specifying compute precision when compiling ONNX models to CoreML.
++ Removed `optimum` exporter support in `OnnxRuntimeInferenceMetadata` metadata type.
 
 ## 0.1.2
 + Added support for overriding Muna resource cache directory with `MUNA_CACHE_DIR` environment variable.
