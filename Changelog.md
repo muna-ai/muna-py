@@ -1,3 +1,6 @@
+## 0.1.4
+*INCOMPLETE*
+
 ## 0.1.3
 + Added `beta.TorchToCoreMLInferenceMetadata.compute_precision` field for specifying compute precision when compiling PyTorch models to CoreML.
 + Added `beta.OnnxRuntimeToCoreMLInferenceMetadata.compute_precision` field for specifying compute precision when compiling ONNX models to CoreML.
