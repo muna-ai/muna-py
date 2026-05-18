@@ -32,7 +32,7 @@ class PredictorSpec(
         max_length=100
     )
     sandbox: Sandbox = Field(description="Sandbox to compile the function.")
-    targets: list[str] | None = Field(description="Targets to compile this predictor for.")
+    targets: list[CompileTarget] | None = Field(description="Targets to compile this predictor for.")
     metadata: list[CompileMetadata] | None = Field(
         default=None,
         description="Metadata to use when compiling the function."

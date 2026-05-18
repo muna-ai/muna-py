@@ -1,5 +1,5 @@
 ## 0.1.4
-*INCOMPLETE*
++ Minor updates.
 
 ## 0.1.3
 + Added `beta.TorchToCoreMLInferenceMetadata.compute_precision` field for specifying compute precision when compiling PyTorch models to CoreML.
