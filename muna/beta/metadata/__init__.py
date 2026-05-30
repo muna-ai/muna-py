@@ -4,10 +4,7 @@
 #
 
 from ._ort import OnnxRuntimeExecutionProvider, OnnxRuntimeOptimizationLevel
-from ._speculative import (
-    DFlashSpeculativeDecoding, Eagle3SpeculativeDecoding,
-    SpeculativeDecodingConfig
-)
+from ._speculative import SpeculativeDecodingConfig
 from ._torch import TorchExporter
 from .coreml import (
     CoreMLComputeUnit, OnnxRuntimeToCoreMLInferenceMetadata,

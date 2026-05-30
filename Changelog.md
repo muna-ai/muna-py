@@ -1,5 +1,6 @@
 ## 0.1.5
-*INCOMPLETE*
++ Removed `beta.DFlashSpeculativeDecoding` type. Use `SpeculativeDecodingConfig` type instead.
++ Removed `beta.Eagle3SpeculativeDecoding` type. Use `SpeculativeDecodingConfig` type instead.
 
 ## 0.1.4
 + Minor updates.
