@@ -2,6 +2,7 @@ numpy
 pillow
 requests
 rich
+sounddevice
 typer
 pydantic
 pytest

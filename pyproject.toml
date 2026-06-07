@@ -14,6 +14,7 @@ dependencies = [
     "pydantic>=2.0",
     "requests",
     "rich",
+    "sounddevice",
     "typer"
 ]
 requires-python = ">=3.11"
