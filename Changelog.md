@@ -1,5 +1,5 @@
 ## 0.1.7
-*INCOMPLETE*
++ Minor stability improvements.
 
 ## 0.1.6
 + Improved prediction resource download speeds.

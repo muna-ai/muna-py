@@ -149,7 +149,10 @@ class MunaClient:
         """
         name = Path(urlparse(url).path).name
         color = progress if isinstance(progress, str) else "dark_orange"
-        headers = { "Authorization": f"Bearer {self.access_key}" }
+        headers = {
+            "Authorization": f"Bearer {self.access_key}",
+            "User-Agent": "muna-py"
+        }
         path.parent.mkdir(parents=True, exist_ok=True)
         size, accept_ranges = self.__probe_download(url, headers)
         # Use the parallel downloader whenever the server supports range
