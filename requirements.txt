@@ -1,3 +1,4 @@
+hf_transfer
 numpy
 pillow
 requests

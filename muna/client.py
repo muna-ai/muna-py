@@ -6,18 +6,20 @@
 from collections.abc import Callable
 from contextlib import nullcontext
 from hashlib import file_digest
+from hf_transfer import download
 from io import SEEK_END, SEEK_SET
 from json import loads, JSONDecodeError
 from math import ceil
+from os import close as os_close
 from pathlib import Path
 from pydantic import BaseModel, Field, TypeAdapter
 from requests import get, put, request
-from requests.exceptions import ConnectionError, HTTPError, SSLError
+from requests.exceptions import ConnectionError, HTTPError, RequestException, SSLError
 from rich.progress import (
     Progress, BarColumn, DownloadColumn, TextColumn,
     TimeRemainingColumn, TransferSpeedColumn
 )
-from tempfile import NamedTemporaryFile
+from tempfile import mkstemp, NamedTemporaryFile
 from time import sleep
 from typing import BinaryIO, Iterator, Literal, Type, TypeVar
 from urllib.parse import urlparse
@@ -28,6 +30,9 @@ RESOURCE_URL_BASE = "https://cdn.fxn.ai/resources"
 MULTIPART_THRESHOLD = 100 * 1024 * 1024  # 100 MB
 MULTIPART_CHUNK_SIZE = 50 * 1024 * 1024  # 50 MB
 RETRYABLE_STATUS_CODES = { 400, 408, 429, 500, 502, 503, 504 }
+DOWNLOAD_MAX_FILES = 16                          # parallel connections for hf_transfer
+DOWNLOAD_CHUNK_SIZE = 8 * 1024 * 1024            # 8 MB chunks for the single-stream fallback
+DOWNLOAD_PROGRESS_INTERVAL = 8 * 1024 * 1024     # throttle progress updates to every 8 MB
 
 class MunaAPIError(Exception):
 
@@ -142,18 +147,132 @@ class MunaClient:
         """
         Download a resource to a given path.
         """
-        response = get(
+        name = Path(urlparse(url).path).name
+        color = progress if isinstance(progress, str) else "dark_orange"
+        headers = { "Authorization": f"Bearer {self.access_key}" }
+        path.parent.mkdir(parents=True, exist_ok=True)
+        size, accept_ranges = self.__probe_download(url, headers)
+        # Use the parallel downloader whenever the server supports range
+        # requests, regardless of size: `hf_transfer` downloads small files
+        # as a single chunk. The fallback handles servers without range
+        # support (and any `hf_transfer` failure).
+        if accept_ranges:
+            try:
+                return self.__download_parallel(
+                    url,
+                    path,
+                    headers=headers,
+                    size=size,
+                    name=name,
+                    color=color
+                )
+            except Exception:
+                pass # fall back to the single-connection download below
+        return self.__download_stream(
             url,
-            headers={ "Authorization": f"Bearer {self.access_key}" },
-            stream=True,
-            allow_redirects=True
+            path,
+            headers=headers,
+            name=name,
+            color=color
         )
+
+    def __probe_download(
+        self,
+        url: str,
+        headers: dict[str, str]
+    ) -> tuple[int | None, bool]:
+        """
+        Probe a resource URL for its size and HTTP range support.
+
+        Uses a single-byte range request rather than a `HEAD` so that the
+        probe works with method-scoped presigned URLs. A `206` response
+        proves range support and carries the full size in `Content-Range`.
+        """
+        try:
+            response = get(
+                url,
+                headers={ **headers, "Range": "bytes=0-0" },
+                stream=True,
+                allow_redirects=True
+            )
+        except RequestException:
+            return None, False
+        try:
+            if response.status_code == 206:
+                content_range = response.headers.get("content-range", "")
+                total = content_range.rsplit("/", 1)[-1] if "/" in content_range else ""
+                size = int(total) if total.isdigit() else None
+                return size, True
+            if response.ok:
+                size = response.headers.get("content-length")
+                return (int(size) if size is not None else None), False
+            return None, False
+        finally:
+            response.close()
+
+    def __download_parallel(
+        self,
+        url: str,
+        path: Path,
+        *,
+        headers: dict[str, str],
+        size: int | None,
+        name: str,
+        color: str
+    ) -> Path:
+        """
+        Download a resource using parallel chunked range requests.
+        """
+        fd, tmp_name = mkstemp(dir=path.parent, prefix=f"{path.name}.", suffix=".part")
+        os_close(fd)
+        tmp_path: Path | None = Path(tmp_name)
+        try:
+            with Progress(
+                TextColumn(f"[{color}]{{task.description}}"),
+                BarColumn(),
+                DownloadColumn(),
+                TransferSpeedColumn(),
+                TimeRemainingColumn(),
+                disable=not color
+            ) as progress_bar:
+                task_id = progress_bar.add_task(name, total=size)
+                download(
+                    url=url,
+                    filename=str(tmp_path),
+                    max_files=DOWNLOAD_MAX_FILES,
+                    chunk_size=MULTIPART_CHUNK_SIZE,
+                    parallel_failures=3,
+                    max_retries=5,
+                    headers=headers,
+                    callback=lambda increment: progress_bar.advance(task_id, increment)
+                )
+            tmp_path.replace(path)
+            tmp_path = None
+            return path
+        finally:
+            if tmp_path is not None:
+                try:
+                    tmp_path.unlink()
+                except FileNotFoundError:
+                    pass
+
+    def __download_stream(
+        self,
+        url: str,
+        path: Path,
+        *,
+        headers: dict[str, str],
+        name: str,
+        color: str
+    ) -> Path:
+        """
+        Download a resource over a single connection.
+        """
+        response = get(url, headers=headers, stream=True, allow_redirects=True)
         response.raise_for_status()
         size = int(response.headers.get("content-length", 0))
-        name = Path(urlparse(url).path).name
         completed = 0
-        color = progress if isinstance(progress, str) else "dark_orange"
-        path.parent.mkdir(parents=True, exist_ok=True)
+        last_update = 0
         tmp_path: Path | None = None
         try:
             with (
@@ -175,11 +294,16 @@ class MunaClient:
             ):
                 tmp_path = Path(tmp_file.name)
                 task_id = progress_bar.add_task(name, total=size)
-                for chunk in response.iter_content(chunk_size=8192):
+                for chunk in response.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
                     if chunk:
                         tmp_file.write(chunk)
                         completed += len(chunk)
-                        progress_bar.update(task_id, total=size, completed=completed)
+                        if (
+                            completed - last_update >= DOWNLOAD_PROGRESS_INTERVAL or
+                            completed == size
+                        ):
+                            progress_bar.update(task_id, total=size, completed=completed)
+                            last_update = completed
             tmp_path.replace(path)
             tmp_path = None
             return path

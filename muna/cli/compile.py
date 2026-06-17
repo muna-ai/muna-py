@@ -56,7 +56,7 @@ def compile_function(
             spec: PredictorSpec = func.__predictor_spec
             if spec.tag is None:
                 user = muna.users.retrieve()
-                spec.tag = f"@{user.username}/{func.__name__}"
+                spec.tag = f"@{user.username}/{func.__name__.replace('_', '-')}"
             if spec.description is None:
                 if func.__doc__ is None:
                     raise ValueError(

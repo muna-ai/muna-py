@@ -52,13 +52,13 @@ class LocalPredictionService:
             Prediction: Created prediction.
         """
         if inputs is None:
-            return self.__create_raw_prediction(
-                tag=tag,
-                client_id=client_id,
-                configuration_id=configuration_id
-            )
+            return self.__create_raw_prediction(tag, client_id, configuration_id)
+        if not inputs:
+            prediction = self.__create_raw_prediction(tag, client_id, configuration_id)
+            self.__create_cached_prediction(prediction)
+            return prediction
         predictor = self.__get_predictor(
-            tag=tag,
+            tag,
             acceleration=acceleration,
             device=device,
             client_id=client_id,
@@ -123,8 +123,16 @@ class LocalPredictionService:
         client_id: str=None,
         configuration_id: str=None
     ) -> Prediction:
-        client_id = client_id if client_id is not None else Configuration.get_client_id()
-        configuration_id = configuration_id if configuration_id is not None else Configuration.get_unique_id()
+        client_id = (
+            client_id
+            if client_id is not None
+            else Configuration.get_client_id()
+        )
+        configuration_id = (
+            configuration_id
+            if configuration_id is not None
+            else Configuration.get_unique_id()
+        )
         prediction = self.client.request(
             method="POST",
             path="/predictions",
@@ -137,42 +145,43 @@ class LocalPredictionService:
         )
         return prediction
 
+    def __create_cached_prediction(self, prediction: Prediction) -> Prediction:
+        resources = [self.__download_resource(res) for res in prediction.resources]
+        return prediction.model_copy(update={ "resources": resources })
+
     def __get_predictor(
         self,
         tag: str,
+        *,
         acceleration: Acceleration="local_auto",
-        device=None,
+        device: object=None,
         client_id: str=None,
         configuration_id: str=None
     ) -> Predictor:
         if tag in self.__cache:
             return self.__cache[tag]
-        prediction = self.__create_raw_prediction(
-            tag=tag,
-            client_id=client_id,
-            configuration_id=configuration_id
-        )
+        prediction = self.__create_raw_prediction(tag, client_id, configuration_id)
+        prediction = self.__create_cached_prediction(prediction)
         with Configuration() as configuration:
             configuration.tag = prediction.tag
             configuration.token = prediction.configuration
             configuration.acceleration = acceleration
             configuration.device = device
             for resource in prediction.resources:
-                path = self.__get_resource_path(resource)
-                if not path.exists():
-                    color = "dark_orange" if not resource.type == "dso" else "purple"
-                    path.parent.mkdir(parents=True, exist_ok=True)
-                    self.client.download(resource.url, path, progress=color)
-                configuration.add_resource(resource.type, path)
+                configuration.add_resource(resource.type, resource.url)
             predictor = Predictor(configuration)
         self.__cache[tag] = predictor
         return predictor
 
-    def __get_resource_path(self, resource: PredictionResource) -> Path:
+    def __download_resource(self, resource: PredictionResource) -> PredictionResource:
         stem = Path(urlparse(resource.url).path).name
         path = self.__cache_dir / stem
         path = path / resource.name if resource.name else path
-        return path
+        if not path.exists():
+            color = "dark_orange" if resource.type != "dso" else "purple"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            self.client.download(resource.url, path, progress=color)
+        return resource.model_copy(update={ "url": str(path) })
 
 def _parse_local_prediction(
     prediction: CPrediction,

@@ -1,3 +1,6 @@
+## 0.1.6
++ Improved prediction resource download speeds.
+
 ## 0.1.5
 + Removed `beta.DFlashSpeculativeDecoding` type. Use `SpeculativeDecodingConfig` type instead.
 + Removed `beta.Eagle3SpeculativeDecoding` type. Use `SpeculativeDecodingConfig` type instead.
