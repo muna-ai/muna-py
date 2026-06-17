@@ -1,3 +1,6 @@
+## 0.1.8
+*INCOMPLETE*
+
 ## 0.1.7
 + Minor stability improvements.
 
