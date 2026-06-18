@@ -1,5 +1,5 @@
 ## 0.1.8
-*INCOMPLETE*
++ Fixed predictions with empty lists being interpreted as array list.
 
 ## 0.1.7
 + Minor stability improvements.

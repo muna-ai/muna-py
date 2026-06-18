@@ -144,7 +144,7 @@ class Value:
             case int():     return cls.from_object(array(obj, dtype=Dtype.int32), flags=flags | ValueFlags.COPY_DATA)
             case generic(): return cls.from_object(array(obj), flags=flags | ValueFlags.COPY_DATA)            
             case str():     status = get_fxnc().FXNValueCreateString(obj.encode(), byref(value))
-            case list() if all(isinstance(t, ndarray) for t in obj):
+            case list() if len(obj) > 0 and all(isinstance(t, ndarray) for t in obj):
                 data_ptrs = (c_void_p * len(obj))(*[t.ctypes.data_as(c_void_p) for t in obj])
                 shapes = [(c_int32 * len(t.shape))(*t.shape) for t in obj]
                 shape_ptrs = (c_void_p * len(obj))()
@@ -161,7 +161,7 @@ class Value:
                     flags | ValueFlags.COPY_DATA,
                     byref(value)
                 )
-            case list() if all(isinstance(img, Image.Image) for img in obj):
+            case list() if len(obj) > 0 and all(isinstance(img, Image.Image) for img in obj):
                 tensors = [array(img) for img in obj]
                 pixel_buffers = (c_void_p * len(obj))(*[t.ctypes.data_as(c_void_p) for t in tensors])
                 widths = (c_int32 * len(obj))(*[img.width for img in obj])
@@ -206,11 +206,14 @@ class Value:
         return Value(value)
     
     @classmethod
-    def from_bytes( # DEPLOY
+    def from_bytes(
         cls,
         data: bytes,
         mime: str
     ) -> Value:
+        """
+        Deserialize a value from bytes.
+        """
         fxnc = get_fxnc()
         serialized_value = c_void_p()
         status = fxnc.FXNValueCreateBinary(
