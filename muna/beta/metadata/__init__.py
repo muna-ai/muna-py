@@ -11,7 +11,7 @@ from .coreml import (
     TorchToCoreMLInferenceMetadata
 )
 from .executorch import ExecuTorchInferenceBackend, ExecuTorchInferenceMetadata
-from .litert import TorchToLiteRTInferenceMetadata
+from .litert import LiteRTInterpreterOptions, TorchToLiteRTInferenceMetadata
 from .llama import LlamaCppBackend, LlamaCppInferenceMetadata
 from .mlx import OnnxRuntimeToMLXInferenceMetadata, TorchToMLXInferenceMetadata
 from .onnxruntime import OnnxRuntimeInferenceSessionMetadata, TorchToOnnxRuntimeInferenceMetadata

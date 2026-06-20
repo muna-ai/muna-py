@@ -1,4 +1,5 @@
 ## 0.1.8
++ Added `LiteRTInterpreterMetadata.options` for modifying runtime LiteRT configuration.
 + Fixed predictions with empty lists being interpreted as array list.
 
 ## 0.1.7

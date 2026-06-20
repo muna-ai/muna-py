@@ -8,6 +8,24 @@ from typing import Literal
 
 from ._torch import TorchInferenceMetadataBase
 
+LiteRTInterpreterOptions = Literal[
+    # XNNPACK (always on)
+    "xnnpack_force_fp16",
+    "xnnpack_slow_consistent_arithmetic",
+    "xnnpack_subgraph_reshaping",
+    # CoreML delegate (iOS / macOS).
+    "coreml",
+    "coreml_neural_engine_only",
+    # GPU delegate (Android).
+    "gpu",
+    "gpu_min_latency",
+    "gpu_sustained_speed",
+    "gpu_disallow_precision_loss",
+    # NNAPI delegate (Android)
+    "nnapi",
+    "nnapi_disallow_fp16",
+]
+
 class TorchToLiteRTInferenceMetadata(TorchInferenceMetadataBase):
     """
     Metadata to compile a PyTorch model for inference with LiteRT.
@@ -20,3 +38,8 @@ class TorchToLiteRTInferenceMetadata(TorchInferenceMetadataBase):
     """
     kind: Literal["meta.inference.litert"] = Field(default="meta.inference.litert", init=False)
     exporter: None = Field(default=None, init=False, exclude=True)
+    options: list[LiteRTInterpreterOptions] | None = Field(
+        default=None,
+        description="TFLite interpreter options.",
+        exclude=True
+    )

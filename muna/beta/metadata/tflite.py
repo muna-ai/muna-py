@@ -8,24 +8,7 @@ from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 from typing import Annotated, Literal
 
 from ..compile import CompileTarget
-
-TFLiteInterpreterOptions = Literal[
-    # XNNPACK (always on)
-    "xnnpack_force_fp16",
-    "xnnpack_slow_consistent_arithmetic",
-    "xnnpack_subgraph_reshaping",
-    # CoreML delegate (iOS / macOS).
-    "coreml",
-    "coreml_neural_engine_only",
-    # GPU delegate (Android).
-    "gpu",
-    "gpu_min_latency",
-    "gpu_sustained_speed",
-    "gpu_disallow_precision_loss",
-    # NNAPI delegate (Android)
-    "nnapi",
-    "nnapi_disallow_fp16",
-]
+from .litert import LiteRTInterpreterOptions
 
 def _validate_tflite_interpreter(interpreter: "tensorflow.lite.Interpreter") -> "tensorflow.lite.Interpreter": # type: ignore
     allowed_types = []
@@ -67,7 +50,7 @@ class TFLiteInterpreterMetadata(
         description="TFLite model path. The model must exist at this path in the compiler sandbox.",
         exclude=True
     )
-    options: list[TFLiteInterpreterOptions] | None = Field(
+    options: list[LiteRTInterpreterOptions] | None = Field(
         default=None,
         description="TFLite interpreter options.",
         exclude=True
