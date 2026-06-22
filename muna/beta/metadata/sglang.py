@@ -8,6 +8,9 @@ from typing import Annotated, Literal
 
 from ._speculative import SpeculativeDecodingConfig
 from ._torch import _validate_torch_module
+from .tensorrt import CudaArchitecture
+
+SGLangComputeArchitecture = CudaArchitecture
 
 class TorchToSGLangInferenceMetadata(
     BaseModel,
@@ -27,6 +30,10 @@ class TorchToSGLangInferenceMetadata(
         description="Large language model to compile.",
         exclude=True
     )
+    compute_architecture: SGLangComputeArchitecture = Field(
+        description="Compute architecture which the SGLang engine is compiled against.",
+        exclude=True
+    )
     speculative_decoding: SpeculativeDecodingConfig | None = Field(
         default=None,
         description="Speculative decoding configuration.",
@@ -43,4 +50,10 @@ class TorchToSGLangInferenceMetadata(
         description="Total KV cache capacity.",
         ge=1,
         exclude=True,
+    )
+    tensor_parallelism: int | None = Field(
+        default=None,
+        description="Tensor parallelism size.",
+        ge=1,
+        exclude=True
     )

@@ -17,7 +17,7 @@ from .mlx import OnnxRuntimeToMLXInferenceMetadata, TorchToMLXInferenceMetadata
 from .onnxruntime import OnnxRuntimeInferenceSessionMetadata, TorchToOnnxRuntimeInferenceMetadata
 from .openvino import TorchToOpenVINOInferenceMetadata
 from .qnn import QnnInferenceBackend, QnnInferenceQuantization, TorchToQnnInferenceMetadata
-from .sglang import TorchToSGLangInferenceMetadata
+from .sglang import SGLangComputeArchitecture, TorchToSGLangInferenceMetadata
 from .tensorrt import (
     CudaArchitecture, TorchToTensorRTInferenceMetadata,
     OnnxRuntimeToTensorRTInferenceMetadata

@@ -1,5 +1,6 @@
 ## 0.1.9
-*INCOMPLETE*
++ Added `TorchToSGLangInferenceMetadata.compute_architecture` field to specify compute architecture to compile SGLang engine against.
++ Added `TorchToSGLangInferenceMetadata.tensor_parallelism` field to specify tensor parallelism for SGLang engine.
 
 ## 0.1.8
 + Added `LiteRTInterpreterMetadata.options` for modifying runtime LiteRT configuration.
