@@ -204,7 +204,7 @@ def _parse_local_prediction(
     )
 
 def _get_cache_dir() -> Path:
-    override = environ.get("MUNA_CACHE_DIR")
+    override = environ.get("MUNA_HOME") or environ.get("MUNA_CACHE_DIR")
     if override:
         return Path(override).expanduser()
     return _get_home_dir() / ".fxn" / "cache"
