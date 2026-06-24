@@ -204,17 +204,24 @@ def _parse_local_prediction(
     )
 
 def _get_cache_dir() -> Path:
-    override = environ.get("MUNA_HOME") or environ.get("MUNA_CACHE_DIR")
-    if override:
-        return Path(override).expanduser()
-    return _get_home_dir() / ".fxn" / "cache"
+    dir = _get_muna_home() / "cache"
+    dir.mkdir(parents=True, exist_ok=True)
+    return dir
 
-def _get_home_dir() -> Path:
-    try:
-        check = Path.home() / ".fxntest"
-        with open(check, "w") as f:
-            f.write("fxn")
-        check.unlink()
-        return Path.home()
-    except:
-        return Path(gettempdir())
+def _get_muna_home() -> Path:
+    candidates = []
+    if muna_home := environ.get("MUNA_HOME"):
+        candidates.append(Path(muna_home).expanduser())
+    candidates.append(Path.home() / ".fxn")
+    candidates.append(Path(gettempdir()) / ".fxn")
+    for dir in candidates:
+        try:
+            dir.mkdir(parents=True, exist_ok=True)
+            test = dir / ".muna_write_test"
+            with open(test, "w") as f:
+                f.write("muna")
+            test.unlink()
+            return dir
+        except:
+            continue
+    return Path(gettempdir()) / ".fxn"

@@ -1,5 +1,5 @@
 ## 0.1.10
-*INCOMPLETE*
++ Added experimental `muna deploy` CLI command to deploy compiled functions onto third-party clouds.
 
 ## 0.1.9
 + Added `TorchToSGLangInferenceMetadata.compute_architecture` field to specify compute architecture to compile SGLang engine against.

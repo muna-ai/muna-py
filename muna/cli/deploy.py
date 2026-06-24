@@ -6,10 +6,15 @@
 from __future__ import annotations
 from pathlib import Path
 from pydantic import BaseModel
+from requests import get
 from rich import print
+from subprocess import Popen
 from tempfile import TemporaryDirectory
+from time import sleep, time
 from typer import Argument, Exit, Option
 from typing import Annotated, Literal, Protocol
+
+from .auth import get_access_key
 
 DeploymentProvider = Literal["baseten", "modal"]
 DeploymentGPU = Literal["a100", "h100", "h200", "b200"]
@@ -30,7 +35,11 @@ def deploy_function(
     )] = None,
     gpu: Annotated[
         DeploymentGPU | None,
-        Option(help="GPU hardware configuration")
+        Option(help="GPU hardware configuration.")
+    ] = None,
+    gpu_count: Annotated[
+        int | None,
+        Option(help="Number of GPUs to request.")
     ] = None,
     memory: Annotated[int | None, Option(
         help="Memory to request in MB.",
@@ -66,6 +75,7 @@ def deploy_function(
         name=name or f"Muna: {tag}",
         cpu=cpu,
         gpu=gpu,
+        gpu_count=gpu_count,
         memory=memory,
         concurrency=concurrency,
         min_replicas=min_replicas,
@@ -100,7 +110,7 @@ def _create_deployment_baseten(
     dry_run: bool
 ) -> _Deployment:
     try:
-        import truss
+        from truss import push
         from truss.remote.remote_factory import RemoteFactory
     except ImportError:
         print(
@@ -125,37 +135,78 @@ def _create_deployment_baseten(
         raise Exit(code=1)
     with TemporaryDirectory() as directory:
         truss_config.write_to_yaml_file(Path(directory) / "config.yaml")
-        deployment = truss.push(directory, remote="baseten", publish=True)
+        deployment = push(directory, remote="baseten", publish=True)
     return _BasetenDeployment(deployment)
 
-def _create_deployment_modal( # INCOMPLETE
+def _create_deployment_modal(
     spec: _DeploymentSpec,
     *,
     dry_run: bool
-):
-    print("[bold red]Error:[/bold red] Not supported.")
-    raise Exit(code=1)
+) -> _Deployment:
+    if dry_run:
+        print(
+            "[bold red]Error:[/bold red] Dry runs are not supported for Modal deployments. "
+            "Modal defines deployments in Python code rather than a declarative artifact, "
+            "so there is nothing to generate without deploying."
+        )
+        raise Exit(code=1)
+    try:
+        from modal import enable_output, web_server, App, Image, Secret
+    except ImportError:
+        print(
+            "[bold red]Error:[/bold red] The `modal` package is required to deploy to Modal. "
+            "Install it with [bold]pip install modal[/bold]."
+        )
+        raise Exit(code=1)
+    predictor_slug = spec.tag.lstrip("@").replace("/", "_")
+    app = App(f"muna-{predictor_slug}")
+    image = (Image.debian_slim(python_version="3.13")
+        .apt_install("curl")
+        .run_commands( # download muna-server from GitHub and libFunction
+            f"mkdir -p /app && "
+            f"curl -fsSL {_MUNA_SERVER_URL} -o /app/muna-server && "
+            f"chmod +x /app/muna-server && "
+            f"curl -fsSL {_FXNC_LIBRARY_URL} -o /app/libFunction.so"
+        )
+    )
+    @app.function(
+        image=image,
+        cpu=spec.cpu,
+        gpu=f"{spec.gpu}:{spec.gpu_count or 1}" if spec.gpu is not None else None,
+        memory=spec.memory,
+        min_containers=spec.min_replicas,
+        max_containers=spec.max_replicas,
+        env={ "LD_LIBRARY_PATH": "/app" },
+        secrets=[
+            Secret.from_dict({ "MUNA_ACCESS_KEY": get_access_key() })
+        ],
+        timeout=60 * 60,
+        startup_timeout=45 * 60,
+        scaledown_window=spec.scaledown_window,
+        serialized=True
+    )
+    @web_server(8000, startup_timeout=45 * 60)
+    def serve():
+        process = Popen(["/app/muna-server"])
+    with enable_output():
+        app.deploy()
+    return _ModalDeployment(app, serve)
 
 def _build_truss_config(spec: _DeploymentSpec):
     from truss.base.truss_config import (
         AcceleratorSpec, BaseImage, DockerServer,
         Resources, Runtime, TrussConfig
     )
-    FXNC_VERSION = "0.0.46"
-    MUNA_SERVER_VERSION = "0.0.1"
-    TARGET_ARCH = "x86_64-unknown-linux-gnu"
-    MUNA_SERVER_URL = (
-        f"https://github.com/muna-ai/muna-server/releases/download/"
-        f"{MUNA_SERVER_VERSION}/muna-server-{TARGET_ARCH}"
-    )
-    FXNC_LIBRARY_URL = f"https://cdn.fxn.ai/fxnc/{FXNC_VERSION}/libFunction-linux-x86_64.so"
     START_COMMAND = (
         'sh -c "export PORT=8000 LD_LIBRARY_PATH=/app/data MUNA_HOME=/app/.fxn '
         'MUNA_ACCESS_KEY=$(cat /secrets/MUNA_ACCESS_KEY); '
         'exec /app/data/muna-server"'
     )
     accelerator = (
-        AcceleratorSpec(accelerator=spec.gpu.upper())
+        AcceleratorSpec(
+            accelerator=spec.gpu.upper(),
+            count=spec.gpu_count
+        )
         if spec.gpu is not None
         else None
     )
@@ -178,9 +229,9 @@ def _build_truss_config(spec: _DeploymentSpec):
         system_packages=["curl"],
         build_commands=[
             "mkdir -p /app/data",
-            f"curl -fsSL {MUNA_SERVER_URL} -o /app/data/muna-server",
+            f"curl -fsSL {_MUNA_SERVER_URL} -o /app/data/muna-server",
             "chmod +x /app/data/muna-server",
-            f"curl -fsSL {FXNC_LIBRARY_URL} -o /app/data/libFunction.so",
+            f"curl -fsSL {_FXNC_LIBRARY_URL} -o /app/data/libFunction.so",
         ],
         docker_server=DockerServer(
             start_command=START_COMMAND,
@@ -190,7 +241,7 @@ def _build_truss_config(spec: _DeploymentSpec):
             liveness_endpoint="/health",
             no_build=False # not yet
         ),
-        environment_variables={ "MUNA_PREDICTOR_TAG": spec.tag },
+        #environment_variables={ "MUNA_PREDICTOR_TAG": spec.tag }, # this is technically useless
         secrets={ "MUNA_ACCESS_KEY": None },
         resources=resources,
     )
@@ -203,6 +254,7 @@ class _DeploymentSpec(BaseModel):
     name: str
     cpu: int | None = None
     gpu: DeploymentGPU | None = None
+    gpu_count: int | None = None
     memory: int | None = None
     concurrency: int | None = None
     min_replicas: int | None = None
@@ -241,3 +293,41 @@ class _BasetenDeployment:
 
     def wait(self) -> None:
         self._deployment.wait_for_active()
+
+class _ModalDeployment:
+
+    def __init__(self, app, function): # modal.App, modal.Function
+        self._app = app
+        self._function = function
+
+    @property
+    def endpoint_url(self) -> str | None:
+        base = self._function.get_web_url()
+        return f"{base.rstrip('/')}/v1/chat/completions" if base else None
+
+    @property
+    def dashboard_url(self) -> str | None:
+        return self._app.get_dashboard_url()
+
+    def wait(self) -> None:
+        base: str = self._function.get_web_url()
+        if base is None:
+            return
+        health_url = f"{base.rstrip('/')}/health"
+        deadline = time() + 45 * 60
+        while time() < deadline:
+            try:
+                if get(health_url, timeout=10).status_code == 200:
+                    return
+            except Exception:
+                pass
+            sleep(5)
+
+_FXNC_VERSION = "0.0.46"
+_MUNA_SERVER_VERSION = "0.0.1"
+_TARGET_ARCH = "x86_64-unknown-linux-gnu"
+_MUNA_SERVER_URL = (
+    f"https://github.com/muna-ai/muna-server/releases/download/"
+    f"{_MUNA_SERVER_VERSION}/muna-server-{_TARGET_ARCH}"
+)
+_FXNC_LIBRARY_URL = f"https://cdn.fxn.ai/fxnc/{_FXNC_VERSION}/libFunction-linux-x86_64.so"
