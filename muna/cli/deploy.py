@@ -1,0 +1,243 @@
+# 
+#   Muna
+#   Copyright © 2026 NatML Inc. All Rights Reserved.
+#
+
+from __future__ import annotations
+from pathlib import Path
+from pydantic import BaseModel
+from rich import print
+from tempfile import TemporaryDirectory
+from typer import Argument, Exit, Option
+from typing import Annotated, Literal, Protocol
+
+DeploymentProvider = Literal["baseten", "modal"]
+DeploymentGPU = Literal["a100", "h100", "h200", "b200"]
+
+def deploy_function(
+    tag: Annotated[str, Argument(help="Predictor tag.")],
+    provider: Annotated[
+        DeploymentProvider,
+        Option(help="Cloud to deploy the predictor to.")
+    ],
+    name: Annotated[
+        str | None,
+        Option(help="Deployed model name.")
+    ] = None,
+    cpu: Annotated[int | None, Option(
+        help="Number of vCPUs to request.",
+        min=0,
+    )] = None,
+    gpu: Annotated[
+        DeploymentGPU | None,
+        Option(help="GPU hardware configuration")
+    ] = None,
+    memory: Annotated[int | None, Option(
+        help="Memory to request in MB.",
+        min=16
+    )] = None,
+    concurrency: Annotated[int | None, Option(
+        help="Maximum concurrent requests sent to an instance.",
+        min=1
+    )] = None,
+    min_replicas: Annotated[int | None, Option(
+        help="Minimum replicas for autoscaling.",
+        min=0
+    )] = None,
+    max_replicas: Annotated[int | None, Option(
+        help="Maximum replicas for autoscaling.",
+        min=1
+    )] = None,
+    scaledown_window: Annotated[float | None, Option(
+        help="Autoscaling scale down window in seconds.",
+        min=0
+    )] = None,
+    dry_run: Annotated[bool, Option(
+        "--dry-run",
+        help="Generate the generated deployment artifact instead of creating a deployment."
+    )] = False,
+    wait: Annotated[bool, Option(
+        "--wait",
+        help="Whether to wait until the deployment is complete."
+    )] = False
+):
+    spec = _DeploymentSpec(
+        tag=tag,
+        name=name or f"Muna: {tag}",
+        cpu=cpu,
+        gpu=gpu,
+        memory=memory,
+        concurrency=concurrency,
+        min_replicas=min_replicas,
+        max_replicas=max_replicas,
+        scaledown_window=scaledown_window
+    )
+    deployment = _create_deployment(
+        spec,
+        provider=provider,
+        dry_run=dry_run
+    )
+    if deployment.dashboard_url:
+        print(f"Track deployment progress at [link={deployment.dashboard_url}][bold cyan]{deployment.dashboard_url}[/bold cyan][/link]")
+    if wait:
+        deployment.wait()
+    if deployment.endpoint_url:
+        print(f"Endpoint available at [link={deployment.endpoint_url}][bold cyan]{deployment.endpoint_url}[/bold cyan][/link]")
+
+def _create_deployment(
+    spec: _DeploymentSpec,
+    *,
+    provider: DeploymentProvider,
+    dry_run: bool
+) -> _Deployment:
+    match provider:
+        case "baseten": return _create_deployment_baseten(spec, dry_run=dry_run)
+        case "modal":   return _create_deployment_modal(spec, dry_run=dry_run)
+
+def _create_deployment_baseten(
+    spec: _DeploymentSpec,
+    *,
+    dry_run: bool
+) -> _Deployment:
+    try:
+        import truss
+        from truss.remote.remote_factory import RemoteFactory
+    except ImportError:
+        print(
+            "[bold red]Error:[/bold red] The `truss` package is required to deploy to Baseten. "
+            "Install it with [bold]pip install truss[/bold]."
+        )
+        raise Exit(code=1)
+    truss_config = _build_truss_config(spec)
+    if dry_run:
+        predictor_slug = spec.tag.lstrip("@").replace("/", "_")
+        directory = Path(f"{predictor_slug}-truss")
+        directory.mkdir(parents=True, exist_ok=True)
+        config_path = directory / "config.yaml"
+        truss_config.write_to_yaml_file(config_path)
+        print(f"Wrote Truss config to [bold cyan]{config_path}[/bold cyan]")
+        return _DryRunDeployment()
+    if "baseten" not in RemoteFactory.get_available_config_names():
+        print(
+            "[bold red]Error:[/bold red] No Baseten remote is configured. "
+            "Run [bold]truss login[/bold] to authenticate with Baseten."
+        )
+        raise Exit(code=1)
+    with TemporaryDirectory() as directory:
+        truss_config.write_to_yaml_file(Path(directory) / "config.yaml")
+        deployment = truss.push(directory, remote="baseten", publish=True)
+    return _BasetenDeployment(deployment)
+
+def _create_deployment_modal( # INCOMPLETE
+    spec: _DeploymentSpec,
+    *,
+    dry_run: bool
+):
+    print("[bold red]Error:[/bold red] Not supported.")
+    raise Exit(code=1)
+
+def _build_truss_config(spec: _DeploymentSpec):
+    from truss.base.truss_config import (
+        AcceleratorSpec, BaseImage, DockerServer,
+        Resources, Runtime, TrussConfig
+    )
+    FXNC_VERSION = "0.0.46"
+    MUNA_SERVER_VERSION = "0.0.1"
+    TARGET_ARCH = "x86_64-unknown-linux-gnu"
+    MUNA_SERVER_URL = (
+        f"https://github.com/muna-ai/muna-server/releases/download/"
+        f"{MUNA_SERVER_VERSION}/muna-server-{TARGET_ARCH}"
+    )
+    FXNC_LIBRARY_URL = f"https://cdn.fxn.ai/fxnc/{FXNC_VERSION}/libFunction-linux-x86_64.so"
+    START_COMMAND = (
+        'sh -c "export PORT=8000 LD_LIBRARY_PATH=/app/data MUNA_HOME=/app/.fxn '
+        'MUNA_ACCESS_KEY=$(cat /secrets/MUNA_ACCESS_KEY); '
+        'exec /app/data/muna-server"'
+    )
+    accelerator = (
+        AcceleratorSpec(accelerator=spec.gpu.upper())
+        if spec.gpu is not None
+        else None
+    )
+    resources = Resources(
+        cpu=f"{spec.cpu}" if spec.cpu is not None else "1",
+        memory=f"{spec.memory}Mi" if spec.memory is not None else "2Gi",
+        accelerator=accelerator
+    )
+    config = TrussConfig(
+        model_name=spec.name,
+        model_metadata={
+            "example_model_input": {
+                "model": spec.tag,
+                "messages": [{ "role": "user", "content": "Say hello in 3 words" }],
+                "stream": True,
+            },
+            "tags": ["openai-compatible"],
+        },
+        base_image=BaseImage(image="python:3.13-slim-bookworm"),
+        system_packages=["curl"],
+        build_commands=[
+            "mkdir -p /app/data",
+            f"curl -fsSL {MUNA_SERVER_URL} -o /app/data/muna-server",
+            "chmod +x /app/data/muna-server",
+            f"curl -fsSL {FXNC_LIBRARY_URL} -o /app/data/libFunction.so",
+        ],
+        docker_server=DockerServer(
+            start_command=START_COMMAND,
+            server_port=8000,
+            predict_endpoint="/v1/chat/completions",
+            readiness_endpoint="/health",
+            liveness_endpoint="/health",
+            no_build=False # not yet
+        ),
+        environment_variables={ "MUNA_PREDICTOR_TAG": spec.tag },
+        secrets={ "MUNA_ACCESS_KEY": None },
+        resources=resources,
+    )
+    if spec.concurrency is not None:
+        config.runtime = Runtime(predict_concurrency=spec.concurrency)
+    return config
+
+class _DeploymentSpec(BaseModel):
+    tag: str
+    name: str
+    cpu: int | None = None
+    gpu: DeploymentGPU | None = None
+    memory: int | None = None
+    concurrency: int | None = None
+    min_replicas: int | None = None
+    max_replicas: int | None = None
+    scaledown_window: float | None = None
+
+class _Deployment(Protocol):
+    endpoint_url: str | None     # OpenAI-compatible inference endpoint; None when not-yet-live / dry-run
+    dashboard_url: str | None    # provider console page (build progress, logs, status); None for dry-run
+    def wait(self) -> None: ...  # block until live + healthy
+
+class _DryRunDeployment:
+    endpoint_url: str | None = None
+    dashboard_url: str | None = None
+    def wait(self) -> None:
+        pass
+
+class _BasetenDeployment:
+
+    def __init__(self, deployment): # truss.api.definitions.ModelDeployment
+        self._deployment = deployment
+
+    @property
+    def endpoint_url(self) -> str | None:
+        return self._deployment._baseten_service.predict_url
+
+    @property
+    def dashboard_url(self) -> str | None:
+        from truss.remote.baseten.service import URLConfig
+        service = self._deployment._baseten_service
+        return URLConfig.status_page_url(
+            service._api.app_url,
+            URLConfig.MODEL,
+            service.model_id
+        )
+
+    def wait(self) -> None:
+        self._deployment.wait_for_active()

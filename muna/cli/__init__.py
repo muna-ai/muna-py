@@ -10,6 +10,7 @@ from ..version import __version__
 
 from .auth import app as auth_app
 from .compile import compile_function
+from .deploy import deploy_function
 from .misc import cli_options
 from .predictions import create_prediction
 from .predictors import archive_predictor, delete_predictor, retrieve_predictor
@@ -39,7 +40,7 @@ app.command(
 # Functions
 app.command(
     name="predict",
-    help="Invoke a compiled Python function.",
+    help="Invoke a compiled function.",
     context_settings={ "allow_extra_args": True, "ignore_unknown_options": True },
     rich_help_panel="Functions"
 )(create_prediction)
@@ -66,6 +67,13 @@ app.add_typer(
     help="Login, logout, and check your authentication status.",
     rich_help_panel="Auth"
 )
+
+# External Connections
+app.command(
+    name="deploy",
+    help="Deploy a compiled function onto a third-party cloud.",
+    rich_help_panel="Experimental ⚠️"
+)(deploy_function)
 
 # Insiders
 app.command(
