@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from requests import get
 from rich import print
 from subprocess import Popen
+from sys import version_info
 from tempfile import TemporaryDirectory
 from time import sleep, time
 from typer import Argument, Exit, Option
@@ -160,7 +161,8 @@ def _create_deployment_modal(
         raise Exit(code=1)
     predictor_slug = spec.tag.lstrip("@").replace("/", "_")
     app = App(f"muna-{predictor_slug}")
-    image = (Image.debian_slim(python_version="3.13")
+    image = (Image
+        .debian_slim(python_version=f"{version_info.major}.{version_info.minor}")
         .apt_install("curl")
         .run_commands( # download muna-server from GitHub and libFunction
             f"mkdir -p /app && "

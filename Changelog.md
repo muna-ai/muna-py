@@ -1,3 +1,6 @@
+## 0.1.11
+*INCOMPLETE*
+
 ## 0.1.10
 + Added experimental `muna deploy` CLI command to deploy compiled functions onto third-party clouds.
 
