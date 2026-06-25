@@ -3,4 +3,4 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
-__version__ = "0.1.14"
+__version__ = "0.1.15"
