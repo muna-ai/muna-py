@@ -1,3 +1,6 @@
+## 0.1.12
+*INCOMPLETE*
+
 ## 0.1.11
 + Added weight caching in `muna deploy --provider modal` command.
 
