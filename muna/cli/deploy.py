@@ -152,7 +152,7 @@ def _create_deployment_modal(
         )
         raise Exit(code=1)
     try:
-        from modal import enable_output, web_server, App, Image, Secret
+        from modal import enable_output, web_server, App, Image, Secret, Volume
     except ImportError:
         print(
             "[bold red]Error:[/bold red] The `modal` package is required to deploy to Modal. "
@@ -161,6 +161,7 @@ def _create_deployment_modal(
         raise Exit(code=1)
     predictor_slug = spec.tag.lstrip("@").replace("/", "_")
     app = App(f"muna-{predictor_slug}")
+    volume = Volume.from_name("muna-deploy-cache", create_if_missing=True, version=2)
     image = (Image
         .debian_slim(python_version=f"{version_info.major}.{version_info.minor}")
         .apt_install("curl")
@@ -178,7 +179,11 @@ def _create_deployment_modal(
         memory=spec.memory,
         min_containers=spec.min_replicas,
         max_containers=spec.max_replicas,
-        env={ "LD_LIBRARY_PATH": "/app" },
+        volumes={ "/muna": volume },
+        env={
+            "LD_LIBRARY_PATH": "/app",
+            "MUNA_HOME": "/muna"
+        },
         secrets=[
             Secret.from_dict({ "MUNA_ACCESS_KEY": get_access_key() })
         ],
