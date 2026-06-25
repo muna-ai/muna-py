@@ -6,7 +6,7 @@
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 from typing import Annotated
 
-from ._torch import _validate_torch_module
+from ._torch import validate_torch_module
 
 class SpeculativeDecodingConfig(
     BaseModel,
@@ -15,7 +15,7 @@ class SpeculativeDecodingConfig(
     """
     Speculative decoding configuration for large language models.
     """
-    draft_model: Annotated[object, BeforeValidator(_validate_torch_module)] = Field(
+    draft_model: Annotated[object, BeforeValidator(validate_torch_module)] = Field(
         description="Draft model."
     )
     num_draft_tokens: int | None = Field(

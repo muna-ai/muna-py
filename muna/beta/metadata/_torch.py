@@ -10,16 +10,16 @@ from ..compile import CompileTarget
 
 TorchExporter = Literal["none", "dynamo", "torchscript"]
 
-def _validate_torch_module(module: "torch.nn.Module") -> "torch.nn.Module": # type: ignore
+def validate_torch_module(module: "torch.nn.Module") -> "torch.nn.Module": # type: ignore
     try:
         from torch.nn import Module
         if not isinstance(module, Module):
             raise ValueError(f"Expected `torch.nn.Module` model but got `{type(module).__qualname__}`")
         return module
     except ImportError:
-        raise ImportError("PyTorch is required to create this metadata but it is not installed.")
-    
-def _validate_torch_tensor_args(args: list) -> list | None:
+        raise ImportError("`torch` is required to create this metadata but it is not installed.")
+
+def validate_torch_tensor_args(args: list) -> list | None:
     if args is None:
         return args
     try:
@@ -29,13 +29,13 @@ def _validate_torch_tensor_args(args: list) -> list | None:
                 raise ValueError(f"Expected `torch.Tensor` instance at `model_args[{idx}]` but got `{type(arg).__qualname__}`")
         return args
     except ImportError:
-        raise ImportError("PyTorch is required to create this metadata but it is not installed.")
+        raise ImportError("`torch` is required to create this metadata but it is not installed.")
 
 class TorchInferenceMetadataBase(
     BaseModel,
     **ConfigDict(arbitrary_types_allowed=True, frozen=True)
 ):
-    model: Annotated[object, BeforeValidator(_validate_torch_module)] = Field(
+    model: Annotated[object, BeforeValidator(validate_torch_module)] = Field(
         description="PyTorch module to apply metadata to.",
         exclude=True
     )
@@ -44,7 +44,7 @@ class TorchInferenceMetadataBase(
         description="PyTorch exporter to use.",
         exclude=True
     )
-    model_args: Annotated[list[object] | None, BeforeValidator(_validate_torch_tensor_args)] = Field(
+    model_args: Annotated[list[object] | None, BeforeValidator(validate_torch_tensor_args)] = Field(
         default=None,
         description="Positional inputs to the model.",
         exclude=True

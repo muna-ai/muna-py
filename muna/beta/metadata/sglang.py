@@ -6,8 +6,9 @@
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 from typing import Annotated, Literal
 
+from ._diffusers import validate_diffusers_pipeline
 from ._speculative import SpeculativeDecodingConfig
-from ._torch import _validate_torch_module
+from ._torch import validate_torch_module
 from .tensorrt import CudaArchitecture
 
 SGLangComputeArchitecture = CudaArchitecture
@@ -21,17 +22,19 @@ class TorchToSGLangInferenceMetadata(
 
     Members:
         model (torch.nn.Module): Large language model to compile.
-        speculative_decoding (SpeculativeDecodingConfig | None): Speculative decoding configuration.
-        max_running_requests (int | None): Maximum concurrent in-flight requests at the scheduler.
-        max_total_tokens (int | None): Total KV cache capacity.
+        compute_architecture (SGLangComputeArchitecture): Compute architecture which the SGLang engine targets.
+        speculative_decoding (SpeculativeDecodingConfig): Speculative decoding configuration.
+        max_running_requests (int): Maximum concurrent in-flight requests at the scheduler.
+        max_total_tokens (int): Total KV cache capacity.
+        tensor_parallelism (int): Tensor parallelism size.
     """
     kind: Literal["meta.inference.sglang"] = Field(default="meta.inference.sglang", init=False)
-    model: Annotated[object, BeforeValidator(_validate_torch_module)] = Field(
+    model: Annotated[object, BeforeValidator(validate_torch_module)] = Field(
         description="Large language model to compile.",
         exclude=True
     )
     compute_architecture: SGLangComputeArchitecture = Field(
-        description="Compute architecture which the SGLang engine is compiled against.",
+        description="Compute architecture which the SGLang engine targets.",
         exclude=True
     )
     speculative_decoding: SpeculativeDecodingConfig | None = Field(
@@ -54,6 +57,32 @@ class TorchToSGLangInferenceMetadata(
     tensor_parallelism: int | None = Field(
         default=None,
         description="Tensor parallelism size.",
+        ge=1,
+        exclude=True
+    )
+
+class DiffusersToSGLangInferenceMetadata(
+    BaseModel,
+    **ConfigDict(arbitrary_types_allowed=True, frozen=True)
+):
+    """
+    Metadata to compile a diffusion pipeline for inference with SGLang.
+
+    Members:
+        pipeline (diffusers.DiffusionPipeline): Diffusion pipeline.
+    """
+    kind: Literal["meta.inference.sglang_diffusion"] = Field(default="meta.inference.sglang_diffusion", init=False)
+    pipeline: Annotated[object, BeforeValidator(validate_diffusers_pipeline)] = Field(
+        description="Diffusers pipeline to compile.",
+        exclude=True
+    )
+    compute_architecture: SGLangComputeArchitecture = Field(
+        description="Compute architecture which the SGLang engine targets.",
+        exclude=True
+    )
+    max_batch_size: int | None = Field(
+        default=None,
+        description="Maximum batch size.",
         ge=1,
         exclude=True
     )

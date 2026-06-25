@@ -1,5 +1,6 @@
 ## 0.1.14
-*INCOMPLETE*
++ Added `beta.DiffusersToSGLangInferenceMetadata` metadata type to compile `diffusers` image generation pipelines for inference with SGLang.
++ Removed `beta.TorchTovLLMInferenceMetadata` metadata type.
 
 ## 0.1.13
 + Fixed authentication error when making predictions on deployed models.

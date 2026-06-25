@@ -17,14 +17,16 @@ from .mlx import OnnxRuntimeToMLXInferenceMetadata, TorchToMLXInferenceMetadata
 from .onnxruntime import OnnxRuntimeInferenceSessionMetadata, TorchToOnnxRuntimeInferenceMetadata
 from .openvino import TorchToOpenVINOInferenceMetadata
 from .qnn import QnnInferenceBackend, QnnInferenceQuantization, TorchToQnnInferenceMetadata
-from .sglang import SGLangComputeArchitecture, TorchToSGLangInferenceMetadata
+from .sglang import (
+    DiffusersToSGLangInferenceMetadata, SGLangComputeArchitecture,
+    TorchToSGLangInferenceMetadata
+)
 from .tensorrt import (
     CudaArchitecture, TorchToTensorRTInferenceMetadata,
     OnnxRuntimeToTensorRTInferenceMetadata
 )
 from .tensorrt_rtx import TorchToTensorRTRTXInferenceMetadata
 from .tflite import TFLiteInterpreterMetadata
-from .vllm import TorchTovLLMInferenceMetadata
 
 CompileMetadata = (
     # PyTorch
@@ -38,7 +40,6 @@ CompileMetadata = (
     TorchToSGLangInferenceMetadata          |
     TorchToTensorRTInferenceMetadata        |
     TorchToTensorRTRTXInferenceMetadata     |
-    TorchTovLLMInferenceMetadata            |
     # ONNX
     OnnxRuntimeInferenceSessionMetadata     |
     OnnxRuntimeToCoreMLInferenceMetadata    |
