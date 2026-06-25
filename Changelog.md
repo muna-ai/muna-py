@@ -1,5 +1,5 @@
 ## 0.1.12
-*INCOMPLETE*
++ Minor updates.
 
 ## 0.1.11
 + Added weight caching in `muna deploy --provider modal` command.

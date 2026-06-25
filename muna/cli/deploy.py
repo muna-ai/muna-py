@@ -331,7 +331,7 @@ class _ModalDeployment:
             sleep(5)
 
 _FXNC_VERSION = "0.0.46"
-_MUNA_SERVER_VERSION = "0.0.1"
+_MUNA_SERVER_VERSION = "0.0.2"
 _TARGET_ARCH = "x86_64-unknown-linux-gnu"
 _MUNA_SERVER_URL = (
     f"https://github.com/muna-ai/muna-server/releases/download/"
