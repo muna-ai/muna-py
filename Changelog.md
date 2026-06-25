@@ -1,5 +1,5 @@
 ## 0.1.13
-*INCOMPLETE*
++ Fixed authentication error when making predictions on deployed models.
 
 ## 0.1.12
 + Minor updates.

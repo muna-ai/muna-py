@@ -112,16 +112,18 @@ def _create_deployment(
     spec: _DeploymentSpec,
     *,
     provider: DeploymentProvider,
-    dry_run: bool
+    dry_run: bool,
+    muna: Muna
 ) -> _Deployment:
     match provider:
-        case "baseten": return _create_deployment_baseten(spec, dry_run=dry_run)
-        case "modal":   return _create_deployment_modal(spec, dry_run=dry_run)
+        case "baseten": return _create_deployment_baseten(spec, dry_run=dry_run, muna=muna)
+        case "modal":   return _create_deployment_modal(spec, dry_run=dry_run, muna=muna)
 
 def _create_deployment_baseten(
     spec: _DeploymentSpec,
     *,
-    dry_run: bool
+    dry_run: bool,
+    muna: Muna
 ) -> _Deployment:
     try:
         from truss import push
@@ -155,7 +157,8 @@ def _create_deployment_baseten(
 def _create_deployment_modal(
     spec: _DeploymentSpec,
     *,
-    dry_run: bool
+    dry_run: bool,
+    muna: Muna
 ) -> _Deployment:
     if dry_run:
         print(
@@ -198,7 +201,7 @@ def _create_deployment_modal(
             "MUNA_HOME": "/muna"
         },
         secrets=[
-            Secret.from_dict({ "MUNA_ACCESS_KEY": get_access_key() })
+            Secret.from_dict({ "MUNA_ACCESS_KEY": muna.client.access_key })
         ],
         timeout=60 * 60,
         startup_timeout=45 * 60,
