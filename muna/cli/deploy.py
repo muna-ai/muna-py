@@ -15,6 +15,7 @@ from time import sleep, time
 from typer import Argument, Exit, Option
 from typing import Annotated, Literal, Protocol
 
+from ..muna import Muna
 from .auth import get_access_key
 
 DeploymentProvider = Literal["baseten", "modal"]
@@ -71,6 +72,17 @@ def deploy_function(
         help="Whether to wait until the deployment is complete."
     )] = False
 ):
+    # Ensure that the user has access to the predictor
+    muna = Muna(get_access_key())
+    predictor = muna.predictors.retrieve(tag)
+    if predictor is None:
+        print(
+            f"[bold red]Error:[/bold red] Predictor [bold cyan]{tag}[/bold cyan] was not found "
+            "or you do not have access to it. Make sure you are signed in to the Muna "
+            "CLI with [bold orange1]muna auth login <access key>[/bold orange1]."
+        )
+        raise Exit(code=1)
+    # Create deployment
     spec = _DeploymentSpec(
         tag=tag,
         name=name or f"Muna: {tag}",
@@ -88,6 +100,7 @@ def deploy_function(
         provider=provider,
         dry_run=dry_run
     )
+    # Log
     if deployment.dashboard_url:
         print(f"Track deployment progress at [link={deployment.dashboard_url}][bold cyan]{deployment.dashboard_url}[/bold cyan][/link]")
     if wait:

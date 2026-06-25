@@ -11,7 +11,7 @@ class PredictorService:
     def __init__(self, client: MunaClient) -> None:
         self.client = client
 
-    def retrieve(self, tag: str) -> Predictor:
+    def retrieve(self, tag: str) -> Predictor | None:
         """
         Retrieve a predictor.
 
