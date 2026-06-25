@@ -1,3 +1,6 @@
+## 0.1.14
+*INCOMPLETE*
+
 ## 0.1.13
 + Fixed authentication error when making predictions on deployed models.
 
