@@ -1,5 +1,5 @@
 ## 0.1.15
-*INCOMPLETE*
++ Minor updates.
 
 ## 0.1.14
 + Added `beta.DiffusersToSGLangInferenceMetadata` metadata type to compile `diffusers` image generation pipelines for inference with SGLang.

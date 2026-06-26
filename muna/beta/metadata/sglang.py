@@ -13,6 +13,12 @@ from .tensorrt import CudaArchitecture
 
 SGLangComputeArchitecture = CudaArchitecture
 
+class SGLangDisaggregationConfig(BaseModel, **ConfigDict(frozen=True)): # INCOMPLETE
+    """
+    Disaggregated inference configuration.
+    """
+    pass
+
 class TorchToSGLangInferenceMetadata(
     BaseModel,
     **ConfigDict(arbitrary_types_allowed=True, frozen=True)
@@ -37,11 +43,6 @@ class TorchToSGLangInferenceMetadata(
         description="Compute architecture which the SGLang engine targets.",
         exclude=True
     )
-    speculative_decoding: SpeculativeDecodingConfig | None = Field(
-        default=None,
-        description="Speculative decoding configuration.",
-        exclude=True
-    )
     max_running_requests: int | None = Field(
         default=None,
         description="Maximum concurrent in-flight requests at the scheduler.",
@@ -58,6 +59,16 @@ class TorchToSGLangInferenceMetadata(
         default=None,
         description="Tensor parallelism size.",
         ge=1,
+        exclude=True
+    )
+    speculative_decoding: SpeculativeDecodingConfig | None = Field(
+        default=None,
+        description="Speculative decoding configuration.",
+        exclude=True
+    )
+    disaggregation: SGLangDisaggregationConfig | None = Field(
+        default=None,
+        description="Disaggregated inference configuration.",
         exclude=True
     )
 
