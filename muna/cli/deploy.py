@@ -98,7 +98,8 @@ def deploy_function(
     deployment = _create_deployment(
         spec,
         provider=provider,
-        dry_run=dry_run
+        dry_run=dry_run,
+        muna=muna
     )
     # Log
     if deployment.dashboard_url:
