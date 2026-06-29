@@ -41,7 +41,7 @@ class TorchToTensorRTInferenceMetadata(
         cuda_arch (CudaArchitecture): Target CUDA architecture for the TensorRT engine. Defaults to `sm_80+` (Ampere or newer).
         hardware_compatibility (TensorRTHardwareCompatibility): TensorRT engine hardware compatibility. Defaults to `forward_compatibility`.
     """
-    kind: Literal["meta.inference.tensorrt"] = Field(default="meta.inference.tensorrt", init=False)
+    kind: Literal["meta.inference.tensorrt"] = Field("meta.inference.tensorrt", init=False)
 
 class OnnxRuntimeToTensorRTInferenceMetadata(
     _TensorRTInferenceMetadataBase,
@@ -58,4 +58,4 @@ class OnnxRuntimeToTensorRTInferenceMetadata(
         cuda_arch (CudaArchitecture): Target CUDA architecture for the TensorRT engine. Defaults to `sm_80+` (Ampere or newer).
         hardware_compatibility (TensorRTHardwareCompatibility): TensorRT engine hardware compatibility. Defaults to `forward_compatibility`.
     """
-    kind: Literal["meta.inference.tensorrt_onnx"] = Field(default="meta.inference.tensorrt_onnx", init=False)
+    kind: Literal["meta.inference.tensorrt_onnx"] = Field("meta.inference.tensorrt_onnx", init=False)

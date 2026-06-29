@@ -48,7 +48,7 @@ class OnnxRuntimeInferenceSessionMetadata(OnnxRuntimeInferenceSessionMetadataBas
         targets (list | None): Compile targets where this metadata applies.
         providers (list): Execution providers that can be used to accelerate inference for this model.
     """
-    kind: Literal["meta.inference.onnxruntime"] = Field(default="meta.inference.onnxruntime", init=False)
+    kind: Literal["meta.inference.onnxruntime"] = Field("meta.inference.onnxruntime", init=False)
     providers: list[OnnxRuntimeExecutionProvider] | None = Field(
         default=None,
         description="ONNXRuntime execution providers to build with.",

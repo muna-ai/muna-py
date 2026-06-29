@@ -36,7 +36,7 @@ class TorchToLiteRTInferenceMetadata(TorchInferenceMetadataBase):
         input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
         targets (list | None): Compile targets where this metadata applies.
     """
-    kind: Literal["meta.inference.litert"] = Field(default="meta.inference.litert", init=False)
+    kind: Literal["meta.inference.litert"] = Field("meta.inference.litert", init=False)
     exporter: None = Field(default=None, init=False, exclude=True)
     options: list[LiteRTInterpreterOptions] | None = Field(
         default=None,

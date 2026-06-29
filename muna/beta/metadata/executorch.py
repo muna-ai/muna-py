@@ -21,7 +21,7 @@ class ExecuTorchInferenceMetadata(TorchInferenceMetadataBase):
         targets (list | None): Compile targets where this metadata applies.
         backend (ExecuTorchInferenceBackend): ExecuTorch backend to execute the model.
     """
-    kind: Literal["meta.inference.executorch"] = Field(default="meta.inference.executorch", init=False)
+    kind: Literal["meta.inference.executorch"] = Field("meta.inference.executorch", init=False)
     exporter: None = Field(default=None, init=False, exclude=True)
     backend: ExecuTorchInferenceBackend = Field(
         default="xnnpack",

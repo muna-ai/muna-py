@@ -19,4 +19,4 @@ class TorchToOpenVINOInferenceMetadata(TorchInferenceMetadataBase):
         input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
         targets (list | None): Compile targets where this metadata applies.
     """
-    kind: Literal["meta.inference.openvino"] = Field(default="meta.inference.openvino", init=False)
+    kind: Literal["meta.inference.openvino"] = Field("meta.inference.openvino", init=False)

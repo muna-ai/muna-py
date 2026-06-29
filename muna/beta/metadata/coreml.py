@@ -65,7 +65,7 @@ class TorchToCoreMLInferenceMetadata(
         ios_deployment_target (int | None): Minimum iOS deployment target.
         macos_deployment_target (int | None): Minimum macOS deployment target.
     """
-    kind: Literal["meta.inference.coreml"] = Field(default="meta.inference.coreml", init=False)
+    kind: Literal["meta.inference.coreml"] = Field("meta.inference.coreml", init=False)
 
 class OnnxRuntimeToCoreMLInferenceMetadata(
     _CoreMLInferenceMetadataBase,
@@ -84,4 +84,4 @@ class OnnxRuntimeToCoreMLInferenceMetadata(
         ios_deployment_target (int | None): Minimum iOS deployment target.
         macos_deployment_target (int | None): Minimum macOS deployment target.
     """
-    kind: Literal["meta.inference.onnx_coreml"] = Field(default="meta.inference.onnx_coreml", init=False)
+    kind: Literal["meta.inference.onnx_coreml"] = Field("meta.inference.onnx_coreml", init=False)

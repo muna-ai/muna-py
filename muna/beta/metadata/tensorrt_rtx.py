@@ -19,4 +19,4 @@ class TorchToTensorRTRTXInferenceMetadata(TorchInferenceMetadataBase):
         input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
         targets (list | None): Compile targets where this metadata applies.
     """
-    kind: Literal["meta.inference.tensorrt_rtx"] = Field(default="meta.inference.tensorrt_rtx", init=False)
+    kind: Literal["meta.inference.tensorrt_rtx"] = Field("meta.inference.tensorrt_rtx", init=False)

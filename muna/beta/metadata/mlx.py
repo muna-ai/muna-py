@@ -20,7 +20,7 @@ class TorchToMLXInferenceMetadata(TorchInferenceMetadataBase):
         input_shapes (list): Model input tensor shapes. Use this to specify dynamic axes.
         targets (list | None): Compile targets where this metadata applies.
     """
-    kind: Literal["meta.inference.mlx"] = Field(default="meta.inference.mlx", init=False)
+    kind: Literal["meta.inference.mlx"] = Field("meta.inference.mlx", init=False)
 
 class OnnxRuntimeToMLXInferenceMetadata(OnnxRuntimeInferenceSessionMetadataBase):
     """
@@ -32,4 +32,4 @@ class OnnxRuntimeToMLXInferenceMetadata(OnnxRuntimeInferenceSessionMetadataBase)
         external_data_path (str | Path): ONNX model external data path. This file must exist in the compiler sandbox.
         targets (list | None): Compile targets where this metadata applies.
     """
-    kind: Literal["meta.inference.mlx_onnx"] = Field(default="meta.inference.mlx_onnx", init=False)
+    kind: Literal["meta.inference.mlx_onnx"] = Field("meta.inference.mlx_onnx", init=False)

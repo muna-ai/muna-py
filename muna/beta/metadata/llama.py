@@ -24,7 +24,7 @@ class LlamaCppInferenceMetadata(
     """
     Metadata required to lower a Llama.cpp model for LLM inference.
     """
-    kind: Literal["meta.inference.llama_cpp"] = "meta.inference.llama_cpp"
+    kind: Literal["meta.inference.llama_cpp"] = Field("meta.inference.llama_cpp", init=False)
     model: Annotated[object, BeforeValidator(_validate_llama_cpp_model)] = Field(
         description="Llama model that metadata applies to.",
         exclude=True

@@ -13,11 +13,21 @@ from .tensorrt import CudaArchitecture
 
 SGLangComputeArchitecture = CudaArchitecture
 
-class SGLangDisaggregationConfig(BaseModel, **ConfigDict(frozen=True)): # INCOMPLETE
+class SGLangDisaggregationConfig(BaseModel, **ConfigDict(frozen=True)):
     """
     Disaggregated inference configuration.
     """
-    pass
+    topology: Literal["intra_node", "inter_node"] = Field(description="Disaggregation topology.")
+    prefill_tensor_parallelism: int | None = Field(
+        default=None,
+        description="Prefill tensor parallelism size. Defaults to SGLang tensor parallelism.",
+        ge=1,
+    )
+    decode_tensor_parallelism: int | None = Field(
+        default=None,
+        description="Decode tensor parallelism size. Defaults to SGLang tensor parallelism.",
+        ge=1,
+    )
 
 class TorchToSGLangInferenceMetadata(
     BaseModel,
@@ -34,7 +44,7 @@ class TorchToSGLangInferenceMetadata(
         max_total_tokens (int): Total KV cache capacity.
         tensor_parallelism (int): Tensor parallelism size.
     """
-    kind: Literal["meta.inference.sglang"] = Field(default="meta.inference.sglang", init=False)
+    kind: Literal["meta.inference.sglang"] = Field("meta.inference.sglang", init=False)
     model: Annotated[object, BeforeValidator(validate_torch_module)] = Field(
         description="Large language model to compile.",
         exclude=True
@@ -82,7 +92,7 @@ class DiffusersToSGLangInferenceMetadata(
     Members:
         pipeline (diffusers.DiffusionPipeline): Diffusion pipeline.
     """
-    kind: Literal["meta.inference.sglang_diffusion"] = Field(default="meta.inference.sglang_diffusion", init=False)
+    kind: Literal["meta.inference.sglang_diffusion"] = Field("meta.inference.sglang_diffusion", init=False)
     pipeline: Annotated[object, BeforeValidator(validate_diffusers_pipeline)] = Field(
         description="Diffusers pipeline to compile.",
         exclude=True

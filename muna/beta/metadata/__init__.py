@@ -19,7 +19,7 @@ from .openvino import TorchToOpenVINOInferenceMetadata
 from .qnn import QnnInferenceBackend, QnnInferenceQuantization, TorchToQnnInferenceMetadata
 from .sglang import (
     DiffusersToSGLangInferenceMetadata, SGLangComputeArchitecture,
-    SGLangDissaggregationConfig, TorchToSGLangInferenceMetadata
+    SGLangDisaggregationConfig, TorchToSGLangInferenceMetadata
 )
 from .tensorrt import (
     CudaArchitecture, TorchToTensorRTInferenceMetadata,

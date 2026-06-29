@@ -25,7 +25,7 @@ class TorchToQnnInferenceMetadata(TorchInferenceMetadataBase):
         quantization (QnnInferenceQuantization): QNN model quantization mode. This is only supported when backend is `htp`.
         quantization_samples (list): Representative model input samples for quantization calibration. This is required when `quantization` is specified.
     """
-    kind: Literal["meta.inference.qnn"] = Field(default="meta.inference.qnn", init=False)
+    kind: Literal["meta.inference.qnn"] = Field("meta.inference.qnn", init=False)
     backend: QnnInferenceBackend = Field(
         default="cpu",
         description="QNN backend to execute the model.",

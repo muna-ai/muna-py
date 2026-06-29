@@ -41,7 +41,7 @@ class TFLiteInterpreterMetadata(
         options (list): TFLite interpreter options.
         targets (list | None): Compile targets where this metadata applies.
     """
-    kind: Literal["meta.inference.tflite"] = Field(default="meta.inference.tflite", init=False)
+    kind: Literal["meta.inference.tflite"] = Field("meta.inference.tflite", init=False)
     interpreter: Annotated[object, BeforeValidator(_validate_tflite_interpreter)] = Field(
         description="TensorFlow Lite interpreter to apply metadata to.",
         exclude=True
