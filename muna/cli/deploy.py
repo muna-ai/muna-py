@@ -8,7 +8,8 @@ from pathlib import Path
 from pydantic import BaseModel
 from requests import get
 from rich import print
-from subprocess import Popen
+from shlex import split
+from subprocess import Popen, run
 from sys import version_info
 from tempfile import TemporaryDirectory
 from time import sleep, time
@@ -18,7 +19,7 @@ from typing import Annotated, Literal, Protocol
 from ..muna import Muna
 from .auth import get_access_key
 
-DeploymentProvider = Literal["baseten", "modal"]
+DeploymentProvider = Literal["baseten", "modal", "baremetal"]
 DeploymentGPU = Literal["a100", "h100", "h200", "b200"]
 
 def deploy_function(
@@ -63,6 +64,12 @@ def deploy_function(
         help="Autoscaling scale down window in seconds.",
         min=0
     )] = None,
+    ssh_host: Annotated[str | None, Option(
+        help="SSH target for --provider baremetal, e.g. 'root@1.2.3.4 -p 22 -i ~/.ssh/key'. Accepts the full SSH target string (everything after `ssh`).")
+    ] = None,
+    endpoint_url: Annotated[str | None, Option(
+        help="Public HTTP(S) base URL where the deployed server is reachable, e.g. 'https://<pod-id>-8000.proxy.runpod.net'. Required for --provider baremetal.")
+    ] = None,
     dry_run: Annotated[bool, Option(
         "--dry-run",
         help="Generate the generated deployment artifact instead of creating a deployment."
@@ -93,7 +100,9 @@ def deploy_function(
         concurrency=concurrency,
         min_replicas=min_replicas,
         max_replicas=max_replicas,
-        scaledown_window=scaledown_window
+        scaledown_window=scaledown_window,
+        ssh_host=ssh_host,
+        endpoint_url=endpoint_url
     )
     deployment = _create_deployment(
         spec,
@@ -117,8 +126,9 @@ def _create_deployment(
     muna: Muna
 ) -> _Deployment:
     match provider:
-        case "baseten": return _create_deployment_baseten(spec, dry_run=dry_run, muna=muna)
-        case "modal":   return _create_deployment_modal(spec, dry_run=dry_run, muna=muna)
+        case "baseten":     return _create_deployment_baseten(spec, dry_run=dry_run, muna=muna)
+        case "modal":       return _create_deployment_modal(spec, dry_run=dry_run, muna=muna)
+        case "baremetal":   return _create_deployment_baremetal(spec, dry_run=dry_run, muna=muna)
 
 def _create_deployment_baseten(
     spec: _DeploymentSpec,
@@ -216,6 +226,87 @@ def _create_deployment_modal(
         app.deploy()
     return _ModalDeployment(app, serve)
 
+def _create_deployment_baremetal(
+    spec: _DeploymentSpec,
+    *,
+    dry_run: bool,
+    muna: Muna
+) -> _Deployment:
+    if not spec.ssh_host:
+        print(
+            "[bold red]Error:[/bold red] [bold]--ssh-host[/bold] is required for "
+            "[bold]--provider baremetal[/bold]. Pass the full SSH target, e.g. "
+            "[bold]--ssh-host \"root@1.2.3.4 -p 22 -i ~/.ssh/key\"[/bold]."
+        )
+        raise Exit(code=1)
+    if not spec.endpoint_url:
+        print(
+            "[bold red]Error:[/bold red] [bold]--endpoint-url[/bold] is required for "
+            "[bold]--provider baremetal[/bold]. Pass the public URL where the server "
+            "will be reachable, e.g. [bold]--endpoint-url https://<pod-id>-8000.proxy.runpod.net[/bold]."
+        )
+        raise Exit(code=1)
+    # Warn that resource / autoscaling flags are meaningless for a fixed node
+    ignored = [
+        name
+        for name, value in {
+            "--cpu": spec.cpu,
+            "--gpu": spec.gpu,
+            "--gpu-count": spec.gpu_count,
+            "--memory": spec.memory,
+            "--concurrency": spec.concurrency,
+            "--min-replicas": spec.min_replicas,
+            "--max-replicas": spec.max_replicas,
+            "--scaledown-window": spec.scaledown_window,
+        }.items()
+        if value is not None
+    ]
+    if ignored:
+        print(
+            f"[bold yellow]Warning:[/bold yellow] Ignoring resource/autoscaling flags "
+            f"([bold]{', '.join(ignored)}[/bold]) which do not apply to a fixed baremetal node."
+        )
+    # Build the remote setup + launch script
+    script = _build_baremetal_script(
+        tag=spec.tag,
+        access_key=muna.client.access_key
+    )
+    if dry_run:
+        print(script)
+        return _DryRunDeployment()
+    # Install and launch muna-server over SSH (blocks through the preload/download)
+    ssh_target = split(spec.ssh_host)
+    print(f"Installing [bold cyan]muna-server[/bold cyan] and preloading [bold cyan]{spec.tag}[/bold cyan] on the node...")
+    result = run(["ssh", *ssh_target, "bash -s"], input=script, text=True)
+    if result.returncode != 0:
+        print(
+            "[bold red]Error:[/bold red] Failed to install and launch muna-server on the node "
+            f"(ssh exited with code [bold]{result.returncode}[/bold]). Check the SSH connection and node logs."
+        )
+        raise Exit(code=1)
+    # Create baremetal deployment
+    return _BaremetalDeployment(spec.endpoint_url, ssh_target=ssh_target)
+
+def _build_baremetal_script(*, tag: str, access_key: str) -> str:
+    return (
+        f"set -e\n"
+        f"export DIR=/app\n"
+        f"mkdir -p \"$DIR\"\n"
+        f"curl -fsSL {_MUNA_SERVER_URL} -o \"$DIR/muna-server\" && chmod +x \"$DIR/muna-server\"\n"
+        f"curl -fsSL {_FXNC_LIBRARY_URL} -o \"$DIR/libFunction.so\"\n"
+        f"# preload weights up front (download only) so the first request skips the download;\n"
+        f"# uses the same MUNA_HOME as serve so the cache is shared.\n"
+        f"env LD_LIBRARY_PATH=\"$DIR\" MUNA_HOME=\"$DIR/.muna\" MUNA_ACCESS_KEY={access_key} "
+        f"\"$DIR/muna-server\" preload \"{tag}\"\n"
+        f"# stop a previous instance if present\n"
+        f"[ -f \"$DIR/muna-server.pid\" ] && kill \"$(cat \"$DIR/muna-server.pid\")\" 2>/dev/null || true\n"
+        f"# detach; `exec` keeps muna-server on the same PID we record\n"
+        f"setsid bash -c 'echo $$ > \"$DIR/muna-server.pid\"; "
+        f"exec env LD_LIBRARY_PATH=\"$DIR\" MUNA_HOME=\"$DIR/.muna\" MUNA_ACCESS_KEY={access_key} "
+        f"PORT={_BAREMETAL_PORT} \"$DIR/muna-server\" serve' "
+        f"> \"$DIR/muna-server.log\" 2>&1 </dev/null &\n"
+    )
+
 def _build_truss_config(spec: _DeploymentSpec):
     from truss.base.truss_config import (
         AcceleratorSpec, BaseImage, DockerServer,
@@ -284,6 +375,8 @@ class _DeploymentSpec(BaseModel):
     min_replicas: int | None = None
     max_replicas: int | None = None
     scaledown_window: float | None = None
+    ssh_host: str | None = None      # --provider baremetal: full SSH target string
+    endpoint_url: str | None = None  # --provider baremetal: public HTTP(S) base URL
 
 class _Deployment(Protocol):
     endpoint_url: str | None     # OpenAI-compatible inference endpoint; None when not-yet-live / dry-run
@@ -347,6 +440,72 @@ class _ModalDeployment:
                 pass
             sleep(5)
 
+class _BaremetalDeployment:
+
+    def __init__(self, endpoint_url: str, *, ssh_target: list[str]):
+        self._base = endpoint_url.rstrip("/")
+        self._ssh_target = ssh_target
+
+    @property
+    def endpoint_url(self) -> str | None:
+        return f"{self._base}/v1/chat/completions"
+
+    @property
+    def dashboard_url(self) -> str | None:
+        return None
+
+    def wait(self) -> None:
+        # First confirm the server came up on the node itself (over SSH); this also
+        # tells us whether a public 404 means "not exposed" vs "still starting".
+        node_healthy = self._wait_node_health()
+        if not node_healthy:
+            print(
+                "[bold yellow]Warning:[/bold yellow] muna-server did not report healthy on the node "
+                f"([bold]http://127.0.0.1:{_BAREMETAL_PORT}/health[/bold]) yet. It may still be starting; "
+                "check [bold]/app/muna-server.log[/bold] on the node if the deployment does not come up."
+            )
+        health_url = f"{self._base}/health"
+        deadline = time() + 45 * 60
+        not_found_streak = 0
+        while time() < deadline:
+            try:
+                status = get(health_url, timeout=10).status_code
+                if status == 200:
+                    return
+                not_found_streak = not_found_streak + 1 if status == 404 else 0
+            except Exception:
+                not_found_streak = 0
+            # If the server is healthy on the node but the public URL keeps returning 404,
+            # the port almost certainly isn't exposed publicly; fail fast instead of waiting.
+            if node_healthy and not_found_streak >= 6:
+                print(
+                    f"[bold red]Error:[/bold red] muna-server is healthy on the node but "
+                    f"[bold cyan]{self._base}[/bold cyan] is not reachable (repeated 404s). "
+                    f"Ensure port [bold]{_BAREMETAL_PORT}[/bold] is exposed at that URL. "
+                    "On Runpod, add the port to the pod's [bold]Expose HTTP Ports[/bold] "
+                    "(note: editing ports restarts the pod and changes the SSH port)."
+                )
+                raise Exit(code=1)
+            sleep(5)
+
+    def _wait_node_health(self, *, timeout: float = 120) -> bool:
+        health_command = (
+            f"curl -fsS -o /dev/null -w '%{{http_code}}' "
+            f"http://127.0.0.1:{_BAREMETAL_PORT}/health"
+        )
+        deadline = time() + timeout
+        while time() < deadline:
+            result = run(
+                ["ssh", *self._ssh_target, health_command],
+                capture_output=True,
+                text=True
+            )
+            if result.returncode == 0 and result.stdout.strip() == "200":
+                return True
+            sleep(5)
+        return False
+
+_BAREMETAL_PORT = 8000
 _FXNC_VERSION = "0.0.46"
 _MUNA_SERVER_VERSION = "0.0.2"
 _TARGET_ARCH = "x86_64-unknown-linux-gnu"

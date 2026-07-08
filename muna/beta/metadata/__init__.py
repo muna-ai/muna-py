@@ -37,9 +37,12 @@ CompileMetadata = (
     TorchToOnnxRuntimeInferenceMetadata     |
     TorchToOpenVINOInferenceMetadata        |
     TorchToQnnInferenceMetadata             |
-    TorchToSGLangInferenceMetadata          |
     TorchToTensorRTInferenceMetadata        |
     TorchToTensorRTRTXInferenceMetadata     |
+    # Transformers
+    TorchToSGLangInferenceMetadata          |
+    # Diffusers
+    DiffusersToSGLangInferenceMetadata      |
     # ONNX
     OnnxRuntimeInferenceSessionMetadata     |
     OnnxRuntimeToCoreMLInferenceMetadata    |
@@ -50,6 +53,7 @@ CompileMetadata = (
     TFLiteInterpreterMetadata
 )
 
+# Deprecated aliases
 CoreMLInferenceMetadata = TorchToCoreMLInferenceMetadata
 LiteRTInferenceMetadata = TorchToLiteRTInferenceMetadata
 MLXInferenceMetadata = TorchToMLXInferenceMetadata
