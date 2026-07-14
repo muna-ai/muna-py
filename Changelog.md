@@ -1,5 +1,5 @@
 ## 0.1.17
-*INCOMPLETE*
++ Upgraded to Function C 0.0.48.
 
 ## 0.1.16
 + Added `muna deploy --provider baremetal` CLI command to deploy compiled functions onto existing nodes via SSH.

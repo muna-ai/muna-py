@@ -3,7 +3,7 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
-from ctypes import byref, c_int, c_void_p, create_string_buffer
+from ctypes import byref, c_int, c_int32, c_void_p, create_string_buffer
 from pathlib import Path
 from typing import final
 
@@ -81,21 +81,38 @@ class Configuration:
             raise RuntimeError(f"Failed to set configuration acceleration with error: {status_to_error(status)}")
 
     @property
-    def device(self):
-        device = c_void_p()
-        status = get_fxnc().FXNConfigurationGetDevice(
+    def devices(self) -> list[object]:
+        count = c_int32()
+        status = get_fxnc().FXNConfigurationGetDevices(
             self.__configuration,
-            byref(device)
+            None,
+            byref(count)
         )
         if status != FXNStatus.OK:
-            raise RuntimeError(f"Failed to get configuration device with error: {status_to_error(status)}")
-        return device if device.value else None            
-
-    @device.setter
-    def device(self, device):
-        status = get_fxnc().FXNConfigurationSetDevice(self.__configuration, device)
+            raise RuntimeError(f"Failed to get configuration device count with error: {status_to_error(status)}")
+        if count.value == 0:
+            return []
+        device_array = (c_void_p * count.value)()
+        capacity = c_int32(count.value)
+        status = get_fxnc().FXNConfigurationGetDevices(
+            self.__configuration,
+            device_array,
+            byref(capacity)
+        )
         if status != FXNStatus.OK:
-            raise RuntimeError(f"Failed to set configuration device with error: {status_to_error(status)}")
+            raise RuntimeError(f"Failed to get configuration devices with error: {status_to_error(status)}")
+        return list(device_array[:min(count.value, capacity.value)])
+
+    @devices.setter
+    def devices(self, devices: list[object]):
+        device_array = (c_void_p * len(devices))(*devices) if devices else None
+        status = get_fxnc().FXNConfigurationSetDevices(
+            self.__configuration,
+            device_array,
+            len(devices)
+        )
+        if status != FXNStatus.OK:
+            raise RuntimeError(f"Failed to set configuration devices with error: {status_to_error(status)}")
 
     def add_resource(self, type: str, path: Path):
         status = get_fxnc().FXNConfigurationAddResource(
@@ -105,6 +122,30 @@ class Configuration:
         )
         if status != FXNStatus.OK:
             raise RuntimeError(f"Failed to add configuration resource with error: {status_to_error(status)}")
+
+    def get_metadata(self, key: str) -> str | None:
+        buffer = create_string_buffer(2048)
+        status = get_fxnc().FXNConfigurationGetMetadata(
+            self.__configuration,
+            key.encode(),
+            buffer,
+            len(buffer)
+        )
+        if status == FXNStatus.ERROR_INVALID_ARGUMENT:
+            return None
+        if status != FXNStatus.OK:
+            raise RuntimeError(f"Failed to get configuration metadata with error: {status_to_error(status)}")
+        return buffer.value.decode("utf-8")
+
+    def set_metadata(self, key: str, value: str | None):
+        encoded_value = value.encode() if value is not None else None
+        status = get_fxnc().FXNConfigurationSetMetadata(
+            self.__configuration,
+            key.encode(),
+            encoded_value
+        )
+        if status != FXNStatus.OK:
+            raise RuntimeError(f"Failed to set configuration metadata with error: {status_to_error(status)}")
 
     @classmethod
     def get_unique_id(cls) -> str:

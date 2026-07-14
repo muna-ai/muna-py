@@ -11,7 +11,7 @@ def test_create_raw_prediction():
     prediction = muna.predictions.create(tag="@fxn/greeting")
     assert prediction is not None
     assert prediction.configuration is not None
-    assert prediction.resources is None
+    assert prediction.resources
 
 def test_create_prediction():
     muna = Muna()
@@ -41,7 +41,7 @@ def test_create_remote_prediction():
         acceleration="remote_auto"
     )
     assert prediction.results
-    assert isinstance(prediction.results[0], str)
+    assert isinstance(prediction.results[0], float)
 
 def test_stream_remote_prediction():
     muna = Muna()

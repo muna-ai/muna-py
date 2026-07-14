@@ -17,7 +17,7 @@ from time import perf_counter
 from traceback import format_exc
 from typing import Callable, ParamSpec, TypeVar
 
-from ..services.remote import _create_remote_value, _parse_remote_value
+from ..services.prediction import _create_remote_value, _parse_remote_value
 from ..types import Acceleration, RemotePrediction, RemoteValue
 
 P = ParamSpec("P")
