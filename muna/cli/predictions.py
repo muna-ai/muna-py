@@ -12,7 +12,6 @@ from pathlib import Path
 from PIL import Image
 from pydantic import JsonValue
 from rich import print_json
-import sounddevice as sd
 from tempfile import mkstemp
 from typer import Argument, Context, Option
 from typing import Annotated
@@ -122,6 +121,7 @@ def _show_prediction_results(
             case Image.Image():
                 value.show()
             case ndarray() if parameter.denotation == "audio":
+                import sounddevice as sd
                 sd.play(value, samplerate=parameter.sample_rate)
                 sd.wait()
 
