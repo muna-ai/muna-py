@@ -1,5 +1,8 @@
 ## 0.1.18
-*INCOMPLETE*
++ Fixed `muna.beta.openai.images.create` method failing on compiled image generation models that accept a list of prompts.
++ Removed `Predictor.card` field.
++ Removed `Predictor.license` field.
++ Removed `Predictor.media` field.
 
 ## 0.1.17
 + Upgraded to Function C 0.0.48.

@@ -32,9 +32,9 @@ class Muna:
 
     def __init__(
         self,
-        access_key: str=None,
+        access_key: str | None=None,
         *,
-        api_url: str=None
+        api_url: str | None=None
     ):
         access_key = access_key or environ.get("MUNA_ACCESS_KEY") or environ.get("FXN_ACCESS_KEY")
         api_url = api_url or environ.get("MUNA_API_URL") or environ.get("FXN_API_URL")

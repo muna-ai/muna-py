@@ -1,8 +1,9 @@
-# 
+#
 #   Muna
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
-from .app import app
+from . import app
 
-__all__ = ["app"]
+if __name__ == "__main__":
+    app()

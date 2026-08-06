@@ -296,8 +296,7 @@ class CompileDialect(BaseModel, **ConfigDict(frozen=True)):
                 upload_task.update(total=file_size)
                 archive_url = muna.client.upload(
                     archive_path,
-                    progress=False,
-                    on_progress=lambda n: upload_task.update(advance=n),
+                    progress=lambda n: upload_task.update(advance=n)
                 )
             archive_checksum = next(
                 component

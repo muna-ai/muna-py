@@ -39,7 +39,7 @@ Changelog = "https://github.com/muna-ai/muna-py/blob/main/Changelog.md"
 # None
 
 [project.scripts]
-muna = "muna.cli.__init__:app"
+muna = "muna.cli:app"
 
 [build-system]
 requires = ["setuptools>=42", "wheel"]

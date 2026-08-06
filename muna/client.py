@@ -4,35 +4,30 @@
 #
 
 from collections.abc import Callable
-from contextlib import nullcontext
 from hashlib import file_digest
-from hf_transfer import download
+from hf_transfer import download, multipart_upload
 from io import SEEK_END, SEEK_SET
 from json import loads, JSONDecodeError
 from math import ceil
 from os import close as os_close
 from pathlib import Path
 from pydantic import BaseModel, Field, TypeAdapter
-from requests import get, put, request
-from requests.exceptions import ConnectionError, HTTPError, RequestException, SSLError
+from requests import head, request
+from shutil import copyfileobj
 from rich.progress import (
     Progress, BarColumn, DownloadColumn, TextColumn,
     TimeRemainingColumn, TransferSpeedColumn
 )
 from tempfile import mkstemp, NamedTemporaryFile
-from time import sleep
 from typing import BinaryIO, Iterator, Literal, Type, TypeVar
 from urllib.parse import urlparse
 
 T = TypeVar("T", bound=BaseModel)
 
 RESOURCE_URL_BASE = "https://cdn.fxn.ai/resources"
-MULTIPART_THRESHOLD = 100 * 1024 * 1024  # 100 MB
 MULTIPART_CHUNK_SIZE = 50 * 1024 * 1024  # 50 MB
-RETRYABLE_STATUS_CODES = { 400, 408, 429, 500, 502, 503, 504 }
+UPLOAD_MAX_PARALLEL = 16                 # parallel connections for multipart upload
 DOWNLOAD_MAX_FILES = 16                          # parallel connections for hf_transfer
-DOWNLOAD_CHUNK_SIZE = 8 * 1024 * 1024            # 8 MB chunks for the single-stream fallback
-DOWNLOAD_PROGRESS_INTERVAL = 8 * 1024 * 1024     # throttle progress updates to every 8 MB
 
 class MunaAPIError(Exception):
 
@@ -46,7 +41,11 @@ class MunaAPIError(Exception):
 
 class MunaClient:
     
-    def __init__(self, access_key: str, api_url: str | None) -> None:
+    def __init__(
+        self,
+        access_key: str | None,
+        api_url: str | None
+    ) -> None:
         self.access_key = access_key
         self.api_url = api_url or "https://api.muna.ai/v1"
 
@@ -154,79 +153,18 @@ class MunaClient:
             "User-Agent": "muna-py"
         }
         path.parent.mkdir(parents=True, exist_ok=True)
-        size, accept_ranges = self.__probe_download(url, headers)
-        # Use the parallel downloader whenever the server supports range
-        # requests, regardless of size: `hf_transfer` downloads small files
-        # as a single chunk. The fallback handles servers without range
-        # support (and any `hf_transfer` failure).
-        if accept_ranges:
-            try:
-                return self.__download_parallel(
-                    url,
-                    path,
-                    headers=headers,
-                    size=size,
-                    name=name,
-                    color=color
-                )
-            except Exception:
-                pass # fall back to the single-connection download below
-        return self.__download_stream(
-            url,
-            path,
-            headers=headers,
-            name=name,
-            color=color
+        response = head(url, headers=headers, allow_redirects=True)
+        response.raise_for_status()
+        content_length = response.headers.get("content-length")
+        if content_length is None:
+            raise ValueError(f"Muna CDN resource has no Content-Length: {url}")
+        size = int(content_length)
+
+        fd, tmp_name = mkstemp(
+            dir=path.parent,
+            prefix=f"{path.name}.",
+            suffix=".part"
         )
-
-    def __probe_download(
-        self,
-        url: str,
-        headers: dict[str, str]
-    ) -> tuple[int | None, bool]:
-        """
-        Probe a resource URL for its size and HTTP range support.
-
-        Uses a single-byte range request rather than a `HEAD` so that the
-        probe works with method-scoped presigned URLs. A `206` response
-        proves range support and carries the full size in `Content-Range`.
-        """
-        try:
-            response = get(
-                url,
-                headers={ **headers, "Range": "bytes=0-0" },
-                stream=True,
-                allow_redirects=True
-            )
-        except RequestException:
-            return None, False
-        try:
-            if response.status_code == 206:
-                content_range = response.headers.get("content-range", "")
-                total = content_range.rsplit("/", 1)[-1] if "/" in content_range else ""
-                size = int(total) if total.isdigit() else None
-                return size, True
-            if response.ok:
-                size = response.headers.get("content-length")
-                return (int(size) if size is not None else None), False
-            return None, False
-        finally:
-            response.close()
-
-    def __download_parallel(
-        self,
-        url: str,
-        path: Path,
-        *,
-        headers: dict[str, str],
-        size: int | None,
-        name: str,
-        color: str
-    ) -> Path:
-        """
-        Download a resource using parallel chunked range requests.
-        """
-        fd, tmp_name = mkstemp(dir=path.parent, prefix=f"{path.name}.", suffix=".part")
         os_close(fd)
         tmp_path: Path | None = Path(tmp_name)
         try:
@@ -247,66 +185,11 @@ class MunaClient:
                     parallel_failures=3,
                     max_retries=5,
                     headers=headers,
-                    callback=lambda increment: progress_bar.advance(task_id, increment)
+                    callback=lambda increment: progress_bar.advance(
+                        task_id,
+                        increment
+                    )
                 )
-            tmp_path.replace(path)
-            tmp_path = None
-            return path
-        finally:
-            if tmp_path is not None:
-                try:
-                    tmp_path.unlink()
-                except FileNotFoundError:
-                    pass
-
-    def __download_stream(
-        self,
-        url: str,
-        path: Path,
-        *,
-        headers: dict[str, str],
-        name: str,
-        color: str
-    ) -> Path:
-        """
-        Download a resource over a single connection.
-        """
-        response = get(url, headers=headers, stream=True, allow_redirects=True)
-        response.raise_for_status()
-        size = int(response.headers.get("content-length", 0))
-        completed = 0
-        last_update = 0
-        tmp_path: Path | None = None
-        try:
-            with (
-                Progress(
-                    TextColumn(f"[{color}]{{task.description}}"),
-                    BarColumn(),
-                    DownloadColumn(),
-                    TransferSpeedColumn(),
-                    TimeRemainingColumn(),
-                    disable=not color
-                ) as progress_bar,
-                NamedTemporaryFile(
-                    mode="wb",
-                    delete=False,
-                    dir=path.parent,
-                    prefix=f"{path.name}.",
-                    suffix=".part",
-                ) as tmp_file
-            ):
-                tmp_path = Path(tmp_file.name)
-                task_id = progress_bar.add_task(name, total=size)
-                for chunk in response.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
-                    if chunk:
-                        tmp_file.write(chunk)
-                        completed += len(chunk)
-                        if (
-                            completed - last_update >= DOWNLOAD_PROGRESS_INTERVAL or
-                            completed == size
-                        ):
-                            progress_bar.update(task_id, total=size, completed=completed)
-                            last_update = completed
             tmp_path.replace(path)
             tmp_path = None
             return path
@@ -321,11 +204,12 @@ class MunaClient:
         self,
         path: str | Path | BinaryIO,
         *,
-        progress: bool=True,
-        on_progress: Callable[[int], None] | None=None
+        progress: bool | Callable[[int], None]=True
     ) -> str:
         """
-        Upload a resource and return the resource URL.
+        Upload a resource and return the resource URL. Pass a callable as
+        `progress` to receive byte increments instead of showing the built-in
+        progress bar.
         """
         # Handle path or file-like object
         path = Path(path) if isinstance(path, str) else path
@@ -352,76 +236,14 @@ class MunaClient:
         except MunaAPIError as e:
             if e.status_code != 404:
                 raise
-        # Upload
-        if file_size >= MULTIPART_THRESHOLD:
-            self.__upload_resource_multipart(
-                path,
-                file_size=file_size,
-                resource_hash=resource_hash,
-                progress=progress,
-                on_progress=on_progress
-            )
-        else:
-            self.__upload_resource_single(
-                path,
-                file_size=file_size,
-                resource_hash=resource_hash,
-                progress=progress,
-                on_progress=on_progress
-            )
+        self.__upload_resource_multipart(
+            path,
+            file_size=file_size,
+            resource_hash=resource_hash,
+            progress=progress
+        )
         # Return
         return f"{RESOURCE_URL_BASE}/{resource_hash}"
-
-    def __upload_resource_single(
-        self,
-        source: Path | BinaryIO,
-        *,
-        file_size: int,
-        resource_hash: str,
-        progress: bool,
-        on_progress: Callable[[int], None] | None=None
-    ) -> str:
-        """
-        Upload a resource using single upload.
-        """
-        resource = self.request(
-            method="POST",
-            path=f"/resources/{resource_hash}",
-            response_type=_CreateResourceResponse
-        )
-        if on_progress is not None:
-            with (
-                source.open("rb")
-                if isinstance(source, Path)
-                else nullcontext(source)
-            ) as f:
-                reader = _ProgressReader(
-                    f.read(),
-                    None,
-                    None,
-                    on_progress=on_progress
-                )
-                response = put(resource.url, data=reader)
-                response.raise_for_status()
-                return response.headers.get("ETag", "")
-        with Progress(
-            TextColumn("[bold blue]{task.description}"),
-            BarColumn(),
-            DownloadColumn(),
-            TransferSpeedColumn(),
-            TimeRemainingColumn(),
-            disable=not progress
-        ) as progress_bar:
-            task_id = progress_bar.add_task(resource_hash, total=file_size)
-            with (
-                source.open("rb")
-                if isinstance(source, Path)
-                else nullcontext(source)
-            ) as f:
-                reader = _ProgressReader(f.read(), progress_bar, task_id)
-                response = put(resource.url, data=reader)
-                response.raise_for_status()
-                return response.headers.get("ETag", "")
 
     def __upload_resource_multipart(
         self,
@@ -429,13 +251,13 @@ class MunaClient:
         *,
         file_size: int,
         resource_hash: str,
-        progress: bool,
-        on_progress: Callable[[int], None] | None=None
+        progress: bool | Callable[[int], None]
     ) -> None:
         """
-        Upload a resource using multipart upload.
+        Upload a resource using multipart upload. Parts are uploaded over
+        parallel connections; part order is preserved for the completion call.
         """
-        num_parts = ceil(file_size / MULTIPART_CHUNK_SIZE)
+        num_parts = max(1, ceil(file_size / MULTIPART_CHUNK_SIZE))
         resource = self.request(
             method="POST",
             path=f"/resources/{resource_hash}/multipart",
@@ -443,45 +265,53 @@ class MunaClient:
             response_type=_CreateResourceMultipartResponse
         )
         try:
-            etags = list[str]()
-            if on_progress is not None:
-                with (
-                    source.open("rb")
-                    if isinstance(source, Path)
-                    else nullcontext(source)
-                ) as f:
-                    for url in resource.urls:
-                        etag = self.__upload_resource_part(
-                            f,
-                            url=url,
-                            progress=None,
-                            task_id=None,
-                            on_progress=on_progress
-                        )
-                        etags.append(etag)
-            else:
+            tmp_path: Path | None = None
+            try:
+                if isinstance(source, Path):
+                    upload_path = source
+                else:
+                    # hf_transfer operates on paths so its Rust workers can
+                    # independently seek and read each part. Stage file-like
+                    # inputs once, then use the same transfer path.
+                    position = source.tell()
+                    with NamedTemporaryFile(mode="wb", delete=False) as tmp:
+                        tmp_path = Path(tmp.name)
+                        try:
+                            copyfileobj(source, tmp, length=MULTIPART_CHUNK_SIZE)
+                        finally:
+                            source.seek(position, SEEK_SET)
+                    upload_path = tmp_path
                 with Progress(
                     TextColumn("[bold blue]{task.description}"),
                     BarColumn(),
                     DownloadColumn(),
                     TransferSpeedColumn(),
                     TimeRemainingColumn(),
-                    disable=not progress
+                    disable=not progress if isinstance(progress, bool) else True
                 ) as progress_bar:
                     task_id = progress_bar.add_task(resource_hash, total=file_size)
-                    with (
-                        source.open("rb")
-                        if isinstance(source, Path)
-                        else nullcontext(source)
-                    ) as f:
-                        for url in resource.urls:
-                            etag = self.__upload_resource_part(
-                                f,
-                                url=url,
-                                progress=progress_bar,
-                                task_id=task_id
-                            )
-                            etags.append(etag)
+                    callback = progress if not isinstance(progress, bool) else (
+                        lambda increment: progress_bar.advance(task_id, increment)
+                    )
+                    headers = multipart_upload(
+                        file_path=str(upload_path),
+                        parts_urls=resource.urls,
+                        chunk_size=MULTIPART_CHUNK_SIZE,
+                        max_files=UPLOAD_MAX_PARALLEL,
+                        parallel_failures=UPLOAD_MAX_PARALLEL,
+                        max_retries=5,
+                        callback=callback
+                    )
+                etags = [
+                    header.get("etag", header.get("ETag", ""))
+                    for header in headers
+                ]
+            finally:
+                if tmp_path is not None:
+                    try:
+                        tmp_path.unlink()
+                    except FileNotFoundError:
+                        pass
             parts = [{ "partNumber": i + 1, "etag": etag } for i, etag in enumerate(etags)]
             self.request(
                 method="POST",
@@ -498,44 +328,6 @@ class MunaClient:
                 pass
             raise e
 
-    def __upload_resource_part(
-        self,
-        stream: BinaryIO,
-        *,
-        url: str,
-        progress: Progress | None,
-        task_id: int | None,
-        on_progress: Callable[[int], None] | None=None,
-        max_retries: int=5
-    ) -> str:
-        """
-        Upload a single part and return ETag.
-        """
-        chunk = stream.read(MULTIPART_CHUNK_SIZE)
-        for attempt in range(max_retries):
-            reader = _ProgressReader(
-                chunk,
-                progress,
-                task_id,
-                on_progress=on_progress
-            )
-            try:
-                response = put(url, data=reader)
-                response.raise_for_status()
-                return response.headers.get("ETag", "")
-            except (SSLError, ConnectionError, HTTPError) as e:
-                retryable = (
-                    not isinstance(e, HTTPError) or
-                    e.response.status_code in RETRYABLE_STATUS_CODES
-                )
-                if attempt >= max_retries - 1 or not retryable:
-                    raise
-                if progress is not None:
-                    progress.advance(task_id, -reader._offset)
-                if on_progress is not None:
-                    on_progress(-reader._offset)
-                sleep(2 ** attempt)
-
 def _parse_sse_event(event: str, data: str, type: Type[T]=None) -> T:
     result = { "event": event, "data": loads(data) }
     result = TypeAdapter(type).validate_python(result) if type is not None else result
@@ -547,40 +339,6 @@ class _APIError(BaseModel):
 class _ErrorResponse(BaseModel):
     errors: list[_APIError]
 
-class _CreateResourceResponse(BaseModel):
-    url: str
-
 class _CreateResourceMultipartResponse(BaseModel):
     upload_id: str = Field(validation_alias="uploadId")
     urls: list[str]
-
-class _ProgressReader:
-
-    def __init__(
-        self,
-        data: bytes,
-        progress: Progress | None,
-        task_id: int | None,
-        on_progress: Callable[[int], None] | None=None
-    ):
-        self._data = data
-        self._offset = 0
-        self._progress = progress
-        self._task_id = task_id
-        self._on_progress = on_progress
-
-    def read(self, size: int=-1) -> bytes:
-        if size == -1:
-            chunk = self._data[self._offset:]
-            self._offset = len(self._data)
-        else:
-            chunk = self._data[self._offset:self._offset + size]
-            self._offset += len(chunk)
-        if self._progress is not None:
-            self._progress.advance(self._task_id, len(chunk))
-        if self._on_progress is not None:
-            self._on_progress(len(chunk))
-        return chunk
-
-    def __len__(self):
-        return len(self._data)

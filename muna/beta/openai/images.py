@@ -105,8 +105,8 @@ class ImageService: # DEPLOY
                 f"{tag} cannot be used with OpenAI image API because "
                 "it has more than one required input parameter."
             )
-        # Check that the input parameter is `str`
-        _, prompt_param = get_parameter(required_inputs, dtype=Dtype.string)
+        # Check that the input parameter is `list`
+        _, prompt_param = get_parameter(required_inputs, dtype=Dtype.list)
         if prompt_param is None:
             raise ValueError(
                 f"{tag} cannot be used with OpenAI image API because "
@@ -151,7 +151,7 @@ class ImageService: # DEPLOY
         ) -> ImageResponse:
             # Build prediction input map
             requested_width, requested_height = _get_image_size(size)
-            input_map = { prompt_param.name: prompt }
+            input_map = { prompt_param.name: [prompt] }
             if n is not None and count_param is not None:
                 input_map[count_param.name] = n
             if requested_width is not None and width_param is not None:
