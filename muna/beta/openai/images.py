@@ -28,7 +28,7 @@ ImageSize = Literal[
 
 ImageDelegate = Callable[..., ImageResponse]
 
-class ImageService: # DEPLOY
+class ImageService:
     """
     Image service.
     """
@@ -42,20 +42,20 @@ class ImageService: # DEPLOY
         self.__predictions = predictions
         self.__cache = dict[str, ImageDelegate]()
 
-    def create(
+    def generate(
         self,
         *,
         prompt: str,
         model: str,
-        background: Literal["auto", "transparent", "opaque"] | None=None,
-        n: int | None=None,
-        output_format: Literal["png", "jpeg", "webp", "raw"]=None,
-        output_compression: int | None=None,
-        size: ImageSize | None=None,
-        acceleration: Acceleration="local_auto"
+        background: Literal["auto", "transparent", "opaque"] | None = None,
+        n: int | None = None,
+        output_format: Literal["png", "jpeg", "webp", "raw"] | None = None,
+        output_compression: int | None = None,
+        size: ImageSize | None = None,
+        acceleration: Acceleration = "local_auto"
     ) -> ImageResponse:
         """
-        Create an image given a prompt.
+        Generate an image given a prompt.
 
         Parameter:
             prompt (str): Text description of the desired image.
@@ -144,7 +144,7 @@ class ImageService: # DEPLOY
             model: str,
             background: Literal["auto", "transparent", "opaque"] | None,
             n: int | None,
-            output_format: Literal["png", "jpeg", "webp", "raw"],
+            output_format: Literal["png", "jpeg", "webp", "raw"] | None,
             output_compression: int | None,
             size: ImageSize | None,
             acceleration: Acceleration
@@ -187,10 +187,11 @@ class ImageService: # DEPLOY
 
 def _create_image_data(
     image: Image.Image,
-    output_format: Literal["png", "jpeg", "webp", "raw"],
+    *,
+    output_format: Literal["png", "jpeg", "webp", "raw"] | None,
     output_compression: int | None,
 ) -> ImageData:
-    match output_format:
+    match output_format or "png":
         case "raw":     return ImageData(b64_json=None, image=image)
         case "webp":    raise ValueError(f"webp output format is not yet supported")
         case _:

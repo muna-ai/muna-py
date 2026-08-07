@@ -1,3 +1,7 @@
+## 0.1.19
++ Fixed `muna.beta.openai.images.generate` method raising exception when no output format is provided.
++ Refactored `muna.beta.openai.images.create` method to `generate`, matching the official OpenAI client.
+
 ## 0.1.18
 + Fixed `muna.beta.openai.images.create` method failing on compiled image generation models that accept a list of prompts.
 + Removed `Predictor.card` field.
