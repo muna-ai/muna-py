@@ -3,6 +3,9 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
+from pydantic import Field
+from typing import Annotated
+
 from ._ort import OnnxRuntimeExecutionProvider, OnnxRuntimeOptimizationLevel
 from ._speculative import SpeculativeDecodingConfig
 from ._torch import TorchExporter
@@ -16,7 +19,11 @@ from .llama import LlamaCppBackend, LlamaCppInferenceMetadata
 from .mlx import OnnxRuntimeToMLXInferenceMetadata, TorchToMLXInferenceMetadata
 from .onnxruntime import OnnxRuntimeInferenceSessionMetadata, TorchToOnnxRuntimeInferenceMetadata
 from .openvino import TorchToOpenVINOInferenceMetadata
-from .qnn import QnnInferenceBackend, QnnInferenceQuantization, TorchToQnnInferenceMetadata
+from .qnn import (
+    QnnInferenceBackend, QnnInferenceQuantization,
+    TorchToQnnInferenceMetadata
+)
+from .routing import KVRoutingMetadata
 from .sglang import (
     DiffusersToSGLangInferenceMetadata, SGLangComputeArchitecture,
     SGLangDisaggregationConfig, TorchToSGLangInferenceMetadata
@@ -28,7 +35,7 @@ from .tensorrt import (
 from .tensorrt_rtx import TorchToTensorRTRTXInferenceMetadata
 from .tflite import TFLiteInterpreterMetadata
 
-CompileMetadata = (
+CompileMetadata = Annotated[
     # PyTorch
     ExecuTorchInferenceMetadata             |
     TorchToCoreMLInferenceMetadata          |
@@ -48,10 +55,13 @@ CompileMetadata = (
     OnnxRuntimeToCoreMLInferenceMetadata    |
     OnnxRuntimeToMLXInferenceMetadata       |
     OnnxRuntimeToTensorRTInferenceMetadata  |
+    # Routing
+    KVRoutingMetadata                       |
     # Misc
     LlamaCppInferenceMetadata               |
-    TFLiteInterpreterMetadata
-)
+    TFLiteInterpreterMetadata,
+    Field(discriminator="kind")
+]
 
 # Deprecated aliases
 CoreMLInferenceMetadata = TorchToCoreMLInferenceMetadata
