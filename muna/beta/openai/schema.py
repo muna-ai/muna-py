@@ -15,18 +15,23 @@ SpeechStreamFormat = Literal["audio", "sse"]
 
 class ChatCompletion(BaseModel):
     class Usage(BaseModel):
-        prompt_tokens: int
-        completion_tokens: int
-        total_tokens: int
-    object: Literal["chat.completion"] = "chat.completion"
-    id: str
-    created: int
-    model: str
+        class PromptTokensDetails(BaseModel):
+            audio_tokens: int | None = Field(None, description="Audio input tokens present in the prompt.")
+            cache_write_tokens: int | None = Field(None, description="The unadjusted number of prompt tokens written to cache.")
+            cached_tokens: int | None = Field(None, description="Cached tokens present in the prompt.")
+        prompt_tokens: int = Field(description="Number of tokens in the prompt.")
+        completion_tokens: int = Field(description="Number of tokens in the generated completion.")
+        total_tokens: int = Field(description="Total number of tokens used in the request.")
+        prompt_tokens_details: PromptTokensDetails | None = Field(description="Breakdown of tokens used in the prompt.")
+    object: Literal["chat.completion"] = Field("chat.completion", init=False)
+    id: str = Field(description="Chat completion unique identifier.")
+    created: int = Field(description="Creation date unix timestamp in seconds.")
+    model: str = Field(description="Model that created chat completion.")
     choices: list[Choice]
-    usage: Usage
+    usage: Usage = Field(description="Usage statistics in the completion.")
 
 class ChatCompletionChunk(BaseModel):
-    object: Literal["chat.completion.chunk"] = "chat.completion.chunk"
+    object: Literal["chat.completion.chunk"] = Field("chat.completion.chunk", init=False)
     id: str
     created: int
     model: str

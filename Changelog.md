@@ -1,5 +1,6 @@
 ## 0.1.19
 + Added `beta.KVRoutingMetadata` metadata type to compile an LLM inference function to support KV cache-aware routing.
++ Added `Usage.prompt_tokens_details` field in OpenAI compatible client for tracking cached tokens.
 + Fixed `muna.beta.openai.images.generate` method raising exception when no output format is provided.
 + Refactored `muna.beta.openai.images.create` method to `generate`, matching the official OpenAI client.
 
