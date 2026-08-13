@@ -81,6 +81,16 @@ class TorchToSGLangInferenceMetadata(
         description="Disaggregated inference configuration.",
         exclude=True
     )
+    enable_decode_graphs: bool | None = Field(
+        default=None,
+        description="Capture and replay decode-step device graphs. Defaults to enabled.",
+        exclude=True
+    )
+    enable_prefill_graphs: bool | None = Field(
+        default=None,
+        description="Warm covering prefill device graphs at engine bring-up. Defaults to disabled.",
+        exclude=True
+    )
 
 class DiffusersToSGLangInferenceMetadata(
     BaseModel,
