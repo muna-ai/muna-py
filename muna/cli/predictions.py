@@ -82,9 +82,7 @@ def _serialize_prediction(
         created=prediction.created
     )
 
-def _serialize_value(
-    value: Value
-) -> JsonValue:
+def _serialize_value(value: Value) -> JsonValue:
     """
     Serialize a prediction output value.
     """
@@ -107,6 +105,8 @@ def _serialize_value(
             _, path = mkstemp(suffix=".bin")
             Path(path).write_bytes(value.getvalue())
             return path
+        case list() if all(isinstance(x, Image.Image) for x in value):
+            return [_serialize_value(x) for x in value]
         case _: return value
 
 def _show_prediction_results(
@@ -124,6 +124,9 @@ def _show_prediction_results(
                 import sounddevice as sd
                 sd.play(value, samplerate=parameter.sample_rate)
                 sd.wait()
+            case list() if all(isinstance(x, Image.Image) for x in value):
+                for x in value:
+                    x.show()
 
 def _parse_value(
     data: str,

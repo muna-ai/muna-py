@@ -5,16 +5,13 @@
 
 from inspect import isfunction, signature
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
-from typing import get_type_hints, Annotated, Literal
+from typing import Annotated, Literal
 
 def _validate_tokenize_function(func):
     if not isfunction(func):
         raise ValueError("`tokenize` must be a plain function.")
     if "." in func.__qualname__:
         raise ValueError("`tokenize` must be a module-level function.")
-    hints = get_type_hints(func)
-    if hints.get("return") != list[int]:
-        raise ValueError("`tokenize` must be annotated to return `list[int]` (prompt token IDs).")
     sig = signature(func)
     for name, param in sig.parameters.items():
         if param.kind not in (param.POSITIONAL_OR_KEYWORD, param.KEYWORD_ONLY):
