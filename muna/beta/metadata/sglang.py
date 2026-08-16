@@ -91,6 +91,11 @@ class TorchToSGLangInferenceMetadata(
         description="Warm covering prefill device graphs at engine bring-up. Defaults to disabled.",
         exclude=True
     )
+    experimental: dict[str, object] | None = Field(
+        default=None,
+        description="Experimental configuration. Do not use unless you know what you are using.",
+        exclude=True
+    )
 
 class DiffusersToSGLangInferenceMetadata(
     BaseModel,

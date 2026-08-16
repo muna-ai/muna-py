@@ -1,5 +1,5 @@
 ## 0.1.20
-*INCOMPLETE*
++ Minor updates.
 
 ## 0.1.19
 + Added `beta.KVRoutingMetadata` metadata type to compile an LLM inference function to support KV cache-aware routing.
