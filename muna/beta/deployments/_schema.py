@@ -24,6 +24,12 @@ class TokenDeploymentPricing(BaseModel):
         ge=0,
         serialization_alias="inputPerMillion"
     )
+    cached_input_per_million: float | None = Field(
+        None,
+        description="Price per million cached input tokens (cache reads).",
+        ge=0,
+        serialization_alias="cachedInputPerMillion"
+    )
     output_per_million: float | None = Field(
         None,
         description="Price per million output tokens.",

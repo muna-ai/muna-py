@@ -22,7 +22,7 @@ class ChatCompletion(BaseModel):
         prompt_tokens: int = Field(description="Number of tokens in the prompt.")
         completion_tokens: int = Field(description="Number of tokens in the generated completion.")
         total_tokens: int = Field(description="Total number of tokens used in the request.")
-        prompt_tokens_details: PromptTokensDetails | None = Field(description="Breakdown of tokens used in the prompt.")
+        prompt_tokens_details: PromptTokensDetails | None = Field(None, description="Breakdown of tokens used in the prompt.")
     object: Literal["chat.completion"] = Field("chat.completion", init=False)
     id: str = Field(description="Chat completion unique identifier.")
     created: int = Field(description="Creation date unix timestamp in seconds.")

@@ -1,5 +1,5 @@
 ## 0.1.21
-*INCOMPLETE*
++ Fixed `Usage.prompt_tokens_details` field being required when parsing OpenAI compatible responses, causing streaming chat completions to fail on models that do not report it.
 
 ## 0.1.20
 + Minor updates.
