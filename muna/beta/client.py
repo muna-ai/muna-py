@@ -5,6 +5,7 @@
 
 from ..client import MunaClient
 from ..services import PredictorService, PredictionService
+from .deployments import DeploymentService
 from .openai import OpenAIClient
 
 class BetaClient:
@@ -19,4 +20,5 @@ class BetaClient:
         predictors: PredictorService,
         predictions: PredictionService
     ):
+        self.deployments = DeploymentService(client)
         self.openai = OpenAIClient(predictors, predictions)

@@ -51,12 +51,35 @@ async def _predict_async(
         ):
             predictor = muna.predictors.retrieve(tag)
             muna.predictions.create(tag, inputs={ })
+        input_params = { param.name: param for param in predictor.signature.inputs }
+        # Passing no inputs at all deliberately creates a raw prediction
+        # (resource URLs etc). Otherwise validate the provided arguments
+        # against the signature before dispatching, so that a typo'd or
+        # missing input fails loudly here instead of being silently
+        # dropped (an accidentally-empty input map would fall through to
+        # the raw prediction path above).
+        if raw_args:
+            unknown_args = [name for name in raw_args if name not in input_params]
+            if unknown_args:
+                raise ValueError(
+                    f"Cannot create prediction because the following inputs are not "
+                    f"in the predictor signature: {', '.join('--' + name for name in unknown_args)}. "
+                    f"Valid inputs are: {', '.join('--' + name for name in input_params)}."
+                )
+            missing_args = [
+                param.name for param in predictor.signature.inputs
+                if not param.optional and param.name not in raw_args
+            ]
+            if missing_args:
+                raise ValueError(
+                    f"Cannot create prediction because the following required inputs "
+                    f"were not provided: {', '.join('--' + name for name in missing_args)}."
+                )
+        # Create prediction
         with CustomProgressTask(loading_text="Making prediction..."):
-            input_params = { param.name: param for param in predictor.signature.inputs }
             inputs = {
                 name: _parse_value(data, input_params[name])
                 for name, data in raw_args.items()
-                if name in input_params
             }
             prediction = muna.predictions.create(tag, inputs=inputs)
     # Log prediction

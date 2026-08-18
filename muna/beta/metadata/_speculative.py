@@ -23,11 +23,6 @@ class SpeculativeDecodingConfig(
         description="Number of speculative tokens drafted per verify step.",
         ge=1,
     )
-    ddtree_node_budget: int | None = Field(
-        default=None,
-        description="DDTree node budget. Positive values enable DDTree.",
-        ge=0,
-    )
     eagle3_num_steps: int | None = Field(
         default=None,
         description="EAGLE3 drafter recurrence depth (tree height).",

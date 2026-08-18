@@ -54,7 +54,7 @@ class MunaClient:
         *,
         method: Literal["GET", "HEAD", "POST", "PATCH", "DELETE"],
         path: str,
-        body: dict[str, object]=None,
+        body: dict[str, object] | BaseModel | None=None,
         response_type: Type[T]=None
     ) -> T:
         """
@@ -69,7 +69,7 @@ class MunaClient:
         response = request(
             method=method,
             url=f"{self.api_url}{path}",
-            json=body,
+            json=_coerce_body(body),
             headers={ "Authorization": f"Bearer {self.access_key}" }
         )
         data = response.text
@@ -88,7 +88,7 @@ class MunaClient:
         *,
         method: Literal["GET", "HEAD", "POST", "PATCH", "DELETE"],
         path: str,
-        body: dict[str, object]=None,
+        body: dict[str, object] | BaseModel | None=None,
         response_type: Type[T]=None
     ) -> Iterator[T]:
         """
@@ -103,7 +103,7 @@ class MunaClient:
         response = request(
             method=method,
             url=f"{self.api_url}{path}",
-            json=body,
+            json=_coerce_body(body),
             headers={
                 "Accept": "text/event-stream",
                 "Authorization": f"Bearer {self.access_key}"
@@ -332,6 +332,13 @@ def _parse_sse_event(event: str, data: str, type: Type[T]=None) -> T:
     result = { "event": event, "data": loads(data) }
     result = TypeAdapter(type).validate_python(result) if type is not None else result
     return result
+
+def _coerce_body(body: dict[str, object] | BaseModel | None) -> dict[str, object] | None:
+    return (
+        body.model_dump(mode="json", by_alias=True)
+        if isinstance(body, BaseModel)
+        else body
+    )
 
 class _APIError(BaseModel):
     message: str
