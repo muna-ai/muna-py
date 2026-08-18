@@ -1,3 +1,6 @@
+## 0.1.22
++ Fixed deployments created with `muna deploy` crashing due to outdated libraries.
+
 ## 0.1.21
 + Fixed `Usage.prompt_tokens_details` field being required when parsing OpenAI compatible responses, causing streaming chat completions to fail on models that do not report it.
 

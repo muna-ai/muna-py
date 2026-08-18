@@ -3,7 +3,7 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
-FXNC_VERSION = "0.0.46"
+FXNC_VERSION = "0.0.48"
 MUNA_SERVER_VERSION = "0.0.3"
 SERVER_PORT = 8000
 TARGET_ARCH = "x86_64-unknown-linux-gnu"
