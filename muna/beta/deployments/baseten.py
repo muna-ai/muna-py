@@ -98,6 +98,7 @@ def _build_truss_config(
         'sh -c "export '
         'LD_LIBRARY_PATH=/app/data '
         'MUNA_HOME=/app/.muna '
+        f'MUNA_SERVER_MODELS={spec.tag} '
         f'MUNA_ACCESS_KEY=$(cat /secrets/{secret_name}); '
         'exec /app/data/muna-server"'
     )

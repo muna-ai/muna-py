@@ -133,7 +133,7 @@ def build_server_script(
     serve_command = (
         'echo $$ > "$DIR/muna-server.pid"; '
         'exec env LD_LIBRARY_PATH="$DIR" MUNA_HOME="$DIR/.muna" '
-        f"MUNA_ACCESS_KEY={access_key} PORT={SERVER_PORT} "
+        f"MUNA_ACCESS_KEY={access_key} MUNA_SERVER_MODELS={tag} PORT={SERVER_PORT} "
         '"$DIR/muna-server" serve'
     )
     return (

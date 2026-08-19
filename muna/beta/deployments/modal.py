@@ -99,7 +99,8 @@ def create_modal_deployment(
         volumes={"/muna": volume},
         env={
             "LD_LIBRARY_PATH": "/app",
-            "MUNA_HOME": "/muna"
+            "MUNA_HOME": "/muna",
+            "MUNA_SERVER_MODELS": spec.tag
         },
         secrets=[
             Secret.from_dict({

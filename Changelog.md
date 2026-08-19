@@ -1,3 +1,6 @@
+## 0.1.23
++ Minor updates.
+
 ## 0.1.22
 + Fixed deployments created with `muna deploy` crashing due to outdated libraries.
 
