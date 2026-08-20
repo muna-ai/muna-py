@@ -16,6 +16,7 @@ from ._schema import (
 from .baremetal import create_baremetal_deployment
 from .baseten import create_baseten_deployment
 from .modal import create_modal_deployment
+from .spheron import create_spheron_deployment
 
 DeploymentAcceleration = Acceleration | tuple[Acceleration, int] 
 
@@ -145,7 +146,7 @@ def _create_deployment(
         case "baremetal": return create_baremetal_deployment(spec, deployment_key=key)
         case "baseten":   return create_baseten_deployment(spec, deployment_key=key)
         case "modal":     return create_modal_deployment(spec, deployment_key=key)
-        case "spheron":   pass
+        case "spheron":   return create_spheron_deployment(spec, deployment_key=key)
 
 def _parse_gpu(acceleration: DeploymentAcceleration) -> tuple[DeploymentGPU, int]:
     """

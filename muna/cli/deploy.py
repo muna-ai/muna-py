@@ -13,6 +13,7 @@ from ..beta.deployments import (
     DeploymentProvider, DurationDeploymentPricing,
     ImageDeploymentPricing, TokenDeploymentPricing
 )
+from ..logging import CustomProgress, CustomProgressTask
 from ..muna import Muna
 from ..types import Acceleration
 from .auth import get_access_key
@@ -27,9 +28,9 @@ def deploy_function(
         Option(help="Cloud to deploy the predictor to.")
     ],
     gpu: Annotated[
-        DeploymentGPU,
+        DeploymentGPU | None,
         Option(help="GPU hardware configuration.")
-    ],
+    ] = None,
     name: Annotated[
         str | None,
         Option(help="Deployed model name.")
@@ -103,58 +104,75 @@ def deploy_function(
     )] = False
 ):
     muna = Muna(get_access_key())
-    predictor = muna.predictors.retrieve(tag)
-    if predictor is None:
-        print(
-            f"[bold red]Error:[/bold red] Predictor "
-            f"[bold cyan]{tag}[/bold cyan] was not found or you do not "
-            "have access to it. Make sure you are signed in to the Muna "
-            "CLI with [bold orange1]muna auth login <access key>"
-            "[/bold orange1]."
+    with CustomProgress():
+        # Retrieve predictor
+        with CustomProgressTask(
+            "Retrieving predictor...",
+            done_text="Retrieved predictor"
+        ):
+            predictor = muna.predictors.retrieve(tag)
+            if predictor is None:
+                print(
+                    f"[bold red]Error:[/bold red] Predictor "
+                    f"[bold cyan]{tag}[/bold cyan] was not found or you do not "
+                    "have access to it. Make sure you are signed in to the Muna "
+                    "CLI with [bold orange1]muna auth login <access key>"
+                    "[/bold orange1]."
+                )
+                raise Exit(code=1)
+        # Parse pricing and acceleration
+        pricing = _build_deployment_pricing(
+            shared=shared,
+            kind=pricing_kind,
+            input_price=input_price,
+            output_price=output_price
         )
-        raise Exit(code=1)
-
-    pricing = _build_deployment_pricing(
-        shared=shared,
-        kind=pricing_kind,
-        input_price=input_price,
-        output_price=output_price
-    )
-    acceleration = cast(Acceleration, f"remote_{gpu}")
-    acceleration = (
-        (acceleration, gpu_count)
-        if gpu_count is not None
-        else acceleration
-    )
-    try:
-        deployment = muna.beta.deployments.create(
-            tag,
-            provider=provider,
-            acceleration=acceleration,
-            name=name,
-            kind="shared" if shared else "dedicated",
-            cpu=cpu,
-            memory=memory,
-            concurrency=concurrency,
-            min_replicas=min_replicas,
-            max_replicas=max_replicas,
-            scaledown_window=scaledown_window,
-            ssh_host=ssh_host,
-            endpoint_url=endpoint_url,
-            pricing=pricing
+        acceleration = cast(Acceleration, f"remote_{gpu or 'cpu'}")
+        acceleration = (
+            (acceleration, gpu_count)
+            if gpu_count is not None
+            else acceleration
         )
-    except (ImportError, RuntimeError, ValueError) as error:
-        print(f"[bold red]Error:[/bold red] {error}")
-        raise Exit(code=1)
-
+        try:
+            # Create deployment
+            with CustomProgressTask(
+                f"Deploying predictor to {provider.title()}...",
+                done_text=f"Deployed predictor to {provider.title()}"
+            ):
+                deployment = muna.beta.deployments.create(
+                    tag,
+                    provider=provider,
+                    acceleration=acceleration,
+                    name=name,
+                    kind="shared" if shared else "dedicated",
+                    cpu=cpu,
+                    memory=memory,
+                    concurrency=concurrency,
+                    min_replicas=min_replicas,
+                    max_replicas=max_replicas,
+                    scaledown_window=scaledown_window,
+                    ssh_host=ssh_host,
+                    endpoint_url=endpoint_url,
+                    pricing=pricing
+                )
+        except (ImportError, RuntimeError, ValueError) as error:
+            print(f"[bold red]Error:[/bold red] {error}")
+            raise Exit(code=1)
+        # Wait for muna-server to be healthy
+        if wait:
+            with CustomProgressTask(
+                "Waiting for muna-server...",
+                done_text="muna-server is healthy"
+            ):
+                deployment.wait()
+    # Log dashboard URL
     if deployment.dashboard_url:
         print(
             f"Track deployment progress at "
             f"[link={deployment.dashboard_url}]"
             f"[bold cyan]{deployment.dashboard_url}[/bold cyan][/link]"
         )
-    if wait:
-        deployment.wait()
+    # Log endpoint URL
     if deployment.endpoint_url:
         print(
             f"Endpoint available at [link={deployment.endpoint_url}]"

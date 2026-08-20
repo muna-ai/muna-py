@@ -118,8 +118,8 @@ class CustomProgressTask:
 
     def __init__(
         self,
-        *,
         loading_text: str,
+        *,
         done_text: str=None,
         columns: list[ProgressColumn]=None
     ):
@@ -145,8 +145,13 @@ class CustomProgressTask:
         progress = current_progress.get()
         if progress is not None and self.task_id is not None:
             current_task = progress._tasks[self.task_id]
-            final_status = "error" if exc_type is not None else current_task.fields.get("status")
-            final_description = self.done_text or current_task.description
+            is_error = exc_type is not None
+            final_status = "error" if is_error else current_task.fields.get("status")
+            final_description = (
+                self.loading_text
+                if is_error
+                else self.done_text or current_task.description
+            )
             progress.update(
                 self.task_id,
                 description=final_description,
@@ -162,7 +167,6 @@ class CustomProgressTask:
                 indent_level = current_task.fields.get("indent_level", 0)
                 indicator = "└── "
                 indent = "" if indent_level == 0 else (" " * len(indicator) * (indent_level - 1) + indicator)
-                is_error = final_status == "error"
                 icon = "[bright_red]✘[/bright_red]" if is_error else "[bold green]✔[/bold green]"
                 message = f"{icon} {indent}{final_description}"
                 if is_error:

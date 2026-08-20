@@ -285,7 +285,7 @@ class CompileDialect(BaseModel, **ConfigDict(frozen=True)):
             )
             file_size = Path(archive_path).stat().st_size
             with CustomProgressTask(
-                loading_text=f"[grey50]Uploading {Path(archive_path).name}[/grey50]",
+                f"[grey50]Uploading {Path(archive_path).name}[/grey50]",
                 columns=[
                     BarColumn(),
                     DownloadColumn(),

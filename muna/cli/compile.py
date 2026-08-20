@@ -3,19 +3,12 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
-from base64 import b64decode
 from importlib.util import module_from_spec, spec_from_file_location
 from inspect import getmembers, getmodulename, isfunction
-from os import environ
 from pathlib import Path
 from pydantic import BaseModel
-import re
-from requests import get as http_get
 from rich import print as print_rich
-from shutil import which
-from subprocess import run
 import sys
-from tempfile import TemporaryDirectory
 from typer import Argument, Option
 from typing import Annotated, Callable, Literal
 from urllib.parse import urlparse, urlunparse
@@ -70,7 +63,7 @@ def compile_function(
         sandbox = spec.sandbox
         sandbox.commands.append(entrypoint)
         with CustomProgressTask(
-            loading_text="Uploading sandbox...",
+            "Uploading sandbox...",
             done_text="Uploaded sandbox"
         ):
             sandbox.populate(muna=muna)
@@ -78,8 +71,11 @@ def compile_function(
         if spec.dialects:
             spec.dialects = [_populate_dialect(d, muna=muna) for d in spec.dialects]
         # Compile
-        with CustomProgressTask(loading_text="Running codegen...", done_text="Completed codegen"):
-            with CustomProgressTask(loading_text="Creating predictor..."):
+        with CustomProgressTask(
+            "Running codegen...",
+            done_text="Completed codegen"
+        ):
+            with CustomProgressTask("Creating predictor..."):
                 try:
                     muna.client.request(
                         method="POST",
@@ -129,7 +125,7 @@ def _populate_dialect(
         return dialect
     label = _describe_dialect(dialect)
     with CustomProgressTask(
-        loading_text=f"Uploading dialect [yellow2]{label}[/yellow2]...",
+        f"Uploading dialect [yellow2]{label}[/yellow2]...",
         done_text=f"Uploaded dialect [yellow2]{label}[/yellow2]"
     ):
         return dialect.populate(muna=muna)
@@ -174,91 +170,6 @@ def _compute_predictor_url(
     predictor_url = urlunparse(parsed_url._replace(netloc=netloc, path=f"{tag}"))
     return predictor_url
 
-def _resolve_source_path(
-    path: str,
-    *,
-    trust_remote_code: bool
-) -> Path:
-    # GitHub URL
-    github_match = re.match(r"https://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)", path)
-    if github_match:
-        if not trust_remote_code:
-            raise ValueError(
-                "Cannot transpile remote code without explicit trust. "
-                "Pass --trust-remote-code to confirm you trust this code."
-            )
-        owner, repo, ref, file_path = github_match.groups()
-        return _download_github_file(owner, repo, ref, file_path)
-    # Local path
-    local_path = Path(path).resolve()
-    if not local_path.exists():
-        raise ValueError(f"Cannot transpile because no file exists at path: {local_path}")
-    if not local_path.is_file():
-        raise ValueError(f"Cannot transpile because path is not a file: {local_path}")
-    return local_path
-
-def _download_github_file(
-    owner: str,
-    repo: str,
-    ref: str,
-    file_path: str
-) -> Path:
-    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"
-    headers = { "Accept": "application/vnd.github.v3+json" }
-    github_token = environ.get("GITHUB_TOKEN")
-    if github_token:
-        headers["Authorization"] = f"Bearer {github_token}"
-    response = http_get(api_url, headers=headers, params={ "ref": ref })
-    if response.status_code == 404:
-        raise ValueError(
-            f"Cannot transpile because file not found: {file_path} at ref '{ref}' "
-            f"in repository {owner}/{repo}. Note: branch names containing '/' are not supported."
-        )
-    response.raise_for_status()
-    data = response.json()
-    # Decode content
-    if data.get("encoding") == "base64":
-        content = b64decode(data["content"])
-    else:
-        download_response = http_get(data["download_url"], headers=headers)
-        download_response.raise_for_status()
-        content = download_response.content
-    # Write to temp file
-    with TemporaryDirectory(delete=False) as tmp_dir:
-        name = Path(file_path).name
-        path = Path(tmp_dir) / name
-        path.write_bytes(content)
-        return path
-
-def _sync_and_load_script_env(path: Path):
-    # Check that uv is installed
-    uv = which("uv")
-    if uv is None:
-        raise RuntimeError(
-            "Cannot install dependencies because `uv` is not installed. "
-            "Install `uv` from https://docs.astral.sh/uv or use `--skip-deps` "
-            "and manually install the script's dependencies."
-        )
-    # Sync
-    env = { k: v for k, v in environ.items() if k != "VIRTUAL_ENV" }
-    run([
-        uv, "sync",
-        "--script", str(path),
-        "--python", sys.executable
-    ], check=True, env=env)
-    # Get the environment path
-    result = run([
-        uv, "python", "find",
-        "--script", str(path)
-    ], capture_output=True, text=True, check=True, env=env)
-    script_python = Path(result.stdout.strip())
-    env_root = script_python.parent.parent
-    site_packages = next(env_root.glob("lib/python*/site-packages"))
-    # Add to sys.path
-    site_str = str(site_packages)
-    if site_str not in sys.path:
-        sys.path.insert(0, site_str)
-
 class _Predictor(BaseModel):
     tag: str
 
@@ -300,7 +211,7 @@ class ProgressLogQueue:
                 break
             current_task.__exit__(None, None, None)
             self.queue.pop()
-        task = CustomProgressTask(loading_text=event.data.message)
+        task = CustomProgressTask(event.data.message)
         task.__enter__()
         self.queue.append((event.data.level, task))
 

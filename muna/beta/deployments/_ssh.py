@@ -126,7 +126,7 @@ def build_server_script(
     install_dir: str = "/app"
 ) -> str:
     """
-    Build a remote script that installs, preloads, and launches muna-server.
+    Build a remote script that installs and launches muna-server.
     """
     access_key = quote(access_key)
     tag = quote(tag)
@@ -134,7 +134,7 @@ def build_server_script(
         'echo $$ > "$DIR/muna-server.pid"; '
         'exec env LD_LIBRARY_PATH="$DIR" MUNA_HOME="$DIR/.muna" '
         f"MUNA_ACCESS_KEY={access_key} MUNA_SERVER_MODELS={tag} PORT={SERVER_PORT} "
-        '"$DIR/muna-server" serve'
+        '"$DIR/muna-server"'
     )
     return (
         "set -e\n"
@@ -143,9 +143,6 @@ def build_server_script(
         f'curl -fsSL {MUNA_SERVER_URL} -o "$DIR/muna-server" && '
         'chmod +x "$DIR/muna-server"\n'
         f'curl -fsSL {FXNC_LIBRARY_URL} -o "$DIR/libFunction.so"\n'
-        'env LD_LIBRARY_PATH="$DIR" MUNA_HOME="$DIR/.muna" '
-        f"MUNA_ACCESS_KEY={access_key} "
-        f'"$DIR/muna-server" preload {tag}\n'
         '[ -f "$DIR/muna-server.pid" ] && '
         'kill "$(cat "$DIR/muna-server.pid")" 2>/dev/null || true\n'
         f"setsid bash -c {quote(serve_command)} "

@@ -302,7 +302,8 @@ def _parse_chat_completion_chunk(data: dict[str, object]) -> ChatCompletionChunk
                 index=choice.index,
                 delta=DeltaMessage(
                     role=choice.message.role,
-                    content=choice.message.content
+                    content=choice.message.content,
+                    reasoning_content=choice.message.reasoning_content
                 ),
                 finish_reason=choice.finish_reason
             ) for choice in completion.choices],
@@ -318,9 +319,24 @@ def _create_chat_completion_choice(
     choices: list[StreamChoice]
 ) -> Choice:
     role = choices[0].delta.role
-    content = "".join(choice.delta.content for choice in choices if choice.delta)
-    message = message=Message(role=role, content=content)
-    finish_reason = next((choice.finish_reason for choice in choices if choice.finish_reason), None)
+    content = "".join(
+        choice.delta.content for choice in choices
+        if choice.delta and choice.delta.content
+    )
+    reasoning_content = "".join(
+        choice.delta.reasoning_content for choice in choices
+        if choice.delta and choice.delta.reasoning_content
+    )
+    message = Message(
+        role=role,
+        content=content,
+        reasoning_content=reasoning_content if reasoning_content else None
+    )
+    finish_reason = next((
+        choice.finish_reason
+        for choice in choices
+        if choice.finish_reason
+    ), None)
     result = Choice(
         index=index,
         message=message,

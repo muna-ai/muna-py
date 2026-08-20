@@ -1,5 +1,8 @@
 ## 0.1.24
-*INCOMPLETE*
++ Added `Message.reasoning_content` field in the OpenAI-compatible client, following the DeepSeek convention for reasoning models.
++ Added `DeltaMessage.reasoning_content` field in the OpenAI-compatible client for streaming reasoning deltas.
++ Added `Usage.completion_tokens_details` field in the OpenAI-compatible client for tracking reasoning tokens.
++ Fixed streaming chat completion accumulation crashing on deltas with no `content` (e.g. reasoning-only deltas).
 
 ## 0.1.23
 + Minor updates.

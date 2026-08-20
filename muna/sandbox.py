@@ -198,7 +198,7 @@ class Sandbox(BaseModel):
                 files = command.get_files()
                 name = from_path.relative_to(cwd) if from_path.is_relative_to(cwd) else from_path.resolve()
                 with CustomProgressTask(
-                    loading_text=f"Uploading [light_slate_blue]{name}[/light_slate_blue]...",
+                    f"Uploading [light_slate_blue]{name}[/light_slate_blue]...",
                     done_text=f"Uploaded [light_slate_blue]{name}[/light_slate_blue]",
                     columns=[
                         BarColumn(),

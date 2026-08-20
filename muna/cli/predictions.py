@@ -46,7 +46,7 @@ async def _predict_async(
     with CustomProgress(transient=True, disable=quiet):
         muna = Muna(get_access_key())
         with CustomProgressTask(
-            loading_text="Preloading predictor...",
+            "Preloading predictor...",
             done_text="Preloaded predictor"
         ):
             predictor = muna.predictors.retrieve(tag)
@@ -76,7 +76,7 @@ async def _predict_async(
                     f"were not provided: {', '.join('--' + name for name in missing_args)}."
                 )
         # Create prediction
-        with CustomProgressTask(loading_text="Making prediction..."):
+        with CustomProgressTask("Making prediction..."):
             inputs = {
                 name: _parse_value(data, input_params[name])
                 for name, data in raw_args.items()
