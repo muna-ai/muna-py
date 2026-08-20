@@ -1,3 +1,6 @@
+## 0.1.25
+*INCOMPLETE*
+
 ## 0.1.24
 + Added `Message.reasoning_content` field in the OpenAI-compatible client, following the DeepSeek convention for reasoning models.
 + Added `DeltaMessage.reasoning_content` field in the OpenAI-compatible client for streaming reasoning deltas.
