@@ -3,11 +3,13 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
+from typing_extensions import deprecated
+
 from ..types import Dtype, Parameter
 
 class Annotations:
     """
-    OpenAI annotations.
+    Predictor parameter annotations for inference client compatibility.
     """
 
     @classmethod
@@ -167,6 +169,7 @@ class Annotations:
         )
 
     @classmethod
+    @deprecated("Use `Annotations.TopP` instead.")
     def SamplingProbability(
         cls,
         *,
@@ -177,18 +180,57 @@ class Annotations:
     ) -> Parameter:
         """
         Sampling probability parameter.
+
+        Deprecated: Use `Annotations.TopP` instead.
         """
-        return Parameter(
-            name="",
+        return cls.TopP(
             description=description,
-            denotation="openai.chat.completions.top_p",
             min=min,
             max=max,
             **kwargs
         )
 
     @classmethod
+    @deprecated("Use `Annotations.Temperature` instead.")
     def SamplingTemperature(
+        cls,
+        *,
+        description: str,
+        min: float | None=None,
+        max: float | None=None,
+        **kwargs
+    ) -> Parameter:
+        """
+        Sampling temperature parameter.
+
+        Deprecated: Use `Annotations.Temperature` instead.
+        """
+        return cls.Temperature(
+            description=description,
+            min=min,
+            max=max,
+            **kwargs
+        )
+
+    @classmethod
+    def StopSequences(
+        cls,
+        *,
+        description: str,
+        **kwargs
+    ) -> Parameter:
+        """
+        Stop sequences parameter for the Anthropic messages API.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="anthropic.messages.stop_sequences",
+            **kwargs
+        )
+
+    @classmethod
+    def Temperature(
         cls,
         *,
         description: str,
@@ -203,6 +245,48 @@ class Annotations:
             name="",
             description=description,
             denotation="openai.chat.completions.temperature",
+            min=min,
+            max=max,
+            **kwargs
+        )
+
+    @classmethod
+    def TopK(
+        cls,
+        *,
+        description: str,
+        min: int | None=None,
+        max: int | None=None,
+        **kwargs
+    ) -> Parameter:
+        """
+        Top-K sampling parameter for the Anthropic messages API.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="anthropic.messages.top_k",
+            min=min,
+            max=max,
+            **kwargs
+        )
+
+    @classmethod
+    def TopP(
+        cls,
+        *,
+        description: str,
+        min: float | None=None,
+        max: float | None=None,
+        **kwargs
+    ) -> Parameter:
+        """
+        Top-P (nucleus) sampling parameter.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="openai.chat.completions.top_p",
             min=min,
             max=max,
             **kwargs

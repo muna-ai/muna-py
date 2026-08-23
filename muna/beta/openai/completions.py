@@ -13,8 +13,7 @@ from ...types import Acceleration, Dtype, Prediction
 from ..annotations import get_parameter
 from .schema import (
     ChatCompletion, ChatCompletionChunk, ChatCompletionReasoningEffort,
-    Choice, DeltaMessage, Message, _MessageDict, _ResponseFormatDict,
-    StreamChoice
+    Choice, Message, _MessageDict, _ResponseFormatDict, StreamChoice
 )
 
 ChatCompletionDelegate = Callable[..., ChatCompletion | Iterator[ChatCompletionChunk]]
@@ -185,19 +184,20 @@ class ChatCompletionService:
             dtype={ Dtype.float32, Dtype.float64 },
             denotation="openai.chat.completions.presence_penalty"
         )
-        # Get chat completion output param
+        # Get chat completion chunk output param
         completion_param_idx = next((
             idx
             for idx, param in enumerate(signature.outputs)
             if (
                 param.dtype == Dtype.dict and
-                param.value_schema["title"] in { "ChatCompletion", "ChatCompletionChunk" }
+                param.value_schema["title"] == "ChatCompletionChunk"
             )
         ), None)
         if completion_param_idx is None:
             raise ValueError(
                 f"{tag} cannot be used with OpenAI chat completions API because "
-                "it does not have a valid chat completion output parameter."
+                "it does not have a valid chat completion chunk output parameter. "
+                "Chat predictors must yield `ChatCompletionChunk` outputs."
             )
         # Create delegate
         def delegate(
@@ -237,11 +237,12 @@ class ChatCompletionService:
                 acceleration=acceleration
             )
             completion_stream = _gather_completion_outputs(prediction_stream, completion_param_idx)
+            chunks = map(_parse_chat_completion_chunk, completion_stream)
             # Return
             if stream:
-                return map(_parse_chat_completion_chunk, completion_stream)
+                return chunks
             else:
-                return _parse_chat_completion(list(completion_stream))
+                return _merge_chunks(list(chunks))
         # Return
         return delegate
 
@@ -254,65 +255,50 @@ def _gather_completion_outputs(
             raise RuntimeError(prediction.error)
         yield prediction.results[completion_param_idx]
 
-def _parse_chat_completion(outputs: list[object]) -> ChatCompletion:
-    if not outputs:
+def _merge_chunks(chunks: list[ChatCompletionChunk]) -> ChatCompletion:
+    if not chunks:
         raise ValueError(f"Failed to parse chat completion because model did not return any outputs")
-    try:
-        completions = TypeAdapter(list[ChatCompletion]).validate_python(outputs)
-        return completions[-1]
-    except ValidationError:
-        pass
-    try:
-        chunks = TypeAdapter(list[ChatCompletionChunk]).validate_python(outputs)
-        choices_map = defaultdict[int, list[StreamChoice]](list)
-        for chunk in chunks:
-            for choice in chunk.choices:
-                choices_map[choice.index].append(choice)
-        choices = [_create_chat_completion_choice(index, choices) for index, choices in choices_map.items()]
-        chunk_usages = [chunk.usage for chunk in chunks if chunk.usage is not None]
-        usage = ChatCompletion.Usage(
-            prompt_tokens=sum(usage.prompt_tokens for usage in chunk_usages),
-            completion_tokens=sum(usage.completion_tokens for usage in chunk_usages),
-            total_tokens=sum(usage.total_tokens for usage in chunk_usages)
-        )
-        completion = ChatCompletion(
-            id=chunks[0].id,
-            created=chunks[0].created,
-            model=chunks[0].model,
-            choices=choices,
-            usage=usage
-        )
-        return completion
-    except ValidationError:
-        pass
-    raise ValueError(f"Failed to parse chat completion from model outputs: {outputs}")
+    choices_map = defaultdict[int, list[StreamChoice]](list)
+    for chunk in chunks:
+        for choice in chunk.choices:
+            choices_map[choice.index].append(choice)
+    choices = [_create_chat_completion_choice(index, choices) for index, choices in choices_map.items()]
+    chunk_usages = [chunk.usage for chunk in chunks if chunk.usage is not None]
+    usage = ChatCompletion.Usage(
+        prompt_tokens=sum(usage.prompt_tokens for usage in chunk_usages),
+        completion_tokens=sum(usage.completion_tokens for usage in chunk_usages),
+        total_tokens=sum(usage.total_tokens for usage in chunk_usages),
+        # Engines report token details (e.g. cached / reasoning tokens) on the
+        # final usage-bearing chunk; sums would double-count, so take the last.
+        prompt_tokens_details=next((
+            usage.prompt_tokens_details
+            for usage in reversed(chunk_usages)
+            if usage.prompt_tokens_details is not None
+        ), None),
+        completion_tokens_details=next((
+            usage.completion_tokens_details
+            for usage in reversed(chunk_usages)
+            if usage.completion_tokens_details is not None
+        ), None)
+    )
+    completion = ChatCompletion(
+        id=chunks[0].id,
+        created=chunks[0].created,
+        model=chunks[0].model,
+        choices=choices,
+        usage=usage
+    )
+    return completion
 
 def _parse_chat_completion_chunk(data: dict[str, object]) -> ChatCompletionChunk:
     try:
         return TypeAdapter(ChatCompletionChunk).validate_python(data)
     except ValidationError:
         pass
-    try:
-        completion = TypeAdapter(ChatCompletion).validate_python(data)
-        chunk = ChatCompletionChunk(
-            id=completion.id,
-            created=completion.created,
-            model=completion.model,
-            choices=[StreamChoice(
-                index=choice.index,
-                delta=DeltaMessage(
-                    role=choice.message.role,
-                    content=choice.message.content,
-                    reasoning_content=choice.message.reasoning_content
-                ),
-                finish_reason=choice.finish_reason
-            ) for choice in completion.choices],
-            usage=completion.usage,
-        )
-        return chunk
-    except ValidationError:
-        pass
-    raise ValueError(f"Failed to parse streaming chat completion chunk from model output: {data}")
+    raise ValueError(
+        f"Failed to parse chat completion chunk from model output: {data}. "
+        "Chat predictors must yield `ChatCompletionChunk` outputs."
+    )
 
 def _create_chat_completion_choice(
     index: int,

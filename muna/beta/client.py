@@ -5,6 +5,7 @@
 
 from ..client import MunaClient
 from ..services import PredictorService, PredictionService
+from .anthropic import AnthropicClient
 from .deployments import DeploymentService
 from .openai import OpenAIClient
 
@@ -12,6 +13,7 @@ class BetaClient:
     """
     Client for incubating features.
     """
+    anthropic: AnthropicClient
     openai: OpenAIClient
     
     def __init__(
@@ -20,5 +22,6 @@ class BetaClient:
         predictors: PredictorService,
         predictions: PredictionService
     ):
+        self.anthropic = AnthropicClient(predictors, predictions)
         self.deployments = DeploymentService(client)
         self.openai = OpenAIClient(predictors, predictions)

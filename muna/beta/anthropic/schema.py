@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 from pydantic import BaseModel, Field
-from typing import Annotated, Literal
+from typing import Annotated, Literal, TypedDict
 
 StopReason = Literal[
     "end_turn",
@@ -17,11 +17,23 @@ StopReason = Literal[
 ]
 
 class TextBlock(BaseModel):
-    type: Literal["text"]
+    """
+    Text content block.
+    """
+    type: Literal["text"] = Field(default="text", init=False)
     text: str = Field(description="Response text.")
 
+class ThinkingBlock(BaseModel):
+    """
+    Thinking content block.
+    """
+    type: Literal["thinking"] = Field(default="thinking", init=False)
+    thinking: str = Field(description="Reasoning contents preceding the final answer.")
+    signature: str = Field(default="", description="Signature verifying the thinking block. Always empty for Muna predictions.")
+
 ContentBlock = Annotated[
-    TextBlock,
+    TextBlock   |
+    ThinkingBlock,
     Field(discriminator="type")
 ]
 
@@ -42,5 +54,86 @@ class Usage(BaseModel):
     """
     Billing usage.
     """
-    input_tokens: int = Field(description="Number of input tokens which were used.")
+    input_tokens: int | None = Field(default=None, description="Number of input tokens which were used, excluding cached tokens.")
     output_tokens: int = Field(description="Number of output tokens which were used.")
+    cache_creation_input_tokens: int | None = Field(default=None, description="Number of input tokens used to create the cache entry.")
+    cache_read_input_tokens: int | None = Field(default=None, description="Number of input tokens read from the cache.")
+
+class TextDelta(BaseModel):
+    """
+    Text content delta.
+    """
+    type: Literal["text_delta"] = Field(default="text_delta", init=False)
+    text: str = Field(description="Text fragment.")
+
+class ThinkingDelta(BaseModel):
+    """
+    Thinking content delta.
+    """
+    type: Literal["thinking_delta"] = Field(default="thinking_delta", init=False)
+    thinking: str = Field(description="Reasoning text fragment.")
+
+class RawMessageStartEvent(BaseModel):
+    """
+    Message start event.
+    """
+    type: Literal["message_start"] = Field(default="message_start", init=False)
+    message: Message = Field(description="Message with empty content.")
+
+class RawContentBlockStartEvent(BaseModel):
+    """
+    Content block start event.
+    """
+    type: Literal["content_block_start"] = Field(default="content_block_start", init=False)
+    index: int = Field(description="Content block index in the message.")
+    content_block: ContentBlock = Field(description="Content block with empty contents.")
+
+class RawContentBlockDeltaEvent(BaseModel):
+    """
+    Content block delta event.
+    """
+    type: Literal["content_block_delta"] = Field(default="content_block_delta", init=False)
+    index: int = Field(description="Content block index in the message.")
+    delta: Annotated[TextDelta | ThinkingDelta, Field(discriminator="type")]
+
+class RawContentBlockStopEvent(BaseModel):
+    """
+    Content block stop event.
+    """
+    type: Literal["content_block_stop"] = Field(default="content_block_stop", init=False)
+    index: int = Field(description="Content block index in the message.")
+
+class RawMessageDeltaEvent(BaseModel):
+    """
+    Message delta event.
+    """
+    class MessageDelta(BaseModel):
+        stop_reason: StopReason | None = Field(default=None, description="Reason that we stopped.")
+        stop_sequence: str | None = Field(default=None, description="Which custom stop sequence was generated, if any.")
+    type: Literal["message_delta"] = Field(default="message_delta", init=False)
+    delta: MessageDelta = Field(description="Changes to the top-level message.")
+    usage: Usage = Field(description="Cumulative billing and rate-limit usage.")
+
+class RawMessageStopEvent(BaseModel):
+    """
+    Message stop event.
+    """
+    type: Literal["message_stop"] = Field(default="message_stop", init=False)
+
+RawMessageStreamEvent = Annotated[
+    RawMessageStartEvent        |
+    RawContentBlockStartEvent   |
+    RawContentBlockDeltaEvent   |
+    RawContentBlockStopEvent    |
+    RawMessageDeltaEvent        |
+    RawMessageStopEvent,
+    Field(discriminator="type")
+]
+
+class _TextBlockParamDict(TypedDict):
+    type: Literal["text"]
+    text: str
+
+class _MessageParamDict(TypedDict):
+    role: Literal["user", "assistant"]
+    content: str | list[_TextBlockParamDict]

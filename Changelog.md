@@ -1,5 +1,13 @@
 ## 0.1.25
-*INCOMPLETE*
++ Added `muna.beta.anthropic.messages.create` method for creating messages with our Anthropic-compatible client.
++ Added `muna.beta.anthropic.messages.stream` method for streaming messages with our Anthropic-compatible client.
++ Added `beta.Annotations.Temperature` annotation for denoting a sampling temperature parameter.
++ Added `beta.Annotations.TopP` annotation for denoting a top-p (nucleus) sampling parameter.
++ Added `beta.Annotations.TopK` annotation for denoting a top-k sampling parameter in the Anthropic messages API.
++ Added `beta.Annotations.StopSequences` annotation for denoting a stop sequences parameter in the Anthropic messages API.
++ Refactored OpenAI-compatible client to require that chat predictors yield `ChatCompletionChunk` outputs. Predictors that return a full `ChatCompletion` are no longer supported.
++ Deprecated `beta.Annotations.SamplingTemperature` annotation. Use `beta.Annotations.Temperature` annotation instead.
++ Deprecated `beta.Annotations.SamplingProbability` annotation. Use `beta.Annotations.TopP` annotation instead.
 
 ## 0.1.24
 + Added `Message.reasoning_content` field in the OpenAI-compatible client, following the DeepSeek convention for reasoning models.

@@ -4,6 +4,10 @@
 #
 
 from .anthropic import AnthropicClient
+from .messages import MessageStream
 from .schema import (
-    ContentBlock, Message, StopReason, TextBlock, Usage
+    ContentBlock, Message, RawContentBlockDeltaEvent, RawContentBlockStartEvent,
+    RawContentBlockStopEvent, RawMessageDeltaEvent, RawMessageStartEvent,
+    RawMessageStopEvent, RawMessageStreamEvent, StopReason, TextBlock,
+    TextDelta, ThinkingBlock, ThinkingDelta, Usage
 )
