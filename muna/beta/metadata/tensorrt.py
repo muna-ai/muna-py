@@ -11,16 +11,14 @@ from ._torch import TorchInferenceMetadataBase
 
 CudaArchitecture = Literal[
     "sm_80",    # Ampere
-    "sm_80+",   # Ampere or newer
-    "sm_86",    # Ampere
     "sm_89",    # Ada Lovelace
     "sm_90",    # Hopper
     "sm_100",   # Blackwell
+    "sm_103",   # Blackwell Ultra
 ]
 
 class _TensorRTInferenceMetadataBase(BaseModel, **ConfigDict(frozen=True)):
     cuda_arch: CudaArchitecture = Field(
-        default="sm_80+",
         description="Target CUDA architecture for the TensorRT engine.",
         exclude=True
     )

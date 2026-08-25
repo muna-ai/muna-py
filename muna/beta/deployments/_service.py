@@ -87,6 +87,8 @@ class DeploymentService:
             pricing=pricing
         )
         record = self.__create_record(spec)
+        if spec.kind == "shared":
+            return _SharedDeployment(endpoint_url=record.endpoint or "")
         deployment = _create_deployment(spec, record.key)
         self.__update_record(
             record.id,
@@ -163,6 +165,14 @@ def _parse_gpu(acceleration: DeploymentAcceleration) -> tuple[DeploymentGPU, int
         case "remote_h200": return "h200", count
         case "remote_b200": return "b200", count
         case _: raise ValueError(f"Unsupported deployment acceleration: {acceleration!r}.")
+
+class _SharedDeployment(Deployment):
+    """
+    Shared deployment served by the Muna inference control plane.
+    """
+
+    def wait(self):
+        pass
 
 class _DeploymentRecord(BaseModel):
     """

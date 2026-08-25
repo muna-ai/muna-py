@@ -8,6 +8,8 @@
 + Refactored OpenAI-compatible client to require that chat predictors yield `ChatCompletionChunk` outputs. Predictors that return a full `ChatCompletion` are no longer supported.
 + Deprecated `beta.Annotations.SamplingTemperature` annotation. Use `beta.Annotations.Temperature` annotation instead.
 + Deprecated `beta.Annotations.SamplingProbability` annotation. Use `beta.Annotations.TopP` annotation instead.
++ Removed `TorchToSGLangInferenceMetadata.enable_decode_graphs` field.
++ Removed `TorchToSGLangInferenceMetadata.enable_prefill_graphs` field.
 
 ## 0.1.24
 + Added `Message.reasoning_content` field in the OpenAI-compatible client, following the DeepSeek convention for reasoning models.

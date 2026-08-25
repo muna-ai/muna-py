@@ -11,7 +11,18 @@ from ._speculative import SpeculativeDecodingConfig
 from ._torch import validate_torch_module
 from .tensorrt import CudaArchitecture
 
-SGLangComputeArchitecture = CudaArchitecture
+HipArchitecture = Literal[
+    "gfx950",   # CDNA 4
+]
+MetalArchitecture = Literal[
+    "metal_3",  # Metal 3
+    "metal_4",  # Metal 4
+]
+SGLangComputeArchitecture = (
+    CudaArchitecture    |
+    HipArchitecture     |
+    MetalArchitecture
+)
 
 class SGLangDisaggregationConfig(BaseModel, **ConfigDict(frozen=True)):
     """
@@ -19,12 +30,12 @@ class SGLangDisaggregationConfig(BaseModel, **ConfigDict(frozen=True)):
     """
     topology: Literal["intra_node", "inter_node"] = Field(description="Disaggregation topology.")
     prefill_tensor_parallelism: int | None = Field(
-        default=None,
+        None,
         description="Prefill tensor parallelism size. Defaults to SGLang tensor parallelism.",
         ge=1,
     )
     decode_tensor_parallelism: int | None = Field(
-        default=None,
+        None,
         description="Decode tensor parallelism size. Defaults to SGLang tensor parallelism.",
         ge=1,
     )
@@ -39,10 +50,11 @@ class TorchToSGLangInferenceMetadata(
     Members:
         model (torch.nn.Module): Large language model to compile.
         compute_architecture (SGLangComputeArchitecture): Compute architecture which the SGLang engine targets.
-        speculative_decoding (SpeculativeDecodingConfig): Speculative decoding configuration.
         max_running_requests (int): Maximum concurrent in-flight requests at the scheduler.
         max_total_tokens (int): Total KV cache capacity.
         tensor_parallelism (int): Tensor parallelism size.
+        speculative_decoding (SpeculativeDecodingConfig): Speculative decoding configuration.
+        disaggregation (SGLangDisaggregationConfig): Disaggregated inference configuration.
     """
     kind: Literal["meta.inference.sglang"] = Field("meta.inference.sglang", init=False)
     model: Annotated[object, BeforeValidator(validate_torch_module)] = Field(
@@ -54,45 +66,35 @@ class TorchToSGLangInferenceMetadata(
         exclude=True
     )
     max_running_requests: int | None = Field(
-        default=None,
+        None,
         description="Maximum concurrent in-flight requests at the scheduler.",
         ge=1,
         exclude=True,
     )
     max_total_tokens: int | None = Field(
-        default=None,
+        None,
         description="Total KV cache capacity.",
         ge=1,
         exclude=True,
     )
     tensor_parallelism: int | None = Field(
-        default=None,
+        None,
         description="Tensor parallelism size.",
         ge=1,
         exclude=True
     )
     speculative_decoding: SpeculativeDecodingConfig | None = Field(
-        default=None,
+        None,
         description="Speculative decoding configuration.",
         exclude=True
     )
     disaggregation: SGLangDisaggregationConfig | None = Field(
-        default=None,
+        None,
         description="Disaggregated inference configuration.",
         exclude=True
     )
-    enable_decode_graphs: bool | None = Field(
-        default=None,
-        description="Capture and replay decode-step device graphs. Defaults to enabled.",
-        exclude=True
-    )
-    enable_prefill_graphs: bool | None = Field(
-        default=None,
-        description="Warm covering prefill device graphs at engine bring-up. Defaults to disabled.",
-        exclude=True
-    )
     experimental: dict[str, object] | None = Field(
-        default=None,
+        None,
         description="Experimental configuration. Do not use unless you know what you are using.",
         exclude=True
     )
