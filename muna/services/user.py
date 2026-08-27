@@ -3,7 +3,7 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
-from ..client import MunaClient, MunaAPIError
+from ..api import MunaClient, MunaAPIError
 from ..types import User
 
 class UserService:

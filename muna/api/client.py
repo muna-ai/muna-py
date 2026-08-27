@@ -4,12 +4,12 @@
 #
 
 from collections.abc import Callable
-from hashlib import file_digest
+from hashlib import file_digest, sha256
 from hf_transfer import download, multipart_upload
 from io import SEEK_END, SEEK_SET
 from json import loads, JSONDecodeError
 from math import ceil
-from os import close as os_close
+from os import close as os_close, environ, fsync
 from pathlib import Path
 from pydantic import BaseModel, Field, TypeAdapter
 from requests import head, request
@@ -18,7 +18,7 @@ from rich.progress import (
     Progress, BarColumn, DownloadColumn, TextColumn,
     TimeRemainingColumn, TransferSpeedColumn
 )
-from tempfile import mkstemp, NamedTemporaryFile
+from tempfile import gettempdir, mkstemp, NamedTemporaryFile
 from typing import BinaryIO, Iterator, Literal, Type, TypeVar
 from urllib.parse import urlparse
 
@@ -245,6 +245,53 @@ class MunaClient:
         # Return
         return f"{RESOURCE_URL_BASE}/{resource_hash}"
 
+    def get_cache_entry(self, key: str) -> str | None:
+        """
+        Get a cache entry.
+
+        Parameters:
+            key (str): Cache entry key.
+        """
+        try:
+            return _get_cache_entry_path(key).read_text(encoding="utf-8")
+        except OSError:
+            return None
+
+    def set_cache_entry(self, key: str, value: str | None) -> None:
+        """
+        Set a cache entry.
+
+        Parameters:
+            key (str): Cache entry key.
+            value (str): Cache entry value. Pass `None` to unset the key.
+        """
+        path = _get_cache_entry_path(key)
+        if value is None:
+            path.unlink(missing_ok=True)
+            return
+        tmp_path: Path | None = None
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=path.parent,
+                prefix=f"{path.name}.",
+                suffix=".tmp",
+                delete=False
+            ) as file:
+                tmp_path = Path(file.name)
+                file.write(value)
+                file.flush()
+                fsync(file.fileno())
+            tmp_path.replace(path)
+            tmp_path = None
+        except OSError:
+            pass
+        finally:
+            if tmp_path is not None:
+                tmp_path.unlink(missing_ok=True)
+
     def __upload_resource_multipart(
         self,
         source: Path | BinaryIO,
@@ -327,6 +374,33 @@ class MunaClient:
             except:
                 pass
             raise e
+
+def _get_cache_entry_path(key: str) -> Path:
+    digest = sha256(key.encode("utf-8")).hexdigest()
+    return _get_cache_dir() / "entries" / f"{digest}.json"
+
+def _get_cache_dir() -> Path:
+    directory = _get_muna_home() / "cache"
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+def _get_muna_home() -> Path:
+    candidates = []
+    if muna_home := environ.get("MUNA_HOME"):
+        candidates.append(Path(muna_home).expanduser())
+    candidates.append(Path.home() / ".fxn")
+    candidates.append(Path(gettempdir()) / ".fxn")
+    for directory in candidates:
+        try:
+            directory.mkdir(parents=True, exist_ok=True)
+            test = directory / ".muna_write_test"
+            with open(test, "w") as file:
+                file.write("muna")
+            test.unlink()
+            return directory
+        except OSError:
+            continue
+    return Path(gettempdir()) / ".fxn"
 
 def _parse_sse_event(event: str, data: str, type: Type[T]=None) -> T:
     result = { "event": event, "data": loads(data) }

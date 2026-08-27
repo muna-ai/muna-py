@@ -90,7 +90,13 @@ def deploy_function(
         "--input-price",
         hidden=True,
         min=0,
-        help="Price per million input tokens, image, or minute in USD."
+        help="Price per million input tokens, per image, or per minute in USD."
+    )] = None,
+    cached_input_price: Annotated[float | None, Option(
+        "--cached-input-price",
+        hidden=True,
+        min=0,
+        help="Price per million cached input tokens in USD."
     )] = None,
     output_price: Annotated[float | None, Option(
         "--output-price",
@@ -125,6 +131,7 @@ def deploy_function(
             shared=shared,
             kind=pricing_kind,
             input_price=input_price,
+            cached_input_price=cached_input_price,
             output_price=output_price
         )
         acceleration = cast(Acceleration, f"remote_{gpu or 'cpu'}")
@@ -184,11 +191,12 @@ def _build_deployment_pricing(
     shared: bool,
     kind: DeploymentPricingKind | None,
     input_price: float | None,
+    cached_input_price: float | None,
     output_price: float | None
 ) -> DeploymentPricing | None:
     has_pricing_option = any(
         value is not None
-        for value in (kind, input_price, output_price)
+        for value in (kind, input_price, cached_input_price, output_price)
     )
     if not shared:
         if has_pricing_option:
@@ -214,6 +222,7 @@ def _build_deployment_pricing(
                 raise Exit(code=1)
             return TokenDeploymentPricing(
                 input_per_million=input_price,
+                cached_input_per_million=cached_input_price,
                 output_per_million=output_price
             )
         case "images":

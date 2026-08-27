@@ -5,8 +5,8 @@
 
 from os import environ
 
+from .api import MunaClient
 from .beta.client import BetaClient
-from .client import MunaClient
 from .services import PredictionService, PredictorService, UserService
 
 class Muna:
@@ -36,8 +36,16 @@ class Muna:
         *,
         api_url: str | None=None
     ):
-        access_key = access_key or environ.get("MUNA_ACCESS_KEY") or environ.get("FXN_ACCESS_KEY")
-        api_url = api_url or environ.get("MUNA_API_URL") or environ.get("FXN_API_URL")
+        access_key = (
+            access_key or
+            environ.get("MUNA_ACCESS_KEY") or
+            environ.get("FXN_ACCESS_KEY")
+        )
+        api_url = (
+            api_url or
+            environ.get("MUNA_API_URL") or
+            environ.get("FXN_API_URL")
+        )
         self.client = MunaClient(access_key, api_url)
         self.users = UserService(self.client)
         self.predictors = PredictorService(self.client)

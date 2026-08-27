@@ -4,26 +4,22 @@
 #
 
 from __future__ import annotations
-from base64 import b64decode, b64encode
+from base64 import b64encode
 from datetime import datetime, timezone
 from io import BytesIO
 from json import dumps, loads
 from numpy import array, generic, ndarray, savez_compressed
-from os import environ
-from pathlib import Path
 from PIL import Image
 from pydantic import BaseModel, ConfigDict, ValidationError
 from requests import get
-from tempfile import gettempdir
 from typing import Iterator, Literal
-from urllib.parse import urlparse
 from urllib.request import urlopen
 
+from ..api import parse_configuration_claims, MunaClient, PredictionCache
 from ..c import Configuration, Predictor, Prediction as CPrediction, ValueMap
 from ..c.value import _ensure_object_serializable, Value as CValue, _TENSOR_DTYPES
-from ..client import MunaClient
 from ..types import (
-    Acceleration, Dtype, Prediction, PredictionResource,
+    Acceleration, Dtype, Prediction,
     RemotePrediction, RemoteValue, Value
 )
 
@@ -34,13 +30,12 @@ class PredictionService:
 
     def __init__(self, client: MunaClient):
         self.client = client
-        self.__cache = dict[str, Predictor]()
-        self.__cache_dir = _get_cache_dir()
-        self.__cache_dir.mkdir(parents=True, exist_ok=True)
+        self.cache = PredictionCache(client)
+        self.__predictors = dict[str, Predictor]()
 
     def __del__(self):
-        while self.__cache:
-            _, predictor = self.__cache.popitem()
+        while self.__predictors:
+            _, predictor = self.__predictors.popitem()
             with predictor:
                 pass
 
@@ -51,8 +46,8 @@ class PredictionService:
         inputs: dict[str, Value] | None=None,
         acceleration: Acceleration="local_auto",
         device=None,
-        client_id: str=None,
-        configuration_id: str=None
+        client_id: str | None=None,
+        configuration_id: str | None=None
     ) -> Prediction:
         """
         Create a prediction.
@@ -60,17 +55,23 @@ class PredictionService:
         if inputs is None:
             return self.__create_raw_prediction(
                 tag,
-                client_id=client_id,
-                configuration_id=configuration_id
+                client_id=(
+                    client_id
+                    if client_id is not None
+                    else Configuration.get_client_id()
+                ),
+                configuration_id=(
+                    configuration_id
+                    if configuration_id is not None
+                    else Configuration.get_unique_id()
+                )
             )
         if not inputs or acceleration.startswith("local_"):
             return self.__create_local_prediction(
                 tag,
                 inputs=inputs,
                 acceleration=acceleration,
-                device=device,
-                client_id=client_id,
-                configuration_id=configuration_id
+                device=device
             )
         return self.__create_remote_prediction(
             tag,
@@ -107,10 +108,12 @@ class PredictionService:
         """
         Delete a predictor that is loaded in memory.
         """
-        if tag not in self.__cache:
+        predictor = self.__predictors.pop(tag, None)
+        if predictor is None:
             return False
-        with self.__cache.pop(tag):
-            return True
+        with predictor:
+            pass
+        return True
 
     def __create_local_prediction(
         self,
@@ -118,24 +121,14 @@ class PredictionService:
         *,
         inputs: dict[str, Value],
         acceleration: Acceleration,
-        device=None,
-        client_id: str=None,
-        configuration_id: str=None
+        device=None
     ) -> Prediction:
         if not inputs:
-            prediction = self.__create_raw_prediction(
-                tag,
-                client_id=client_id,
-                configuration_id=configuration_id
-            )
-            self.__create_cached_prediction(prediction)
-            return prediction
+            return self.cache.retrieve(tag)
         predictor = self.__get_predictor(
             tag,
             acceleration=acceleration,
-            device=device,
-            client_id=client_id,
-            configuration_id=configuration_id
+            device=device
         )
         with (
             ValueMap.from_dict(inputs) as input_map,
@@ -217,19 +210,9 @@ class PredictionService:
         self,
         tag: str,
         *,
-        client_id: str=None,
-        configuration_id: str=None
+        client_id: str,
+        configuration_id: str
     ) -> Prediction:
-        client_id = (
-            client_id
-            if client_id is not None
-            else Configuration.get_client_id()
-        )
-        configuration_id = (
-            configuration_id
-            if configuration_id is not None
-            else Configuration.get_unique_id()
-        )
         return self.client.request(
             method="POST",
             path="/predictions",
@@ -241,30 +224,42 @@ class PredictionService:
             response_type=Prediction
         )
 
-    def __create_cached_prediction(self, prediction: Prediction) -> Prediction:
-        resources = [
-            self.__download_resource(resource)
-            for resource in prediction.resources
-        ]
-        return prediction.model_copy(update={ "resources": resources })
-
     def __get_predictor(
         self,
         tag: str,
         *,
         acceleration: Acceleration="local_auto",
-        device: object=None,
-        client_id: str=None,
-        configuration_id: str=None
+        device: object | None=None
     ) -> Predictor:
-        if tag in self.__cache:
-            return self.__cache[tag]
-        prediction = self.__create_raw_prediction(
-            tag,
-            client_id=client_id,
-            configuration_id=configuration_id
-        )
-        prediction = self.__create_cached_prediction(prediction)
+        if tag in self.__predictors:
+            return self.__predictors[tag]
+        prediction = self.cache.retrieve(tag)
+        try:
+            predictor = self.__create_predictor(
+                prediction,
+                acceleration=acceleration,
+                device=device
+            )
+        except _PredictorCreationError:
+            # A cached token can outlive native validation rules. Evict it and
+            # retry once with a fetch pinned to the evicted prediction.
+            self.cache.invalidate(tag)
+            prediction = self.cache.retrieve(tag)
+            predictor = self.__create_predictor(
+                prediction,
+                acceleration=acceleration,
+                device=device
+            )
+        self.__predictors[tag] = predictor
+        return predictor
+
+    def __create_predictor(
+        self,
+        prediction: Prediction,
+        *,
+        acceleration: Acceleration,
+        device: object
+    ) -> Predictor:
         with Configuration() as configuration:
             configuration.tag = prediction.tag
             configuration.token = prediction.configuration
@@ -282,28 +277,16 @@ class PredictionService:
                     entry.metadata,
                     _preload_output(preload_prediction, entry.tag)
                 )
-            predictor = Predictor(configuration)
-        self.__cache[tag] = predictor
-        return predictor
-
-    def __download_resource(
-        self,
-        resource: PredictionResource
-    ) -> PredictionResource:
-        stem = Path(urlparse(resource.url).path).name
-        path = self.__cache_dir / stem
-        path = path / resource.name if resource.name else path
-        if not path.exists():
-            color = "dark_orange" if resource.type != "dso" else "purple"
-            path.parent.mkdir(parents=True, exist_ok=True)
-            self.client.download(resource.url, path, progress=color)
-        return resource.model_copy(update={ "url": str(path) })
+            try:
+                return Predictor(configuration)
+            except RuntimeError as error:
+                raise _PredictorCreationError(str(error)) from error
 
 def _parse_preload_claim(configuration_token: str | None) -> list[_PreloadEntry]:
+    claims = parse_configuration_claims(configuration_token)
+    if claims is None:
+        return []
     try:
-        payload = configuration_token.split(".")[1]
-        payload += "=" * (-len(payload) % 4)
-        claims = loads(b64decode(payload, altchars=b"-_").decode("utf-8"))
         preload = claims.get("preload", [])
         if not isinstance(preload, list):
             return []
@@ -314,7 +297,7 @@ def _parse_preload_claim(configuration_token: str | None) -> list[_PreloadEntry]
             except ValidationError:
                 continue
         return result
-    except (AttributeError, IndexError, TypeError, ValueError):
+    except (TypeError, ValueError):
         return []
 
 def _preload_output(prediction: Prediction, tag: str) -> str:
@@ -477,29 +460,6 @@ def _download_value_data(url: str) -> BytesIO:
     response.raise_for_status()
     return BytesIO(response.content)
 
-def _get_cache_dir() -> Path:
-    directory = _get_muna_home() / "cache"
-    directory.mkdir(parents=True, exist_ok=True)
-    return directory
-
-def _get_muna_home() -> Path:
-    candidates = []
-    if muna_home := environ.get("MUNA_HOME"):
-        candidates.append(Path(muna_home).expanduser())
-    candidates.append(Path.home() / ".fxn")
-    candidates.append(Path(gettempdir()) / ".fxn")
-    for directory in candidates:
-        try:
-            directory.mkdir(parents=True, exist_ok=True)
-            test = directory / ".muna_write_test"
-            with open(test, "w") as file:
-                file.write("muna")
-            test.unlink()
-            return directory
-        except OSError:
-            continue
-    return Path(gettempdir()) / ".fxn"
-
 class _RemotePredictionEvent(BaseModel):
     event: Literal["prediction"]
     data: RemotePrediction
@@ -508,3 +468,6 @@ class _PreloadEntry(BaseModel, **ConfigDict(frozen=True)):
     tag: str
     acceleration: str
     metadata: str
+
+class _PredictorCreationError(RuntimeError):
+    pass

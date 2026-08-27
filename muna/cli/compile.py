@@ -13,8 +13,8 @@ from typer import Argument, Option
 from typing import Annotated, Callable, Literal
 from urllib.parse import urlparse, urlunparse
 
+from ..api import MunaAPIError
 from ..beta.compile import CompileDialect
-from ..client import MunaAPIError
 from ..compile import PredictorSpec
 from ..logging import CustomProgress, CustomProgressTask
 from ..muna import Muna

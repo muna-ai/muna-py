@@ -7,7 +7,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 from typing import cast
 
-from ...client import MunaClient
+from ...api import MunaClient
 from ...types import Acceleration
 from ._schema import (
     Deployment, DeploymentGPU, DeploymentKind, DeploymentPricing,

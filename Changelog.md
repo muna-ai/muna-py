@@ -1,5 +1,5 @@
 ## 0.1.26
-*INCOMPLETE*
++ Minor updates.
 
 ## 0.1.25
 + Added `muna.beta.anthropic.messages.create` method for creating messages with our Anthropic-compatible client.

@@ -94,11 +94,15 @@ class Sandbox(BaseModel):
         command = WorkdirCommand(path=str(path))
         return Sandbox(commands=self.commands + [command])
 
-    def env(self, env: dict[str, str]) -> Sandbox:
+    def env(self, env: dict[str, str | None]) -> Sandbox:
         """
         Set environment variables in the sandbox.
         """
-        command = EnvCommand(env=env)
+        command = EnvCommand(env={
+            key: value
+            for key, value in env.items()
+            if value is not None
+        })
         return Sandbox(commands=self.commands + [command])
 
     def upload_file(

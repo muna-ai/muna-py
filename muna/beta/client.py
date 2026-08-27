@@ -3,7 +3,7 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
-from ..client import MunaClient
+from ..api import MunaClient
 from ..services import PredictorService, PredictionService
 from .anthropic import AnthropicClient
 from .deployments import DeploymentService
