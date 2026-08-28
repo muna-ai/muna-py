@@ -9,8 +9,8 @@ from typer import Argument, Exit, Option
 from typing import Annotated, cast
 
 from ..beta.deployments import (
-    DeploymentGPU, DeploymentPricing, DeploymentPricingKind,
-    DeploymentProvider, DurationDeploymentPricing,
+    DeploymentAccess, DeploymentGPU, DeploymentPricing,
+    DeploymentPricingKind, DeploymentProvider, DurationDeploymentPricing,
     ImageDeploymentPricing, TokenDeploymentPricing
 )
 from ..logging import CustomProgress, CustomProgressTask
@@ -35,14 +35,18 @@ def deploy_function(
         str | None,
         Option(help="Deployed model name.")
     ] = None,
+    access: Annotated[DeploymentAccess, Option(
+        help="Deployment access mode: public, unlisted, or private.",
+        hidden=True
+    )] = "public",
     cpu: Annotated[int | None, Option(
         help="Number of vCPUs to request.",
         min=0,
     )] = None,
-    gpu_count: Annotated[
-        int | None,
-        Option(help="Number of GPUs to request.", min=1)
-    ] = None,
+    gpu_count: Annotated[int | None, Option(
+        help="Number of GPUs to request.",
+        min=1
+    )] = None,
     memory: Annotated[int | None, Option(
         help="Memory to request in MB.",
         min=16
@@ -152,6 +156,7 @@ def deploy_function(
                     acceleration=acceleration,
                     name=name,
                     kind="shared" if shared else "dedicated",
+                    access=access,
                     cpu=cpu,
                     memory=memory,
                     concurrency=concurrency,

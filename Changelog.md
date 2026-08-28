@@ -1,5 +1,6 @@
 ## 0.1.27
-*INCOMPLETE*
++ Removed `featured` parameter in `@muna.compile` decorator.
++ Removed `license` parameter in `@muna.compile` decorator.
 
 ## 0.1.26
 + Minor updates.

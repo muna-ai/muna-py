@@ -6,7 +6,7 @@
 from collections.abc import Callable
 from functools import wraps
 from inspect import isasyncgenfunction, iscoroutinefunction
-from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field
 from types import ModuleType
 from typing import Callable, ParamSpec, TypeVar, cast
 
@@ -16,10 +16,6 @@ from .types import PredictorAccess
 
 P = ParamSpec("P")
 R = TypeVar("R")
-
-class _PredictorCatalog(BaseModel, **ConfigDict(frozen=True)):
-    license: AnyHttpUrl | None = None
-    featured: bool = False
 
 class PredictorSpec(
     BaseModel,
@@ -45,10 +41,6 @@ class PredictorSpec(
         description="Custom dialects to use when compiling the function."
     )
     access: PredictorAccess = Field(description="Predictor access.")
-    catalog: _PredictorCatalog | None = Field(
-        default=None,
-        description="Public model catalog metadata."
-    )
 
 def compile(
     *,
@@ -60,8 +52,6 @@ def compile(
     metadata: list[CompileMetadata] | None = None,
     dialects: list[CompileDialect] | None = None,
     access: PredictorAccess="private",
-    license: str=None,
-    featured: bool=False,
     **kwargs
 ) -> Callable[[Callable[P, R]], Callable[P, R]]:
     """
@@ -76,8 +66,6 @@ def compile(
         metadata (list): Metadata to use when compiling the function.
         dialects (list): Custom dialects to use when compiling the function.
         access (PredictorAccess): Predictor access.
-        license (str): Predictor license URL.
-        featured (bool): Whether to feature the predictor in curated surfaces.
     """
     def decorator(func: Callable):
         # Check type
@@ -92,10 +80,6 @@ def compile(
             sandbox=sandbox if sandbox is not None else Sandbox(),
             targets=targets,
             access=access,
-            catalog=_PredictorCatalog(
-                license=license,
-                featured=featured
-            ),
             trace_modules=trace_modules,
             metadata=metadata,
             dialects=dialects,

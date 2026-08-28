@@ -10,8 +10,8 @@ from typing import cast
 from ...api import MunaClient
 from ...types import Acceleration
 from ._schema import (
-    Deployment, DeploymentGPU, DeploymentKind, DeploymentPricing,
-    DeploymentProvider, DeploymentSpec
+    Deployment, DeploymentAccess, DeploymentGPU, DeploymentKind,
+    DeploymentPricing, DeploymentProvider, DeploymentSpec
 )
 from .baremetal import create_baremetal_deployment
 from .baseten import create_baseten_deployment
@@ -36,6 +36,7 @@ class DeploymentService:
         *,
         name: str | None = None,
         kind: DeploymentKind = "dedicated",
+        access: DeploymentAccess = "public",
         cpu: int | None = None,
         memory: int | None = None,
         concurrency: int | None = None,
@@ -55,6 +56,7 @@ class DeploymentService:
             acceleration (DeploymentAcceleration): Accelerator, optionally paired with its count.
             name (str): Human-readable deployment name.
             kind (DeploymentKind): Deployment availability kind.
+            access (DeploymentAccess): Deployment access mode.
             cpu (int): Number of virtual CPUs.
             memory (int): Memory size in megabytes.
             concurrency (int): Request concurrency for load balancing.
@@ -73,6 +75,7 @@ class DeploymentService:
             tag=tag,
             provider=provider,
             kind=kind,
+            access=access,
             name=name or f"Muna: {tag}",
             cpu=cpu,
             gpu=gpu,
@@ -105,6 +108,7 @@ class DeploymentService:
             name=spec.name,
             provider=spec.provider,
             kind=spec.kind,
+            access=spec.access,
             gpu=spec.gpu,
             gpu_count=spec.gpu_count,
             pricing=spec.pricing
@@ -187,6 +191,7 @@ class _CreateDeploymentRecordInput(BaseModel):
     name: str
     provider: DeploymentProvider
     kind: DeploymentKind
+    access: DeploymentAccess
     gpu: DeploymentGPU
     gpu_count: int = Field(serialization_alias="gpuCount")
     pricing: DeploymentPricing | None

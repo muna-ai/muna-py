@@ -4,8 +4,8 @@
 #
 
 from ._schema import (
-    Deployment, DeploymentGPU, DeploymentPricing, DeploymentPricingKind,
-    DeploymentProvider, DurationDeploymentPricing, ImageDeploymentPricing,
-    TokenDeploymentPricing
+    Deployment, DeploymentAccess, DeploymentGPU, DeploymentPricing,
+    DeploymentPricingKind, DeploymentProvider, DurationDeploymentPricing,
+    ImageDeploymentPricing, TokenDeploymentPricing
 )
 from ._service import DeploymentService

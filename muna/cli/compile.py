@@ -97,7 +97,7 @@ def compile_function(
                     path=f"/predictors/{spec.tag}/compile",
                     body=spec.model_dump(
                         mode="json",
-                        exclude={ *spec.model_extra.keys(), "catalog" },
+                        exclude=spec.model_extra.keys(),
                         by_alias=True
                     ),
                     response_type=_LogEvent | _ErrorEvent
