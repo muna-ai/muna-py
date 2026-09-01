@@ -51,6 +51,63 @@ class Annotations:
         )
 
     @classmethod
+    def ChatAudios(
+        cls,
+        *,
+        description: str,
+        sample_rate: int,
+        **kwargs
+    ) -> Parameter:
+        """
+        Decoded PCM audio referenced by `{"type": "audio"}` content parts,
+        in order of appearance across the conversation. All entries share
+        the declared `sample_rate`.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="openai.chat.completions.audios",
+            sample_rate=sample_rate,
+            **kwargs
+        )
+
+    @classmethod
+    def ChatImages(
+        cls,
+        *,
+        description: str,
+        **kwargs
+    ) -> Parameter:
+        """
+        Decoded images referenced by `{"type": "image"}` content parts,
+        in order of appearance across the conversation.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="openai.chat.completions.images",
+            **kwargs
+        )
+
+    @classmethod
+    def ChatTools(
+        cls,
+        *,
+        description: str,
+        **kwargs
+    ) -> Parameter:
+        """
+        Tool definitions the model may call, as OpenAI function tool
+        dictionaries. Rendered into the prompt by the chat template.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="openai.chat.completions.tools",
+            **kwargs
+        )
+
+    @classmethod
     def EmbeddingDims(
         cls,
         *,

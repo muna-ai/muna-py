@@ -9,7 +9,7 @@ from pydantic import TypeAdapter, ValidationError
 from typing import overload, Literal
 
 from ...services import PredictorService, PredictionService
-from ...types import Acceleration, Dtype, Parameter, Prediction, Signature
+from ...types import Acceleration, Dtype, Prediction
 from ..annotations import get_parameter
 from ..openai.schema import ChatCompletionChunk, _MessageDict
 from .schema import (
@@ -89,11 +89,11 @@ class MessageService:
             max_tokens (int): The maximum number of tokens to generate before stopping.
             messages (list): Input messages.
             model (str): Model predictor tag.
-            stop_sequences (list): Custom text sequences that will cause the model to stop generating. Ignored unless the predictor natively supports it.
+            stop_sequences (list): Custom text sequences that will cause the model to stop generating.
             stream (bool): Whether to incrementally stream the response.
             system (str | list): System prompt.
             temperature (float): Amount of randomness injected into the response.
-            top_k (int): Only sample from the top K options for each subsequent token. Ignored unless the predictor natively supports it.
+            top_k (int): Only sample from the top K options for each subsequent token.
             top_p (float): Nucleus sampling coefficient.
             acceleration (Acceleration): Prediction acceleration.
 
@@ -140,10 +140,10 @@ class MessageService:
             max_tokens (int): The maximum number of tokens to generate before stopping.
             messages (list): Input messages.
             model (str): Model predictor tag.
-            stop_sequences (list): Custom text sequences that will cause the model to stop generating. Ignored unless the predictor natively supports it.
+            stop_sequences (list): Custom text sequences that will cause the model to stop generating.
             system (str | list): System prompt.
             temperature (float): Amount of randomness injected into the response.
-            top_k (int): Only sample from the top K options for each subsequent token. Ignored unless the predictor natively supports it.
+            top_k (int): Only sample from the top K options for each subsequent token.
             top_p (float): Nucleus sampling coefficient.
             acceleration (Acceleration): Prediction acceleration.
 
@@ -188,102 +188,8 @@ class MessageService:
                 f"{tag} cannot be used with Anthropic messages API because "
                 "it does not have a valid chat messages input parameter."
             )
-        # Check whether the predictor is written against the OpenAI chat completions API.
-        completion_param_idx = next((
-            idx
-            for idx, param in enumerate(signature.outputs)
-            if (
-                param.dtype == Dtype.dict and
-                param.value_schema["title"] == "ChatCompletionChunk"
-            )
-        ), None)
-        if completion_param_idx is not None:
-            return self.__create_openai_delegate(
-                signature,
-                input_param,
-                completion_param_idx
-            )
-        # Assume predictor was written against the Anthropic messages API.
-        return self.__create_anthropic_delegate(
-            tag,
-            signature,
-            input_param
-        )
-
-    def __create_openai_delegate(
-        self,
-        signature: Signature,
-        input_param: Parameter,
-        completion_param_idx: int
-    ) -> MessageDelegate:
         # Get optional inputs
         _, max_output_tokens_param = get_parameter(
-            signature.inputs,
-            dtype=_INT_DTYPES,
-            denotation="openai.chat.completions.max_output_tokens"
-        )
-        _, temperature_param = get_parameter(
-            signature.inputs,
-            dtype=_FLOAT_DTYPES,
-            denotation="openai.chat.completions.temperature"
-        )
-        _, top_p_param = get_parameter(
-            signature.inputs,
-            dtype=_FLOAT_DTYPES,
-            denotation="openai.chat.completions.top_p"
-        )
-        # Create delegate
-        def delegate(
-            *,
-            max_tokens: int,
-            messages: list[_MessageParamDict],
-            model: str,
-            stop_sequences: list[str] | None,
-            stream: bool,
-            system: str | list[_TextBlockParamDict] | None,
-            temperature: float | None,
-            top_k: int | None,
-            top_p: float | None,
-            acceleration: Acceleration
-        ) -> Message | Iterator[RawMessageStreamEvent]:
-            # Build prediction input map
-            input_map: dict[str, object] = {
-                input_param.name: _to_openai_messages(messages, system)
-            }
-            if max_output_tokens_param and max_tokens is not None:
-                input_map[max_output_tokens_param.name] = max_tokens
-            if temperature_param and temperature is not None:
-                input_map[temperature_param.name] = temperature
-            if top_p_param and top_p is not None:
-                input_map[top_p_param.name] = top_p
-            # Predict
-            prediction_stream = self.__predictions.stream(
-                tag=model,
-                inputs=input_map,
-                acceleration=acceleration
-            )
-            completion_stream = _gather_prediction_outputs(
-                prediction_stream,
-                completion_param_idx
-            )
-            chunks = map(_parse_completion_chunk, completion_stream)
-            events = _stream_events(chunks)
-            # Return
-            if stream:
-                return events
-            else:
-                return MessageStream(events).get_final_message()
-        # Return
-        return delegate
-
-    def __create_anthropic_delegate(
-        self,
-        tag: str,
-        signature: Signature,
-        input_param: Parameter
-    ) -> MessageDelegate:
-        # Get optional inputs
-        _, max_tokens_param = get_parameter(
             signature.inputs,
             dtype=_INT_DTYPES,
             denotation="openai.chat.completions.max_output_tokens"
@@ -308,16 +214,20 @@ class MessageService:
             dtype=_FLOAT_DTYPES,
             denotation="openai.chat.completions.top_p"
         )
-        # Get message output param
-        message_param_idx = next((
+        # Get chat completion chunk output param
+        completion_param_idx = next((
             idx
             for idx, param in enumerate(signature.outputs)
-            if param.dtype == Dtype.dict
+            if (
+                param.dtype == Dtype.dict and
+                param.value_schema["title"] == "ChatCompletionChunk"
+            )
         ), None)
-        if message_param_idx is None:
+        if completion_param_idx is None:
             raise ValueError(
                 f"{tag} cannot be used with Anthropic messages API because "
-                "it does not have a valid message output parameter."
+                "it does not have a valid chat completion chunk output parameter. "
+                "Chat predictors must yield `ChatCompletionChunk` outputs."
             )
         # Create delegate
         def delegate(
@@ -333,16 +243,10 @@ class MessageService:
             top_p: float | None,
             acceleration: Acceleration
         ) -> Message | Iterator[RawMessageStreamEvent]:
-            # Build prediction input map, folding the system prompt into the messages.
-            # Predictors that need the system prompt separately can filter it out.
-            input_messages = (
-                [{ "role": "system", "content": system }, *messages]
-                if system is not None
-                else messages
-            )
-            input_map: dict[str, object] = { input_param.name: input_messages }
-            if max_tokens_param and max_tokens is not None:
-                input_map[max_tokens_param.name] = max_tokens
+            # Build prediction input map
+            input_map = { input_param.name: _to_openai_messages(messages, system) }
+            if max_output_tokens_param and max_tokens is not None:
+                input_map[max_output_tokens_param.name] = max_tokens
             if stop_sequences_param and stop_sequences is not None:
                 input_map[stop_sequences_param.name] = stop_sequences
             if temperature_param and temperature is not None:
@@ -357,11 +261,12 @@ class MessageService:
                 inputs=input_map,
                 acceleration=acceleration
             )
-            output_stream = _gather_prediction_outputs(
+            completion_stream = _gather_prediction_outputs(
                 prediction_stream,
-                message_param_idx
+                completion_param_idx
             )
-            events = _parse_message_events(output_stream)
+            chunks = map(_parse_completion_chunk, completion_stream)
+            events = _stream_events(chunks)
             # Return
             if stream:
                 return events
@@ -545,17 +450,6 @@ def _stream_events(chunks: Iterator[ChatCompletionChunk]) -> Iterator[RawMessage
         usage=usage
     )
     yield RawMessageStopEvent()
-
-def _parse_message_events(outputs: Iterator[object]) -> Iterator[RawMessageStreamEvent]:
-    for output in outputs:
-        try:
-            event = TypeAdapter(RawMessageStreamEvent).validate_python(output)
-        except ValidationError:
-            raise ValueError(
-                f"Failed to parse message stream event from model output: {output}. "
-                "Message predictors must yield `RawMessageStreamEvent` outputs."
-            )
-        yield event
 
 _STOP_REASON_MAP: dict[str, StopReason] = {
     "stop": "end_turn",

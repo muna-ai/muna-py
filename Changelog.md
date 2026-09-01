@@ -1,4 +1,10 @@
 ## 0.1.27
++ Added support for tool calling in the OpenAI-compatible client.
++ Added support for content parts in the OpenAI-compatible client.
++ Added `beta.Annotations.ChatTools` annotation for denoting a tools list parameter that receives OpenAI function tool definitions.
++ Added `beta.Annotations.ChatImages` annotation for denoting an image list parameter that receives decoded image content parts.
++ Added `beta.Annotations.ChatAudios` annotation for denoting an audio list parameter that receives decoded audio content parts.
++ Refactored the Anthropic-compatible client into a pure adapter over the OpenAI chat completions contract. Chat predictors must yield `ChatCompletionChunk` outputs.
 + Removed `featured` parameter in `@muna.compile` decorator.
 + Removed `license` parameter in `@muna.compile` decorator.
 

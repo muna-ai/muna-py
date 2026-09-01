@@ -5,8 +5,13 @@
 
 from .openai import OpenAIClient
 from .schema import (
-    ChatCompletion, ChatCompletionChunk, ChatCompletionReasoningEffort,
-    Choice, DeltaMessage, EmbeddingCreateResponse, Embedding, Message,
+    ChatCompletion, ChatCompletionChunk, ChatCompletionContentPart,
+    ChatCompletionContentPartFile, ChatCompletionContentPartImage,
+    ChatCompletionContentPartInputAudio, ChatCompletionContentPartRefusal,
+    ChatCompletionContentPartText, ChatCompletionFunctionTool,
+    ChatCompletionMessageFunctionToolCall, ChatCompletionReasoningEffort,
+    ChatCompletionToolChoice, Choice, ChoiceDeltaToolCall, DeltaMessage,
+    EmbeddingCreateResponse, Embedding, FunctionDefinition, Message,
     SpeechCreateResponse, SpeechResponseFormat, SpeechStreamFormat,
     StreamChoice
 )
