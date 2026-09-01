@@ -1,3 +1,6 @@
+## 0.1.28
+*INCOMPLETE*
+
 ## 0.1.27
 + Added support for tool calling in the OpenAI-compatible client.
 + Added support for content parts in the OpenAI-compatible client.
