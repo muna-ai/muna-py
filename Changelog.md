@@ -1,3 +1,6 @@
+## 0.1.29
+*INCOMPLETE*
+
 ## 0.1.28
 + Added `beta.openai.ChatCompletion.Message` type for the message returned in a chat completion choice.
 + Refactored `beta.openai.Message` into a `TypedDict` so chat predictors pass conversations straight to the chat template.
