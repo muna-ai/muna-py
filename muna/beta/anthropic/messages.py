@@ -11,7 +11,7 @@ from typing import overload, Literal
 from ...services import PredictorService, PredictionService
 from ...types import Acceleration, Dtype, Prediction
 from ..annotations import get_parameter
-from ..openai.schema import ChatCompletionChunk, _MessageDict
+from ..openai.schema import ChatCompletionChunk, Message as OpenAIMessage
 from .schema import (
     Message, RawContentBlockDeltaEvent, RawContentBlockStartEvent,
     RawContentBlockStopEvent, RawMessageDeltaEvent, RawMessageStartEvent,
@@ -345,8 +345,8 @@ class MessageStream:
 def _to_openai_messages(
     messages: list[_MessageParamDict],
     system: str | list[_TextBlockParamDict] | None
-) -> list[_MessageDict]:
-    result = list[_MessageDict]()
+) -> list[OpenAIMessage]:
+    result = list[OpenAIMessage]()
     if system is not None:
         result.append({ "role": "system", "content": _flatten_content(system) })
     result += [

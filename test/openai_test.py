@@ -26,43 +26,39 @@ def test_normalize_string_content_passes_through():
         images_param=None,
         audios_param=None
     )
-    assert [m.content for m in conversation.messages] == [
-        "You are a helpful assistant.",
-        "What is the capital of France?"
+    assert conversation.messages == [
+        { "role": "system", "content": "You are a helpful assistant." },
+        { "role": "user", "content": "What is the capital of France?" }
     ]
     assert conversation.images == []
     assert conversation.audios == []
 
-def test_normalize_text_parts_flatten_with_newline():
+def test_normalize_text_parts_pass_through_verbatim():
+    # The compiled chat template flattens text parts; the client leaves them in wire shape.
+    parts = [
+        { "type": "text", "text": "line one" },
+        { "type": "text", "text": "line two" }
+    ]
     conversation = _normalize_conversation(
-        [
-            {
-                "role": "user",
-                "content": [
-                    { "type": "text", "text": "line one" },
-                    { "type": "text", "text": "line two" }
-                ]
-            }
-        ],
+        [{ "role": "user", "content": parts }],
         images_param=None,
         audios_param=None
     )
-    assert conversation.messages[0].content == "line one\nline two"
+    assert conversation.messages[0]["content"] == parts
 
-def test_normalize_refusal_flattens_as_text():
+def test_normalize_refusal_passes_through_verbatim():
+    parts = [{ "type": "refusal", "refusal": "I cannot help with that." }]
     conversation = _normalize_conversation(
-        [
-            {
-                "role": "assistant",
-                "content": [
-                    { "type": "refusal", "refusal": "I cannot help with that." }
-                ]
-            }
-        ],
+        [{ "role": "assistant", "content": parts }],
         images_param=None,
         audios_param=None
     )
-    assert conversation.messages[0].content == "I cannot help with that."
+    assert conversation.messages[0]["content"] == parts
+
+def test_message_typed_dict_kwargs_construction():
+    message = Message(role="user", content="hi")
+    assert isinstance(message, dict)
+    assert message == { "role": "user", "content": "hi" }
 
 def test_normalize_image_parts_decode_in_order_across_messages():
     images_param = Annotations.ChatImages(description="Images.")
@@ -95,10 +91,10 @@ def test_normalize_image_parts_decode_in_order_across_messages():
     assert len(conversation.images) == 2
     assert conversation.images[0].getpixel((0, 0)) == (255, 0, 0, 255)
     assert conversation.images[1].getpixel((0, 0)) == (0, 255, 0, 255)
-    first = conversation.messages[0].content
-    assert [part.type for part in first] == ["text", "image"]
-    second = conversation.messages[1].content
-    assert [part.type for part in second] == ["image"]
+    first = conversation.messages[0]["content"]
+    assert first == [{ "type": "text", "text": "first" }, { "type": "image" }]
+    second = conversation.messages[1]["content"]
+    assert second == [{ "type": "image" }]
 
 def test_normalize_undeclared_image_raises():
     with raises(ValueError, match="image_url"):
@@ -156,10 +152,10 @@ def test_normalize_tool_turns_pass_through():
         audios_param=None
     )
     assistant, tool = conversation.messages
-    assert assistant.tool_calls[0].function.name == "get_weather"
-    assert assistant.content is None
-    assert tool.role == "tool"
-    assert tool.tool_call_id == "call_123"
+    assert assistant["tool_calls"][0]["function"]["name"] == "get_weather"
+    assert "content" not in assistant   # `None` fields are omitted on the wire
+    assert tool["role"] == "tool"
+    assert tool["tool_call_id"] == "call_123"
 
 def test_merge_tool_call_fragments():
     choices = [
@@ -222,6 +218,7 @@ def test_create_chat_completion():
         stream=False,
         acceleration="local_auto"
     )
+    assert isinstance(response.choices[0].message.content, str)
     print(response.model_dump_json(indent=2))
 
 def test_stream_chat_completion():

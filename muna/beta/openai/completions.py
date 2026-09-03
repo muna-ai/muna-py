@@ -10,9 +10,9 @@ from collections.abc import Callable
 from io import BytesIO
 from numpy import ndarray
 from PIL import Image
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
+from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 from requests import get as request_get
-from typing import overload, Annotated, Iterator, Literal
+from typing import overload, Iterator, Literal
 
 from ...c import Value
 from ...services import PredictorService, PredictionService
@@ -21,10 +21,9 @@ from ..annotations import get_parameter
 from .schema import (
     ChatCompletion, ChatCompletionChunk, ChatCompletionContentPartFile,
     ChatCompletionContentPartImage, ChatCompletionContentPartInputAudio,
-    ChatCompletionContentPartRefusal, ChatCompletionContentPartText,
     ChatCompletionFunctionTool, ChatCompletionMessageFunctionToolCall,
     ChatCompletionReasoningEffort, ChatCompletionToolChoice, Choice,
-    Message, _MessageDict, _ResponseFormatDict, StreamChoice
+    Message, _ResponseFormatDict, StreamChoice
 )
 
 ChatCompletionDelegate = Callable[..., ChatCompletion | Iterator[ChatCompletionChunk]]
@@ -47,7 +46,7 @@ class ChatCompletionService:
     def create(
         self,
         *,
-        messages: list[Message | _MessageDict],
+        messages: list[Message],
         model: str,
         stream: Literal[False]=False,
         tools: list[ChatCompletionFunctionTool | dict] | None=None,
@@ -66,7 +65,7 @@ class ChatCompletionService:
     def create(
         self,
         *,
-        messages: list[Message | _MessageDict],
+        messages: list[Message],
         model: str,
         stream: Literal[True],
         tools: list[ChatCompletionFunctionTool | dict] | None=None,
@@ -84,7 +83,7 @@ class ChatCompletionService:
     def create(
         self,
         *,
-        messages: list[Message | _MessageDict],
+        messages: list[Message],
         model: str,
         stream: bool=False,
         tools: list[ChatCompletionFunctionTool | dict] | None=None,
@@ -238,7 +237,7 @@ class ChatCompletionService:
         # Create delegate
         def delegate(
             *,
-            messages: list[Message | _MessageDict],
+            messages: list[Message],
             model: str,
             stream: bool,
             tools: list[ChatCompletionFunctionTool | dict] | None,
@@ -264,15 +263,12 @@ class ChatCompletionService:
                 images_param=images_param,
                 audios_param=audios_param
             )
-            input_map = { input_param.name: [
-                message.model_dump(exclude_none=True)
-                for message in conversation.messages
-            ] }
+            input_map = { input_param.name: conversation.messages }
             if images_param and conversation.images:
                 input_map[images_param.name] = conversation.images
             if audios_param and conversation.audios:
                 input_map[audios_param.name] = conversation.audios
-            if tools and tool_choice != "none":
+            if tools:
                 input_map[tools_param.name] = [
                     tool.model_dump(exclude_none=True)
                     if isinstance(tool, BaseModel)
@@ -310,61 +306,41 @@ class ChatCompletionService:
         return delegate
 
 def _normalize_conversation(
-    messages: list[Message | _MessageDict],
+    messages: list[Message],
     *,
     images_param: Parameter | None,
     audios_param: Parameter | None
 ) -> _NormalizedConversation:
     """
-    Normalize content parts: flatten text parts, decode media parts into
-    parallel lists correlated by order of appearance across all messages.
+    Prepare a conversation for the predictor: decode media parts into parallel
+    lists correlated by order of appearance across all messages, replacing each
+    with a payload-free placeholder (`{"type": "image"}` / `{"type": "audio"}`).
     """
-    normalized: list[_NormalizedMessage] = []
+    normalized: list[dict[str, object]] = []
     images: list[Image.Image] = []
     audios: list[ndarray] = []
     for raw in messages:
-        message = (
-            TypeAdapter(Message).validate_python(raw)
-            if isinstance(raw, dict)
-            else raw
-        )
-        if not isinstance(message.content, list):
-            normalized.append(_NormalizedMessage(**message.model_dump()))
-            continue
-        parts: list[_NormalizedPart] = []
-        for part in message.content:
-            match part:
-                case ChatCompletionContentPartText():
-                    parts.append(part)
-                case ChatCompletionContentPartRefusal():
-                    # Replayed assistant refusals flatten as text.
-                    parts.append(ChatCompletionContentPartText(text=part.refusal))
-                case ChatCompletionContentPartImage() if images_param:
-                    images.append(_decode_image(part.image_url.url))
-                    parts.append(_ImagePlaceholder())
-                case ChatCompletionContentPartInputAudio() if audios_param:
-                    audios.append(_decode_audio(
-                        part.input_audio,
-                        sample_rate=audios_param.sample_rate
-                    ))
-                    parts.append(_AudioPlaceholder())
-                case ChatCompletionContentPartImage() | ChatCompletionContentPartInputAudio():
-                    raise ValueError(f"`{part.type}` content is not supported by this model.")
-                case ChatCompletionContentPartFile():
-                    raise ValueError("File content parts are not yet supported.")
-        # Text-only parts flatten to a plain string; mixed parts stay an array.
-        content: str | list[_NormalizedPart]
-        if all(isinstance(part, ChatCompletionContentPartText) for part in parts):
-            content = "\n".join(part.text for part in parts)
-        else:
-            content = parts
-        normalized.append(_NormalizedMessage(
-            role=message.role,
-            content=content,
-            reasoning_content=message.reasoning_content,
-            tool_calls=message.tool_calls,
-            tool_call_id=message.tool_call_id
-        ))
+        message = _MESSAGE.validate_python(raw)
+        wire = _MESSAGE.dump_python(message, mode="json", exclude_none=True)
+        content = message.get("content")
+        if isinstance(content, list):
+            parts: list[object] = wire["content"]
+            for index, part in enumerate(content):
+                match part:
+                    case ChatCompletionContentPartImage() if images_param:
+                        images.append(_decode_image(part.image_url.url))
+                        parts[index] = { "type": "image" }
+                    case ChatCompletionContentPartInputAudio() if audios_param:
+                        audios.append(_decode_audio(
+                            part.input_audio,
+                            sample_rate=audios_param.sample_rate
+                        ))
+                        parts[index] = { "type": "audio" }
+                    case ChatCompletionContentPartImage() | ChatCompletionContentPartInputAudio():
+                        raise ValueError(f"`{part.type}` content is not supported by this model.")
+                    case ChatCompletionContentPartFile():
+                        raise ValueError("File content parts are not yet supported.")
+        normalized.append(wire)
     return _NormalizedConversation(
         messages=normalized,
         images=images,
@@ -470,7 +446,7 @@ def _create_chat_completion_choice(
         for choice in choices
         if choice.delta and choice.delta.reasoning_content
     )
-    message = Message(
+    message = ChatCompletion.Message(
         role=role,
         content=content,
         reasoning_content=reasoning_content if reasoning_content else None,
@@ -516,47 +492,14 @@ def _merge_tool_calls(choices: list[StreamChoice]) -> list[ChatCompletionMessage
         )
     ) for _, call in sorted(calls.items())]
 
-class _ImagePlaceholder(BaseModel):
-    """
-    HF-canonical placeholder: the nth image part across the conversation
-    corresponds to the nth entry of the `images` input.
-    """
-    type: Literal["image"] = Field("image", init=False)
-
-class _AudioPlaceholder(BaseModel):
-    """
-    HF-canonical placeholder: the nth audio part across the conversation
-    corresponds to the nth entry of the `audios` input.
-    """
-    type: Literal["audio"] = Field("audio", init=False)
-
-_NormalizedPart = Annotated[
-    ChatCompletionContentPartText   |
-    _ImagePlaceholder               |
-    _AudioPlaceholder,
-    Field(discriminator="type")
-]
-
-class _NormalizedMessage(BaseModel):
-    """
-    Chat message after content-part translation: text-only content is a
-    plain string; multimodal content is a part list with media replaced
-    by placeholders that index into the parallel media inputs. Tool fields
-    pass through untouched so agent turns replay into the chat template.
-    """
-    role: Literal["assistant", "user", "system", "tool"]
-    content: str | list[_NormalizedPart] | None = None
-    reasoning_content: str | None = None
-    tool_calls: list[ChatCompletionMessageFunctionToolCall] | None = None
-    tool_call_id: str | None = None
-
 class _NormalizedConversation(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
     """
-    Result of content-part translation: normalized messages plus the
-    parallel media lists their placeholders index into.
+    Result of media translation: wire-shaped messages (media parts replaced by
+    placeholders) plus the parallel media lists those placeholders index into.
     """
-    messages: list[_NormalizedMessage]
+    messages: list[dict[str, object]]
     images: list[Image.Image]
     audios: list[ndarray]
 
+_MESSAGE = TypeAdapter(Message)
 _MAX_IMAGE_FETCH_BYTES = 20 * 1024 * 1024
