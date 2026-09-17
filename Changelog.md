@@ -1,5 +1,9 @@
 ## 0.1.29
-*INCOMPLETE*
++ Added request validation in the OpenAI- and Anthropic-compatible clients.
++ Added `beta.Annotations.Seed` annotation for denoting a sampling seed parameter.
++ Added `seed` parameter in `beta.openai.chat.completions.create` method.
++ Added `none` reasoning effort in the OpenAI-compatible client for disabling reasoning.
++ Fixed assistant messages with `None` content being passed to predictors without a `content` field; they now receive `""`.
 
 ## 0.1.28
 + Added `beta.openai.ChatCompletion.Message` type for the message returned in a chat completion choice.

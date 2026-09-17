@@ -18,9 +18,11 @@ from ...c import Value
 from ...services import PredictorService, PredictionService
 from ...types import Acceleration, Dtype, Parameter, Prediction
 from ..annotations import get_parameter
+from ..errors import prediction_error_to_exception
 from .schema import (
     ChatCompletion, ChatCompletionChunk, ChatCompletionContentPartFile,
     ChatCompletionContentPartImage, ChatCompletionContentPartInputAudio,
+    ChatCompletionContentPartRefusal, ChatCompletionContentPartText,
     ChatCompletionFunctionTool, ChatCompletionMessageFunctionToolCall,
     ChatCompletionReasoningEffort, ChatCompletionToolChoice, Choice,
     Message, _ResponseFormatDict, StreamChoice
@@ -52,10 +54,11 @@ class ChatCompletionService:
         tools: list[ChatCompletionFunctionTool | dict] | None=None,
         tool_choice: ChatCompletionToolChoice | None=None,
         response_format: _ResponseFormatDict | None=None,
-        reasoning_effort: Literal["minimal", "low", "medium", "high", "xhigh"] | None=None,
+        reasoning_effort: Literal["none", "minimal", "low", "medium", "high", "xhigh"] | None=None,
         max_completion_tokens: int | None=None,
         temperature: float | None=None,
         top_p: float | None=None,
+        seed: int | None=None,
         frequency_penalty: float | None=None,
         presence_penalty: float | None=None,
         acceleration: Acceleration="local_auto"
@@ -71,10 +74,11 @@ class ChatCompletionService:
         tools: list[ChatCompletionFunctionTool | dict] | None=None,
         tool_choice: ChatCompletionToolChoice | None=None,
         response_format: _ResponseFormatDict | None=None,
-        reasoning_effort: Literal["minimal", "low", "medium", "high", "xhigh"] | None=None,
+        reasoning_effort: Literal["none", "minimal", "low", "medium", "high", "xhigh"] | None=None,
         max_completion_tokens: int | None=None,
         temperature: float | None=None,
         top_p: float | None=None,
+        seed: int | None=None,
         frequency_penalty: float | None=None,
         presence_penalty: float | None=None,
         acceleration: Acceleration="local_auto"
@@ -93,6 +97,7 @@ class ChatCompletionService:
         max_completion_tokens: int | None=None,
         temperature: float | None=None,
         top_p: float | None=None,
+        seed: int | None=None,
         frequency_penalty: float | None=None,
         presence_penalty: float | None=None,
         acceleration: Acceleration="local_auto"
@@ -111,6 +116,7 @@ class ChatCompletionService:
             max_completion_tokens (int): Maximum completion tokens.
             temperature (float): Sampling temperature to use.
             top_p (float): Nucleus sampling coefficient.
+            seed (int): Sampling seed for reproducible outputs.
             frequency_penalty (float): Token frequency penalty.
             presence_penalty (float): Token presence penalty.
             acceleration (Acceleration): Prediction acceleration.
@@ -134,6 +140,7 @@ class ChatCompletionService:
             max_completion_tokens=max_completion_tokens,
             temperature=temperature,
             top_p=top_p,
+            seed=seed,
             frequency_penalty=frequency_penalty,
             presence_penalty=presence_penalty,
             acceleration=acceleration
@@ -194,6 +201,14 @@ class ChatCompletionService:
             dtype={ Dtype.float32, Dtype.float64 },
             denotation="openai.chat.completions.top_p"
         )
+        _, seed_param = get_parameter(
+            signature.inputs,
+            dtype={
+                Dtype.int8, Dtype.int16, Dtype.int32, Dtype.int64,
+                Dtype.uint8, Dtype.uint16, Dtype.uint32, Dtype.uint64
+            },
+            denotation="openai.chat.completions.seed"
+        )
         _, frequency_penalty_param = get_parameter(
             signature.inputs,
             dtype={ Dtype.float32, Dtype.float64 },
@@ -243,10 +258,11 @@ class ChatCompletionService:
             tools: list[ChatCompletionFunctionTool | dict] | None,
             tool_choice: ChatCompletionToolChoice | None,
             response_format: _ResponseFormatDict | None,
-            reasoning_effort: Literal["minimal", "low", "medium", "high", "xhigh"] | None,
+            reasoning_effort: Literal["none", "minimal", "low", "medium", "high", "xhigh"] | None,
             max_completion_tokens: int | None,
             temperature: float | None,
             top_p: float | None,
+            seed: int | None,
             frequency_penalty: float | None,
             presence_penalty: float | None,
             acceleration: Acceleration
@@ -285,6 +301,8 @@ class ChatCompletionService:
                 input_map[temperature_param.name] = temperature
             if top_p_param and top_p is not None:
                 input_map[top_p_param.name] = top_p
+            if seed_param and seed is not None:
+                input_map[seed_param.name] = seed
             if frequency_penalty_param and frequency_penalty is not None:
                 input_map[frequency_penalty_param.name] = frequency_penalty
             if presence_penalty_param and presence_penalty is not None:
@@ -316,13 +334,18 @@ def _normalize_conversation(
     lists correlated by order of appearance across all messages, replacing each
     with a payload-free placeholder (`{"type": "image"}` / `{"type": "audio"}`).
     """
+    if not messages:
+        raise ValueError("`messages` must contain at least one message.")
     normalized: list[dict[str, object]] = []
     images: list[Image.Image] = []
     audios: list[ndarray] = []
-    for raw in messages:
+    for index, raw in enumerate(messages):
         message = _MESSAGE.validate_python(raw)
+        _validate_message(index, message)
         wire = _MESSAGE.dump_python(message, mode="json", exclude_none=True)
         content = message.get("content")
+        if message["role"] == "assistant" and content is None:
+            wire["content"] = ""
         if isinstance(content, list):
             parts: list[object] = wire["content"]
             for index, part in enumerate(content):
@@ -346,6 +369,32 @@ def _normalize_conversation(
         images=images,
         audios=audios
     )
+
+def _validate_message(index: int, message: Message) -> None:
+    """
+    Reject a message that carries nothing for the model to read.
+    """
+    role = message["role"]
+    if role in ("assistant", "tool"):
+        return
+    content = message.get("content")
+    match content:
+        case str():
+            has_payload = bool(content.strip())
+        case list():
+            has_payload = any(
+                part.text.strip() if isinstance(part, ChatCompletionContentPartText) else
+                part.refusal.strip() if isinstance(part, ChatCompletionContentPartRefusal) else
+                True
+                for part in content
+            )
+        case _:
+            has_payload = False
+    if not has_payload:
+        raise ValueError(
+            f"`messages[{index}]` ({role} message) must have non-empty `content`. "
+            "Text content must contain non-whitespace characters."
+        )
 
 def _decode_image(url: str) -> Image.Image:
     """
@@ -383,7 +432,7 @@ def _gather_completion_outputs(
 ) -> Iterator[object]:
     for prediction in stream:
         if prediction.error:
-            raise RuntimeError(prediction.error)
+            raise prediction_error_to_exception(prediction.error)
         yield prediction.results[completion_param_idx]
 
 def _merge_chunks(chunks: list[ChatCompletionChunk]) -> ChatCompletion:

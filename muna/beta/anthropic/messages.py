@@ -11,6 +11,7 @@ from typing import overload, Literal
 from ...services import PredictorService, PredictionService
 from ...types import Acceleration, Dtype, Prediction
 from ..annotations import get_parameter
+from ..errors import prediction_error_to_exception
 from ..openai.schema import ChatCompletionChunk, Message as OpenAIMessage
 from .schema import (
     Message, RawContentBlockDeltaEvent, RawContentBlockStartEvent,
@@ -197,7 +198,7 @@ class MessageService:
         _, stop_sequences_param = get_parameter(
             signature.inputs,
             dtype=Dtype.list,
-            denotation="anthropic.messages.stop_sequences"
+            denotation="openai.chat.completions.stop"
         )
         _, temperature_param = get_parameter(
             signature.inputs,
@@ -346,13 +347,19 @@ def _to_openai_messages(
     messages: list[_MessageParamDict],
     system: str | list[_TextBlockParamDict] | None
 ) -> list[OpenAIMessage]:
+    if not messages:
+        raise ValueError("`messages` must contain at least one message.")
     result = list[OpenAIMessage]()
     if system is not None:
         result.append({ "role": "system", "content": _flatten_content(system) })
-    result += [
-        { "role": message["role"], "content": _flatten_content(message["content"]) }
-        for message in messages
-    ]
+    for index, message in enumerate(messages):
+        content = _flatten_content(message["content"])
+        if message["role"] != "assistant" and not content.strip():
+            raise ValueError(
+                f"`messages[{index}]` ({message['role']} message) must have non-empty "
+                "`content`. Text content must contain non-whitespace characters."
+            )
+        result.append({ "role": message["role"], "content": content })
     return result
 
 def _flatten_content(content: str | list[_TextBlockParamDict]) -> str:
@@ -371,7 +378,7 @@ def _gather_prediction_outputs(
 ) -> Iterator[object]:
     for prediction in stream:
         if prediction.error:
-            raise RuntimeError(prediction.error)
+            raise prediction_error_to_exception(prediction.error)
         yield prediction.results[output_param_idx]
 
 def _parse_completion_chunk(data: object) -> ChatCompletionChunk:

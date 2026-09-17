@@ -11,6 +11,7 @@ from muna.beta.openai import (
     ChatCompletionChunk, ChoiceDeltaToolCall, DeltaMessage, Message,
     StreamChoice
 )
+from muna.beta.errors import prediction_error_to_exception
 from muna.beta.openai.completions import _merge_tool_calls, _normalize_conversation
 from pathlib import Path
 from PIL import Image
@@ -153,9 +154,69 @@ def test_normalize_tool_turns_pass_through():
     )
     assistant, tool = conversation.messages
     assert assistant["tool_calls"][0]["function"]["name"] == "get_weather"
-    assert "content" not in assistant   # `None` fields are omitted on the wire
+    assert assistant["content"] == ""   # assistant `None` content is handed over as `""`
     assert tool["role"] == "tool"
     assert tool["tool_call_id"] == "call_123"
+
+def test_normalize_rejects_user_messages_without_payload():
+    # Whitespace-only text renders as an empty turn once the chat template
+    # trims it (Gemma 4 then describes an image it never got).
+    for content in ["", "   ", None, [], [{ "type": "text", "text": " \n" }]]:
+        with raises(ValueError, match=r"messages\[0\]"):
+            _normalize_conversation(
+                [{ "role": "user", "content": content }],
+                images_param=None,
+                audios_param=None
+            )
+    with raises(ValueError, match="at least one message"):
+        _normalize_conversation([], images_param=None, audios_param=None)
+
+def test_normalize_accepts_empty_assistant_turns():
+    # Replayed history from a reasoning-only or interrupted completion.
+    for content in ["", None, "  "]:
+        conversation = _normalize_conversation(
+            [
+                { "role": "user", "content": "hi" },
+                { "role": "assistant", "content": content },
+                { "role": "user", "content": "still there?" }
+            ],
+            images_param=None,
+            audios_param=None
+        )
+        assistant = conversation.messages[1]
+        assert assistant["role"] == "assistant"
+        assert isinstance(assistant["content"], str)
+    # Empty tool results are payload on their own.
+    _normalize_conversation(
+        [{ "role": "tool", "content": "", "tool_call_id": "call_1" }],
+        images_param=None,
+        audios_param=None
+    )
+
+def test_prediction_error_classification():
+    error = prediction_error_to_exception(
+        "ValueError: The input (140000 tokens) is longer than the model's context length (131072 tokens)."
+    )
+    assert type(error) is ValueError
+    assert str(error) == "The input (140000 tokens) is longer than the model's context length (131072 tokens)."
+    chained = (
+        "Traceback (most recent call last):\n"
+        "  File \"x.py\", line 1, in <module>\n"
+        "    inner()\n"
+        "KeyError: 'k'\n\n"
+        "The above exception was the direct cause of the following exception:\n\n"
+        "Traceback (most recent call last):\n"
+        "  File \"x.py\", line 2, in <module>\n"
+        "    outer()\n"
+        "TypeError: bad type\n"
+    )
+    error = prediction_error_to_exception(chained)
+    assert type(error) is TypeError
+    assert str(error) == "bad type"
+    engine = "RuntimeError: CUDA error: an illegal memory access was encountered"
+    error = prediction_error_to_exception(engine)
+    assert type(error) is RuntimeError
+    assert str(error) == engine
 
 def test_merge_tool_call_fragments():
     choices = [

@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue
 from requests import Response
 from typing import Annotated, Literal, NotRequired, TypedDict
 
-ChatCompletionReasoningEffort = Literal["minimal", "low", "medium", "high", "xhigh"]
+ChatCompletionReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh"]
 SpeechResponseFormat = Literal["mp3", "opus", "aac", "flac", "wav", "pcm"]
 SpeechStreamFormat = Literal["audio", "sse"]
 
@@ -136,7 +136,7 @@ class Message(TypedDict):
     tokenizer's chat template, which normalizes content parts itself. Optional fields
     are omitted when absent.
     """
-    role: Literal["assistant", "user", "system", "tool"]
+    role: Literal["assistant", "user", "system", "developer", "tool"]
     content: str | list[ChatCompletionContentPart] | None
     reasoning_content: NotRequired[str | None]
     tool_calls: NotRequired[list[ChatCompletionMessageFunctionToolCall] | None]

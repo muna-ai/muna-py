@@ -270,6 +270,23 @@ class Annotations:
         )
 
     @classmethod
+    def Seed(
+        cls,
+        *,
+        description: str,
+        **kwargs
+    ) -> Parameter:
+        """
+        Sampling seed parameter.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="openai.chat.completions.seed",
+            **kwargs
+        )
+
+    @classmethod
     def StopSequences(
         cls,
         *,
@@ -277,12 +294,12 @@ class Annotations:
         **kwargs
     ) -> Parameter:
         """
-        Stop sequences parameter for the Anthropic messages API.
+        Stop sequences parameter.
         """
         return Parameter(
             name="",
             description=description,
-            denotation="anthropic.messages.stop_sequences",
+            denotation="openai.chat.completions.stop",
             **kwargs
         )
 
