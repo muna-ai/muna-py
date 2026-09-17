@@ -1,3 +1,6 @@
+## 0.1.30
+*INCOMPLETE*
+
 ## 0.1.29
 + Added request validation in the OpenAI- and Anthropic-compatible clients.
 + Added `beta.Annotations.Seed` annotation for denoting a sampling seed parameter.
