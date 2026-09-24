@@ -26,14 +26,17 @@ class KVRoutingMetadata(
     Metadata to compile a tokenization sidecar for KV cache-aware routing.
 
     The `tokenize` function must map a subset of the predictor's parameters
-    to the exact prompt token IDs the predictor computes internally. Pass the
-    same function object the predictor calls, so the two cannot drift.
+    to the exact prompt the predictor computes internally: either the prompt
+    token IDs, or a processor output (e.g. a `BatchFeature`) whose
+    `input_ids` is the prompt. Processor outputs let image prompts route on
+    image content. Pass the same function object the predictor calls, so the
+    two cannot drift.
 
     Members:
-        tokenize (Callable[..., list[int]]): Tokenization function mapping predictor inputs to prompt token IDs.
+        tokenize (Callable[..., list[int] | BatchFeature]): Function mapping predictor inputs to prompt token IDs or processor outputs.
     """
     kind: Literal["meta.routing.kv"] = Field("meta.routing.kv", init=False)
     tokenize: Annotated[object, BeforeValidator(_validate_tokenize_function)] = Field(
-        description="Tokenization function mapping predictor inputs to prompt token IDs.",
+        description="Function mapping predictor inputs to prompt token IDs, or to processor outputs whose `input_ids` is the prompt.",
         exclude=True
     )

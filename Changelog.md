@@ -1,5 +1,6 @@
 ## 0.1.30
-*INCOMPLETE*
++ Added `beta.Annotations.ChatMessages` parameter for denoting a chat conversation input along with the model's context length.
++ Added `Parameter.context_length` field for inspecting the maximum context length in tokens of a chat message parameter.
 
 ## 0.1.29
 + Added request validation in the OpenAI- and Anthropic-compatible clients.

@@ -5,7 +5,7 @@
 
 from typing_extensions import deprecated
 
-from ..types import Dtype, Parameter
+from ..types import BatchConfig, Dtype, Parameter
 
 class Annotations:
     """
@@ -17,8 +17,8 @@ class Annotations:
         cls,
         *,
         description: str,
-        min: float | None=None,
-        max: float | None=None,
+        min: float | None = None,
+        max: float | None = None,
         **kwargs
     ) -> Parameter:
         """
@@ -47,6 +47,27 @@ class Annotations:
             name="",
             description=description,
             denotation="openai.audio.speech.voice",
+            **kwargs
+        )
+
+    @classmethod
+    def ChatMessages(
+        cls,
+        *,
+        description: str,
+        context_length: int, # prompt + completion tokens
+        batch: BatchConfig | None = None,
+        **kwargs
+    ) -> Parameter:
+        """
+        Chat messages parameter.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="openai.chat.completions.messages",
+            context_length=context_length,
+            batch=batch,
             **kwargs
         )
 
@@ -112,8 +133,8 @@ class Annotations:
         cls,
         *,
         description: str,
-        min: int | None=None,
-        max: int | None=None,
+        min: int | None = None,
+        max: int | None = None,
         **kwargs
     ) -> Parameter:
         """
@@ -133,8 +154,8 @@ class Annotations:
         cls,
         *,
         description: str,
-        min: float | None=None,
-        max: float | None=None,
+        min: float | None = None,
+        max: float | None = None,
         **kwargs
     ) -> Parameter:
         """
@@ -154,8 +175,8 @@ class Annotations:
         cls,
         *,
         description: str,
-        min: int | None=None,
-        max: int | None=None,
+        min: int | None = None,
+        max: int | None = None,
         **kwargs
     ) -> Parameter:
         """
@@ -175,8 +196,8 @@ class Annotations:
         cls,
         *,
         description: str,
-        min: float | None=None,
-        max: float | None=None,
+        min: float | None = None,
+        max: float | None = None,
         **kwargs
     ) -> Parameter:
         """
@@ -231,8 +252,8 @@ class Annotations:
         cls,
         *,
         description: str,
-        min: float | None=None,
-        max: float | None=None,
+        min: float | None = None,
+        max: float | None = None,
         **kwargs
     ) -> Parameter:
         """
@@ -253,8 +274,8 @@ class Annotations:
         cls,
         *,
         description: str,
-        min: float | None=None,
-        max: float | None=None,
+        min: float | None = None,
+        max: float | None = None,
         **kwargs
     ) -> Parameter:
         """
@@ -308,8 +329,8 @@ class Annotations:
         cls,
         *,
         description: str,
-        min: float | None=None,
-        max: float | None=None,
+        min: float | None = None,
+        max: float | None = None,
         **kwargs
     ) -> Parameter:
         """
@@ -329,8 +350,8 @@ class Annotations:
         cls,
         *,
         description: str,
-        min: int | None=None,
-        max: int | None=None,
+        min: int | None = None,
+        max: int | None = None,
         **kwargs
     ) -> Parameter:
         """
@@ -350,8 +371,8 @@ class Annotations:
         cls,
         *,
         description: str,
-        min: float | None=None,
-        max: float | None=None,
+        min: float | None = None,
+        max: float | None = None,
         **kwargs
     ) -> Parameter:
         """
@@ -405,8 +426,8 @@ class Annotations:
         cls,
         *,
         description: str,
-        min: int | None=None,
-        max: int | None=None,
+        min: int | None = None,
+        max: int | None = None,
         **kwargs
     ) -> Parameter:
         """
@@ -426,8 +447,8 @@ class Annotations:
         cls,
         *,
         description: str,
-        min: int | None=None,
-        max: int | None=None,
+        min: int | None = None,
+        max: int | None = None,
         **kwargs
     ) -> Parameter:
         """
@@ -447,8 +468,8 @@ class Annotations:
         cls,
         *,
         description: str,
-        min: int | None=None,
-        max: int | None=None,
+        min: int | None = None,
+        max: int | None = None,
         **kwargs
     ) -> Parameter:
         """

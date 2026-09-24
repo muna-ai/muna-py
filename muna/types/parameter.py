@@ -50,6 +50,7 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
         enumeration (list): Parameter value choices for enumeration parameters.
         value_schema (dict): Parameter JSON schema. This is only populated for `list` and `dict` parameters.
         sample_rate (int): Audio sample rate in Hertz.
+        context_length (int): Maximum context length in tokens for chat message parameters.
     """
     name: str = Field(description="Parameter name.")
     dtype: Dtype | None = Field(
@@ -103,6 +104,13 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
         description="Audio sample rate.",
         serialization_alias="sampleRate",
         validation_alias=AliasChoices("sample_rate", "sampleRate"),
+        gt=0
+    )
+    context_length: int | None = Field(
+        default=None,
+        description="Maximum context length in tokens for chat message parameters.",
+        serialization_alias="contextLength",
+        validation_alias=AliasChoices("context_length", "contextLength"),
         gt=0
     )
 
