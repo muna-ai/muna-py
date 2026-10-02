@@ -1,5 +1,5 @@
 ## 0.1.31
-*INCOMPLETE*
++ Upgraded to Function C 0.0.49.
 
 ## 0.1.30
 + Added `beta.Annotations.ChatMessages` parameter for denoting a chat conversation input along with the model's context length.
