@@ -325,6 +325,42 @@ class Annotations:
         )
 
     @classmethod
+    def SystemOneQuestions(
+        cls,
+        *,
+        description: str,
+        **kwargs
+    ) -> Parameter:
+        """
+        TypeSafe System One questions parameter.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="typesafe.systemone.questions",
+            **kwargs
+        )
+
+    @classmethod
+    def SystemOneState(
+        cls,
+        *,
+        description: str,
+        context_length: int, # state + questions tokens
+        **kwargs
+    ) -> Parameter:
+        """
+        TypeSafe System One state parameter.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="typesafe.systemone.state",
+            context_length=context_length,
+            **kwargs
+        )
+
+    @classmethod
     def Temperature(
         cls,
         *,
