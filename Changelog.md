@@ -1,5 +1,8 @@
 ## 0.1.31
-+ Upgraded to Function C 0.0.49.
++ Added `muna.beta.typesafe.system_one` method for evaluating a state against typed questions with System One decision models.
++ Added `beta.Annotations.SystemOneState` annotation for denoting the state parameter of a decision model.
++ Added `beta.Annotations.SystemOneQuestions` annotation for denoting the questions parameter of a decision model.
++ Upgraded to Function C 0.0.50.
 
 ## 0.1.30
 + Added `beta.Annotations.ChatMessages` parameter for denoting a chat conversation input along with the model's context length.

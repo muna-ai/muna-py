@@ -8,6 +8,7 @@ from ..services import PredictorService, PredictionService
 from .anthropic import AnthropicClient
 from .deployments import DeploymentService
 from .openai import OpenAIClient
+from .typesafe import TypeSafeClient
 
 class BetaClient:
     """
@@ -15,6 +16,7 @@ class BetaClient:
     """
     anthropic: AnthropicClient
     openai: OpenAIClient
+    typesafe: TypeSafeClient
     
     def __init__(
         self,
@@ -25,3 +27,4 @@ class BetaClient:
         self.anthropic = AnthropicClient(predictors, predictions)
         self.deployments = DeploymentService(client)
         self.openai = OpenAIClient(predictors, predictions)
+        self.typesafe = TypeSafeClient(predictors, predictions)
