@@ -1,3 +1,6 @@
+## 0.1.32
+*INCOMPLETE*
+
 ## 0.1.31
 + Added `muna.beta.typesafe.system_one` method for evaluating a state against typed questions with System One decision models.
 + Added `beta.Annotations.SystemOneState` annotation for denoting the state parameter of a decision model.
