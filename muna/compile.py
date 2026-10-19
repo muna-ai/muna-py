@@ -13,6 +13,7 @@ from typing import Callable, ParamSpec, TypeVar, cast
 from .beta import CompileDialect, CompileMetadata, CompileTarget
 from .sandbox import Sandbox
 from .types import PredictorAccess
+from .types.predictor import PredictorDistribution
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -41,6 +42,10 @@ class PredictorSpec(
         description="Custom dialects to use when compiling the function."
     )
     access: PredictorAccess = Field(description="Predictor access.")
+    distribution: PredictorDistribution | None = Field(
+        default=None,
+        description="Predictor distribution."
+    )
 
 def compile(
     *,
@@ -52,6 +57,7 @@ def compile(
     metadata: list[CompileMetadata] | None = None,
     dialects: list[CompileDialect] | None = None,
     access: PredictorAccess="private",
+    distribution: PredictorDistribution | None=None,
     **kwargs
 ) -> Callable[[Callable[P, R]], Callable[P, R]]:
     """
@@ -66,6 +72,7 @@ def compile(
         metadata (list): Metadata to use when compiling the function.
         dialects (list): Custom dialects to use when compiling the function.
         access (PredictorAccess): Predictor access.
+        distribution (PredictorDistribution): Predictor distribution.
     """
     def decorator(func: Callable):
         # Check type
@@ -80,6 +87,7 @@ def compile(
             sandbox=sandbox if sandbox is not None else Sandbox(),
             targets=targets,
             access=access,
+            distribution=distribution,
             trace_modules=trace_modules,
             metadata=metadata,
             dialects=dialects,

@@ -5,6 +5,7 @@
 
 from base64 import b64decode
 from collections.abc import Callable
+from datetime import datetime, timezone
 from json import loads
 from pathlib import Path
 from pydantic import ValidationError
@@ -14,14 +15,14 @@ from urllib.parse import urlparse
 from ..c import Configuration
 from ..types import Prediction, PredictionResource
 from .client import MunaClient, _get_cache_dir
+from .hf import HFTag, download_hf_file, load_hf_manifest, parse_hf_tag
 
 class PredictionCache:
     """
     Prediction cache.
+
     This caches predictions used to provision local predictors, along with
-    their configuration tokens and resources. Configuration tokens are
-    refreshed once they fall within half of their lifetime, providing the
-    liveness signal used to count monthly active runtimes.
+    their configuration tokens and resources.
     """
 
     def __init__(
@@ -45,11 +46,13 @@ class PredictionCache:
     def retrieve(self, tag: str) -> Prediction:
         """
         Retrieve a cached prediction.
+
         This serves the cached prediction when its configuration token is
         within half of its lifetime, and fetches a prediction from the API
         otherwise, falling back to the cached prediction when the API is
-        unreachable. Prediction resources in the returned prediction always
-        point to local files.
+        unreachable. Hugging Face tags are resolved from the Hugging Face
+        cache without a configuration token. Prediction resources in the
+        returned prediction always point to local files.
 
         Parameters:
             tag (str): Predictor tag.
@@ -57,17 +60,19 @@ class PredictionCache:
         Returns:
             Prediction: Cached prediction.
         """
+        if hf_tag := parse_hf_tag(tag):
+            return _create_hf_prediction(hf_tag)
         client_id, configuration_id = self.__resolve_identity()
-        key = self._get_cache_key(tag, client_id, configuration_id)
+        key = _get_cache_key(tag, client_id, configuration_id)
         prediction = self.__load_prediction(key)
         if (
             prediction is not None and
             prediction.configuration and
-            not self._should_refresh_token(prediction.configuration, self.__now())
+            not _should_refresh_token(prediction.configuration, self.__now())
         ):
             return self.__localize(prediction)
         try:
-            refreshed = self.__fetch_prediction(
+            refreshed = self.__create_prediction(
                 tag,
                 client_id=client_id,
                 configuration_id=configuration_id,
@@ -92,8 +97,10 @@ class PredictionCache:
         Parameters:
             tag (str): Predictor tag.
         """
+        if parse_hf_tag(tag) is not None:
+            return
         client_id, configuration_id = self.__resolve_identity()
-        key = self._get_cache_key(tag, client_id, configuration_id)
+        key = _get_cache_key(tag, client_id, configuration_id)
         prediction = self.__load_prediction(key)
         if prediction is not None and prediction.id:
             self.__invalidated_prediction_ids[key] = prediction.id
@@ -107,7 +114,7 @@ class PredictionCache:
             )
         return self.__identity
 
-    def __fetch_prediction(
+    def __create_prediction(
         self,
         tag: str,
         *,
@@ -116,6 +123,9 @@ class PredictionCache:
         key: str,
         cached_prediction_id: str | None
     ) -> Prediction:
+        """
+        Create a raw prediction from the Muna API.
+        """
         prediction_id = (
             self.__invalidated_prediction_ids.get(key) or
             cached_prediction_id
@@ -148,6 +158,9 @@ class PredictionCache:
             return None
 
     def __localize(self, prediction: Prediction) -> Prediction:
+        """
+        Ensure all resources point to files on the file system.
+        """
         resources = [
             self.__download_resource(resource)
             for resource in prediction.resources or []
@@ -167,39 +180,7 @@ class PredictionCache:
             color = "dark_orange" if resource.type != "dso" else "purple"
             path.parent.mkdir(parents=True, exist_ok=True)
             self.__client.download(resource.url, path, progress=color)
-        return resource.model_copy(update={ "url": str(path) })
-
-    @staticmethod
-    def _should_refresh_token(token: str, now: float) -> bool:
-        claims = parse_configuration_claims(token)
-        if claims is None:
-            # Revalidate malformed cache entries, while still allowing stale
-            # fallback if the refresh cannot reach the API.
-            return True
-        exp = claims.get("exp")
-        if not isinstance(exp, (int, float)) or isinstance(exp, bool):
-            return False # Legacy tokens do not expire.
-        iat = claims.get("iat")
-        if (
-            not isinstance(iat, (int, float)) or
-            isinstance(iat, bool) or
-            exp <= iat
-        ):
-            return now >= exp
-        refresh_at = iat + (exp - iat) / 2
-        return now >= refresh_at
-
-    @staticmethod
-    def _get_cache_key(
-        tag: str,
-        client_id: str,
-        configuration_id: str
-    ) -> str:
-        encoded = "".join(
-            f"{len(value)}:{value}"
-            for value in (tag, client_id, configuration_id)
-        )
-        return f"muna.prediction.{encoded}"
+        return resource.model_copy(update={ "url": str(path) })        
 
 def parse_configuration_claims(configuration_token: str | None) -> dict[str, object] | None:
     if configuration_token is None:
@@ -211,3 +192,55 @@ def parse_configuration_claims(configuration_token: str | None) -> dict[str, obj
         return claims if isinstance(claims, dict) else None
     except (AttributeError, IndexError, TypeError, ValueError):
         return None
+
+def _create_hf_prediction(hf_tag: HFTag) -> Prediction:
+    manifest = load_hf_manifest(hf_tag)
+    resources = [PredictionResource(
+        type=resource.type,
+        url=str(download_hf_file(
+            hf_tag.repo_id,
+            Path(urlparse(resource.url).path).name,
+            revision=hf_tag.revision
+        )),
+        name=resource.name
+    ) for resource in manifest.resources]
+    return Prediction(
+        id=manifest.id,
+        tag=manifest.tag,
+        configuration=None,
+        resources=resources,
+        created=datetime.now(timezone.utc).isoformat()
+    )
+
+def _should_refresh_token(
+    token: str,
+    now: float
+) -> bool:
+    claims = parse_configuration_claims(token)
+    if claims is None:
+        # Revalidate malformed cache entries, while still allowing stale
+        # fallback if the refresh cannot reach the API.
+        return True
+    exp = claims.get("exp")
+    if not isinstance(exp, (int, float)) or isinstance(exp, bool):
+        return False # Legacy tokens do not expire.
+    iat = claims.get("iat")
+    if (
+        not isinstance(iat, (int, float)) or
+        isinstance(iat, bool) or
+        exp <= iat
+    ):
+        return now >= exp
+    refresh_at = iat + (exp - iat) / 2
+    return now >= refresh_at
+
+def _get_cache_key(
+    tag: str,
+    client_id: str,
+    configuration_id: str
+) -> str:
+    encoded = "".join(
+        f"{len(value)}:{value}"
+        for value in (tag, client_id, configuration_id)
+    )
+    return f"muna.prediction.{encoded}"

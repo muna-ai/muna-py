@@ -11,6 +11,7 @@ from .parameter import Parameter
 from .user import User
 
 PredictorAccess = Literal["public", "private", "unlisted"]
+PredictorDistribution = Literal["hosted", "community"]
 PredictorStatus = Literal["compiling", "active", "archived"]
 
 class Predictor(BaseModel):
@@ -21,20 +22,20 @@ class Predictor(BaseModel):
         tag (str): Predictor tag.
         owner (User): Predictor owner.
         name (str): Predictor name.
+        description (str): Predictor description.
         status (PredictorStatus): Predictor status.
         access (PredictorAccess): Predictor access.
         signature (Signature): Predictor signature.
         created (str): Date created.
-        description (str): Predictor description.
     """
     tag: str = Field(description="Predictor tag.")
-    owner: User = Field(description="Predictor owner.")
+    owner: User = Field(description="Predictor owner.")    
     name: str = Field(description="Predictor name.")
+    description: str = Field(description="Predictor description.")
     status: PredictorStatus = Field(description="Predictor status.")
     access: PredictorAccess = Field(description="Predictor access.")
     signature: Signature = Field(description="Predictor signature.")
     created: str = Field(description="Date created.")
-    description: str | None = Field(default=None, description="Predictor description.")
 
 class Signature(BaseModel):
     """

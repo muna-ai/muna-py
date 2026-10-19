@@ -3,8 +3,8 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
-from ..api import MunaClient, MunaAPIError
-from ..types import Predictor
+from ..api import parse_hf_tag, load_hf_manifest, MunaClient, MunaAPIError
+from ..types import Predictor, User
 
 class PredictorService:
 
@@ -21,6 +21,19 @@ class PredictorService:
         Returns:
             Predictor: Predictor.
         """
+        if hf_tag := parse_hf_tag(tag):
+            hf_manifest = load_hf_manifest(hf_tag)
+            username, name = hf_manifest.tag.lstrip("@").split("/")
+            return Predictor(
+                tag=hf_manifest.tag,
+                owner=User(username=username),
+                name=name,
+                description="",
+                status="active",
+                access="unlisted",
+                signature=hf_manifest.signature,
+                created=""
+            )
         try:
             return self.client.request(
                 method="GET",

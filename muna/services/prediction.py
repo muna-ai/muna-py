@@ -15,7 +15,7 @@ from requests import get
 from typing import Iterator, Literal
 from urllib.request import urlopen
 
-from ..api import parse_configuration_claims, MunaClient, PredictionCache
+from ..api import parse_configuration_claims, parse_hf_tag, MunaClient, PredictionCache
 from ..c import Configuration, Predictor, Prediction as CPrediction, ValueMap
 from ..c.value import _ensure_object_serializable, Value as CValue, _TENSOR_DTYPES
 from ..types import (
@@ -241,6 +241,8 @@ class PredictionService:
                 device=device
             )
         except _PredictorCreationError:
+            if parse_hf_tag(tag) is not None:
+                raise
             # A cached token can outlive native validation rules. Evict it and
             # retry once with a fetch pinned to the evicted prediction.
             self.cache.invalidate(tag)
