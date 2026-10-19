@@ -1,3 +1,6 @@
+## 0.1.33
+*INCOMPLETE*
+
 ## 0.1.32
 + Added support for running compiled models from Hugging Face repositories with `hf:<repo-id>` tags.
 
