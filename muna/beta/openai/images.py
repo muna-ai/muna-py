@@ -11,7 +11,7 @@ from typing import Literal
 
 from ...c import Value
 from ...services import PredictorService, PredictionService
-from ...types import Acceleration, Dtype
+from ...types import Acceleration, Device, Dtype
 from ..annotations import get_parameter
 from .schema import ImageData, ImageResponse
 
@@ -52,7 +52,8 @@ class ImageService:
         output_format: Literal["png", "jpeg", "webp", "raw"] | None = None,
         output_compression: int | None = None,
         size: ImageSize | None = None,
-        acceleration: Acceleration = "local_auto"
+        acceleration: Acceleration = "local_auto",
+        devices: list[Device | str] | None = None
     ) -> ImageResponse:
         """
         Generate an image given a prompt.
@@ -66,6 +67,7 @@ class ImageService:
             output_format (str): The format in which the generated images are returned.
             size (str): The size of the generated images.
             acceleration (Acceleration): Prediction acceleration.
+            devices (list): Local compute devices.
 
         Returns:
             ImageRepsonse: Generated image.
@@ -83,7 +85,8 @@ class ImageService:
             output_compression=output_compression,
             output_format=output_format,
             size=size,
-            acceleration=acceleration
+            acceleration=acceleration,
+            devices=devices
         )
         # Return
         return result
@@ -147,7 +150,8 @@ class ImageService:
             output_format: Literal["png", "jpeg", "webp", "raw"] | None,
             output_compression: int | None,
             size: ImageSize | None,
-            acceleration: Acceleration
+            acceleration: Acceleration,
+            devices: list[Device | str] | None
         ) -> ImageResponse:
             # Build prediction input map
             requested_width, requested_height = _get_image_size(size)
@@ -162,7 +166,8 @@ class ImageService:
             prediction = self.__predictions.create(
                 tag=model,
                 inputs=input_map,
-                acceleration=acceleration
+                acceleration=acceleration,
+                devices=devices
             )
             # Check for error
             if prediction.error:

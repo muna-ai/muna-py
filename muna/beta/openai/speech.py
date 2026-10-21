@@ -10,7 +10,7 @@ from requests import Response
 
 from ...c import Value
 from ...services import PredictorService, PredictionService
-from ...types import Acceleration, Dtype
+from ...types import Acceleration, Device, Dtype
 from ..annotations import get_parameter
 from .schema import SpeechCreateResponse, SpeechResponseFormat, SpeechStreamFormat
 
@@ -39,7 +39,8 @@ class SpeechService:
         response_format: SpeechResponseFormat="mp3",
         speed: float=1.,
         stream_format: SpeechStreamFormat="audio",
-        acceleration: Acceleration="local_auto"
+        acceleration: Acceleration="local_auto",
+        devices: list[Device | str] | None=None
     ) -> SpeechCreateResponse:
         """
         Generate audio from the input text.
@@ -52,6 +53,7 @@ class SpeechService:
             speed (float): The speed of the generated audio. Defaults to 1.0.
             stream_format ("audio" | "sse"):  The format to stream the audio in.
             acceleration (Acceleration): Prediction acceleration.
+            devices (list): Local compute devices.
         """
         # Ensure we have a delegate
         if model not in self.__cache:
@@ -65,7 +67,8 @@ class SpeechService:
             response_format=response_format,
             speed=speed,
             stream_format=stream_format,
-            acceleration=acceleration
+            acceleration=acceleration,
+            devices=devices
         )
         # Return
         return result
@@ -131,7 +134,8 @@ class SpeechService:
             response_format: SpeechResponseFormat,
             speed: float,
             stream_format: SpeechStreamFormat,
-            acceleration: Acceleration
+            acceleration: Acceleration,
+            devices: list[Device | str] | None
         ) -> SpeechCreateResponse:
             # Check stream format
             if stream_format != "audio":
@@ -150,7 +154,8 @@ class SpeechService:
             prediction = self.__predictions.create(
                 tag=model,
                 inputs=input_map,
-                acceleration=acceleration
+                acceleration=acceleration,
+                devices=devices
             )
             # Check for error
             if prediction.error:

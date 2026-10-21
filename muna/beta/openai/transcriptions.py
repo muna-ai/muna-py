@@ -9,7 +9,7 @@ from typing import BinaryIO
 
 from ...c import Value
 from ...services import PredictorService, PredictionService
-from ...types import Acceleration, Dtype
+from ...types import Acceleration, Device, Dtype
 from ..annotations import get_parameter
 from ..types import Audio
 from .schema import Transcription
@@ -39,7 +39,8 @@ class TranscriptionService:
         prompt: str | None=None,
         stream: bool=False,
         temperature: float=0.,
-        acceleration: Acceleration="local_auto"
+        acceleration: Acceleration="local_auto",
+        devices: list[Device | str] | None=None
     ) -> Transcription:
         """
         Transcribe audio into the input language.
@@ -52,6 +53,7 @@ class TranscriptionService:
             stream (bool): Whether to stream transcription events.
             temperature (float): The sampling temperature, between 0 and 1.
             acceleration (Acceleration): Prediction acceleration.
+            devices (list): Local compute devices.
 
         Returns:
             Transcription: Result transcription.
@@ -68,7 +70,8 @@ class TranscriptionService:
             prompt=prompt,
             stream=stream,
             temperature=temperature,
-            acceleration=acceleration
+            acceleration=acceleration,
+            devices=devices
         )
         # Return
         return result
@@ -136,7 +139,8 @@ class TranscriptionService:
             prompt: str | None,
             stream: bool,
             temperature: float,
-            acceleration: Acceleration
+            acceleration: Acceleration,
+            devices: list[Device | str] | None
         ) -> Transcription:
             # Build prediction input map
             samples = self.__read_audio_samples(
@@ -155,7 +159,8 @@ class TranscriptionService:
             prediction = self.__predictions.create(
                 tag=model,
                 inputs=input_map,
-                acceleration=acceleration
+                acceleration=acceleration,
+                devices=devices
             )
             # Check for error
             if prediction.error:

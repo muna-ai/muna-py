@@ -7,7 +7,7 @@ from collections.abc import Callable, Mapping
 from pydantic import TypeAdapter
 
 from ...services import PredictorService, PredictionService
-from ...types import Acceleration, Dtype
+from ...types import Acceleration, Device, Dtype
 from ..annotations import get_parameter
 from ..errors import prediction_error_to_exception
 from .schema import Content, Question, SystemOneResponse
@@ -34,7 +34,8 @@ class TypeSafeClient:
         questions: Mapping[str, Question | dict],
         *,
         model: str,
-        acceleration: Acceleration="local_auto"
+        acceleration: Acceleration="local_auto",
+        devices: list[Device | str] | None=None
     ) -> SystemOneResponse:
         """
         Evaluate a state against a map of typed questions.
@@ -44,6 +45,7 @@ class TypeSafeClient:
             questions (dict): Typed questions keyed by caller-chosen ids. Ids are never sent to the model.
             model (str): Decision model tag.
             acceleration (Acceleration): Prediction acceleration.
+            devices (list): Local compute devices.
         """
         # Validate request
         if not isinstance(state, (str, dict, list)):
@@ -60,7 +62,8 @@ class TypeSafeClient:
             state=state,
             questions=questions,
             model=model,
-            acceleration=acceleration
+            acceleration=acceleration,
+            devices=devices
         )
         # Return
         return result
@@ -123,7 +126,8 @@ class TypeSafeClient:
             state: Content,
             questions: dict[str, Question],
             model: str,
-            acceleration: Acceleration
+            acceleration: Acceleration,
+            devices: list[Device | str] | None
         ) -> SystemOneResponse:
             # Build prediction input map
             input_map = {
@@ -137,7 +141,8 @@ class TypeSafeClient:
             prediction = self.__predictions.create(
                 tag=model,
                 inputs=input_map,
-                acceleration=acceleration
+                acceleration=acceleration,
+                devices=devices
             )
             # Check for error
             if prediction.error:

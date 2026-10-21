@@ -9,7 +9,7 @@ from pydantic import TypeAdapter, ValidationError
 from typing import overload, Literal
 
 from ...services import PredictorService, PredictionService
-from ...types import Acceleration, Dtype, Prediction
+from ...types import Acceleration, Device, Dtype, Prediction
 from ..annotations import get_parameter
 from ..errors import prediction_error_to_exception
 from ..openai.schema import ChatCompletionChunk, Message as OpenAIMessage
@@ -50,7 +50,8 @@ class MessageService:
         temperature: float | None=None,
         top_k: int | None=None,
         top_p: float | None=None,
-        acceleration: Acceleration="local_auto"
+        acceleration: Acceleration="local_auto",
+        devices: list[Device | str] | None=None
     ) -> Message: ...
 
     @overload
@@ -66,7 +67,8 @@ class MessageService:
         temperature: float | None=None,
         top_k: int | None=None,
         top_p: float | None=None,
-        acceleration: Acceleration="local_auto"
+        acceleration: Acceleration="local_auto",
+        devices: list[Device | str] | None=None
     ) -> Iterator[RawMessageStreamEvent]: ...
 
     def create(
@@ -81,7 +83,8 @@ class MessageService:
         temperature: float | None=None,
         top_k: int | None=None,
         top_p: float | None=None,
-        acceleration: Acceleration="local_auto"
+        acceleration: Acceleration="local_auto",
+        devices: list[Device | str] | None=None
     ) -> Message | Iterator[RawMessageStreamEvent]:
         """
         Create a message.
@@ -97,6 +100,7 @@ class MessageService:
             top_k (int): Only sample from the top K options for each subsequent token.
             top_p (float): Nucleus sampling coefficient.
             acceleration (Acceleration): Prediction acceleration.
+            devices (list): Local compute devices.
 
         Returns:
             Message | Iterator[RawMessageStreamEvent]: Message or raw message stream events if streaming.
@@ -116,7 +120,8 @@ class MessageService:
             temperature=temperature,
             top_k=top_k,
             top_p=top_p,
-            acceleration=acceleration
+            acceleration=acceleration,
+            devices=devices
         )
         # Return
         return result
@@ -132,7 +137,8 @@ class MessageService:
         temperature: float | None=None,
         top_k: int | None=None,
         top_p: float | None=None,
-        acceleration: Acceleration="local_auto"
+        acceleration: Acceleration="local_auto",
+        devices: list[Device | str] | None=None
     ) -> MessageStream:
         """
         Create a streaming message.
@@ -147,6 +153,7 @@ class MessageService:
             top_k (int): Only sample from the top K options for each subsequent token.
             top_p (float): Nucleus sampling coefficient.
             acceleration (Acceleration): Prediction acceleration.
+            devices (list): Local compute devices.
 
         Returns:
             MessageStream: Message stream context manager.
@@ -161,7 +168,8 @@ class MessageService:
             temperature=temperature,
             top_k=top_k,
             top_p=top_p,
-            acceleration=acceleration
+            acceleration=acceleration,
+            devices=devices
         )
         return MessageStream(events)
 
@@ -242,7 +250,8 @@ class MessageService:
             temperature: float | None,
             top_k: int | None,
             top_p: float | None,
-            acceleration: Acceleration
+            acceleration: Acceleration,
+            devices: list[Device | str] | None
         ) -> Message | Iterator[RawMessageStreamEvent]:
             # Build prediction input map
             input_map = { input_param.name: _to_openai_messages(messages, system) }
@@ -260,7 +269,8 @@ class MessageService:
             prediction_stream = self.__predictions.stream(
                 tag=model,
                 inputs=input_map,
-                acceleration=acceleration
+                acceleration=acceleration,
+                devices=devices
             )
             completion_stream = _gather_prediction_outputs(
                 prediction_stream,

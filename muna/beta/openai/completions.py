@@ -16,7 +16,7 @@ from typing import overload, Iterator, Literal
 
 from ...c import Value
 from ...services import PredictorService, PredictionService
-from ...types import Acceleration, Dtype, Parameter, Prediction
+from ...types import Acceleration, Device, Dtype, Parameter, Prediction
 from ..annotations import get_parameter
 from ..errors import prediction_error_to_exception
 from .schema import (
@@ -61,7 +61,8 @@ class ChatCompletionService:
         seed: int | None=None,
         frequency_penalty: float | None=None,
         presence_penalty: float | None=None,
-        acceleration: Acceleration="local_auto"
+        acceleration: Acceleration="local_auto",
+        devices: list[Device | str] | None=None
     ) -> ChatCompletion: ...
 
     @overload
@@ -81,7 +82,8 @@ class ChatCompletionService:
         seed: int | None=None,
         frequency_penalty: float | None=None,
         presence_penalty: float | None=None,
-        acceleration: Acceleration="local_auto"
+        acceleration: Acceleration="local_auto",
+        devices: list[Device | str] | None=None
     ) -> Iterator[ChatCompletionChunk]: ...
 
     def create(
@@ -100,7 +102,8 @@ class ChatCompletionService:
         seed: int | None=None,
         frequency_penalty: float | None=None,
         presence_penalty: float | None=None,
-        acceleration: Acceleration="local_auto"
+        acceleration: Acceleration="local_auto",
+        devices: list[Device | str] | None=None
     ) -> ChatCompletion | Iterator[ChatCompletionChunk]:
         """
         Create a chat completion.
@@ -120,6 +123,7 @@ class ChatCompletionService:
             frequency_penalty (float): Token frequency penalty.
             presence_penalty (float): Token presence penalty.
             acceleration (Acceleration): Prediction acceleration.
+            devices (list): Local compute devices.
 
         Returns:
             ChatCompletion | Iterator[ChatCompletionChunk]: Chat completion or chat completion chunks if streaming.
@@ -143,7 +147,8 @@ class ChatCompletionService:
             seed=seed,
             frequency_penalty=frequency_penalty,
             presence_penalty=presence_penalty,
-            acceleration=acceleration
+            acceleration=acceleration,
+            devices=devices
         )
         # Return
         return result
@@ -265,7 +270,8 @@ class ChatCompletionService:
             seed: int | None,
             frequency_penalty: float | None,
             presence_penalty: float | None,
-            acceleration: Acceleration
+            acceleration: Acceleration,
+            devices: list[Device | str] | None
         ) -> ChatCompletion | Iterator[ChatCompletionChunk]:
             # Check tool support
             if tools and tools_param is None:
@@ -311,7 +317,8 @@ class ChatCompletionService:
             prediction_stream = self.__predictions.stream(
                 tag=model,
                 inputs=input_map,
-                acceleration=acceleration
+                acceleration=acceleration,
+                devices=devices
             )
             completion_stream = _gather_completion_outputs(prediction_stream, completion_param_idx)
             chunks = map(_parse_chat_completion_chunk, completion_stream)

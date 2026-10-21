@@ -9,7 +9,7 @@ from numpy import ndarray
 from typing import Literal
 
 from ...services import PredictorService, PredictionService
-from ...types import Acceleration, Dtype
+from ...types import Acceleration, Device, Dtype
 from ..annotations import get_parameter
 from .schema import EmbeddingCreateResponse, Embedding
 
@@ -36,7 +36,8 @@ class EmbeddingService:
         model: str,
         dimensions: int | None=None,
         encoding_format: Literal["float", "base64"] | None=None,
-        acceleration: Acceleration="local_auto"
+        acceleration: Acceleration="local_auto",
+        devices: list[Device | str] | None=None
     ) -> EmbeddingCreateResponse:
         """
         Create an embedding vector representing the input text.
@@ -47,6 +48,7 @@ class EmbeddingService:
             dimensions (int): The number of dimensions the resulting output embeddings should have. Only supported by Matryoshka embedding models.
             encoding_format (str): The format to return the embeddings in.
             acceleration (Acceleration): Prediction acceleration.
+            devices (list): Local compute devices.
         """
         input = [input] if isinstance(input, str) else input
         # Ensure we have a delegate
@@ -59,7 +61,8 @@ class EmbeddingService:
             model=model,
             dimensions=dimensions,
             encoding_format=encoding_format or "float",
-            acceleration=acceleration
+            acceleration=acceleration,
+            devices=devices
         )
         # Return
         return result
@@ -121,7 +124,8 @@ class EmbeddingService:
             model: str,
             dimensions: int | None,
             encoding_format: Literal["float", "base64"],
-            acceleration: Acceleration
+            acceleration: Acceleration,
+            devices: list[Device | str] | None
         ) -> EmbeddingCreateResponse:
             # Build prediction input map
             input_map = { input_param.name: input }
@@ -131,7 +135,8 @@ class EmbeddingService:
             prediction = self.__predictions.create(
                 tag=model,
                 inputs=input_map,
-                acceleration=acceleration
+                acceleration=acceleration,
+                devices=devices
             )
             # Check for error
             if prediction.error:
