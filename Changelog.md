@@ -1,5 +1,9 @@
 ## 0.1.34
-*INCOMPLETE*
++ Added `PredictionResource.size` field for the resource size in bytes.
++ Added `beta.openai.models.retrieve` method for retrieving an OpenAI `Model` object for a predictor.
++ Added `beta.anthropic.models.retrieve` method for retrieving an Anthropic `ModelInfo` object, with limits and capabilities derived from the predictor signature.
++ Removed `PredictionRequirements.disk_bytes` field. Sum `PredictionResource.size` over the prediction's resources instead.
++ Removed fetching of remote image URLs in `muna.beta.openai.chat.completions.create`. Image content parts must now be base64 `data:` URLs.
 
 ## 0.1.33
 + Added `Device` type for specifying local compute devices.

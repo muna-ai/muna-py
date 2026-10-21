@@ -11,7 +11,6 @@ from io import BytesIO
 from numpy import ndarray
 from PIL import Image
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
-from requests import get as request_get
 from typing import overload, Iterator, Literal
 
 from ...c import Value
@@ -405,20 +404,27 @@ def _validate_message(index: int, message: Message) -> None:
 
 def _decode_image(url: str) -> Image.Image:
     """
-    Decode an image content part URL (base64 data URL or remote URL) into
-    an RGBA pixel buffer.
+    Decode an `image_url` content part's `data:` URL into an RGBA pixel buffer.
+    Remote URLs are rejected: fetching is the caller's job.
     """
-    if url.startswith("data:"):
-        _, _, encoded = url.partition(",")
-        data = b64decode(encoded)
-    else:
-        response = request_get(url, timeout=10, stream=True)
-        response.raise_for_status()
-        data = response.raw.read(_MAX_IMAGE_FETCH_BYTES + 1, decode_content=True)
-        if len(data) > _MAX_IMAGE_FETCH_BYTES:
-            raise ValueError(f"Image at {url} exceeds the maximum size of {_MAX_IMAGE_FETCH_BYTES} bytes.")
-    image = Image.open(BytesIO(data))
-    return image.convert("RGBA")
+    if not url.startswith("data:"):
+        raise ValueError(
+            "`image_url` content must be a base64 `data:` URL. Fetch remote "
+            "images and pass them inline as data URLs."
+        )
+    meta, sep, payload = url.removeprefix("data:").partition(",")
+    if not sep:
+        raise ValueError("Malformed data URL in `image_url` content part.")
+    mime = meta.split(";")[0] or "image/*"
+    try:
+        data = b64decode(payload, validate=True)
+    except ValueError as error:
+        raise ValueError(f"Failed to decode base64 image data: {error}") from None
+    try:
+        image = Image.open(BytesIO(data))
+        return image.convert("RGBA")
+    except OSError:
+        raise ValueError(f"Failed to decode image content of type `{mime}` into an image.") from None
 
 def _decode_audio(
     input_audio: ChatCompletionContentPartInputAudio.InputAudio,
@@ -558,4 +564,3 @@ class _NormalizedConversation(BaseModel, **ConfigDict(arbitrary_types_allowed=Tr
     audios: list[ndarray]
 
 _MESSAGE = TypeAdapter(Message)
-_MAX_IMAGE_FETCH_BYTES = 20 * 1024 * 1024

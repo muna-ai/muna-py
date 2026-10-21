@@ -13,6 +13,8 @@ from muna.beta.openai import (
 )
 from muna.beta.errors import prediction_error_to_exception
 from muna.beta.openai.completions import _merge_tool_calls, _normalize_conversation
+from muna.beta.openai.models import _create_model
+from muna.types import Dtype, Parameter, Signature
 from pathlib import Path
 from PIL import Image
 from pytest import raises
@@ -114,6 +116,47 @@ def test_normalize_undeclared_image_raises():
             images_param=None,
             audios_param=None
         )
+
+def test_normalize_remote_and_malformed_image_urls_raise():
+    images_param = Annotations.ChatImages(description="Images.")
+    for url in [
+        "https://example.com/cat.png",
+        "data:image/png;base64",
+        "data:image/png;base64,!!!",
+        "data:image/png;base64,AA=="
+    ]:
+        with raises(ValueError):
+            _normalize_conversation(
+                [{
+                    "role": "user",
+                    "content": [{ "type": "image_url", "image_url": { "url": url } }]
+                }],
+                images_param=images_param,
+                audios_param=None
+            )
+    with raises(ValueError, match="data:"):
+        _normalize_conversation(
+            [{
+                "role": "user",
+                "content": [{ "type": "image_url", "image_url": { "url": "https://example.com/cat.png" } }]
+            }],
+            images_param=images_param,
+            audios_param=None
+        )
+
+def test_model_is_exactly_the_openai_object():
+    signature = Signature(
+        inputs=[Parameter(name="messages", dtype=Dtype.list, context_length=262144)],
+        outputs=[]
+    )
+    model = _create_model("@qwen/qwen-3.8-27b", signature, created=1_789_936_000)
+    assert model.model_dump() == {
+        "id": "@qwen/qwen-3.8-27b",
+        "object": "model",
+        "created": 1_789_936_000,
+        "owned_by": "qwen"
+    }
+    assert _create_model("@a/b", signature, created=None).created == 0
 
 def test_normalize_file_part_raises():
     with raises(ValueError, match="File content parts"):

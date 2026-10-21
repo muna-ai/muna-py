@@ -202,7 +202,8 @@ def _create_hf_prediction(hf_tag: HFTag) -> Prediction:
             Path(urlparse(resource.url).path).name,
             revision=hf_tag.revision
         )),
-        name=resource.name
+        name=resource.name,
+        size=resource.size
     ) for resource in manifest.resources]
     return Prediction(
         id=manifest.id,

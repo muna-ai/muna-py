@@ -5,6 +5,7 @@
 
 from ...services import PredictorService, PredictionService
 from .messages import MessageService
+from .models import ModelService
 
 class AnthropicClient:
     """
@@ -12,8 +13,10 @@ class AnthropicClient:
 
     Members:
         messages (MessageService): Messages service.
+        models (ModelService): Model service.
     """
     messages: MessageService
+    models: ModelService
 
     def __init__(
         self,
@@ -21,3 +24,4 @@ class AnthropicClient:
         predictions: PredictionService
     ):
         self.messages = MessageService(predictors, predictions)
+        self.models = ModelService(predictors)

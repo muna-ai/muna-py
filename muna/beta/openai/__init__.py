@@ -12,6 +12,6 @@ from .schema import (
     ChatCompletionMessageFunctionToolCall, ChatCompletionReasoningEffort,
     ChatCompletionToolChoice, Choice, ChoiceDeltaToolCall, DeltaMessage,
     EmbeddingCreateResponse, Embedding, FunctionDefinition, Message,
-    SpeechCreateResponse, SpeechResponseFormat, SpeechStreamFormat,
+    Model, SpeechCreateResponse, SpeechResponseFormat, SpeechStreamFormat,
     StreamChoice
 )

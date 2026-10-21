@@ -204,6 +204,15 @@ class ImageResponse(BaseModel):
     created: int = Field(description="The Unix timestamp (in seconds) of when the image was created.")
     usage: Usage | None = Field(default=None, description="the token usage information for the image generation.")
 
+class Model(BaseModel):
+    """
+    OpenAI model object: exactly the four fields OpenAI documents.
+    """
+    id: str = Field(description="Model identifier (the predictor tag).")
+    object: Literal["model"] = Field("model", description="Object type, always `model`.")
+    created: int = Field(description="Creation time in Unix seconds.")
+    owned_by: str = Field(description="Model owner, the tag's `@owner`.")
+
 class _ResponseFormatTextDict(TypedDict):
     type: Literal["text"]
 

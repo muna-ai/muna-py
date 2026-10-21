@@ -6,8 +6,11 @@
 from .anthropic import AnthropicClient
 from .messages import MessageStream
 from .schema import (
-    ContentBlock, Message, RawContentBlockDeltaEvent, RawContentBlockStartEvent,
-    RawContentBlockStopEvent, RawMessageDeltaEvent, RawMessageStartEvent,
-    RawMessageStopEvent, RawMessageStreamEvent, StopReason, TextBlock,
-    TextDelta, ThinkingBlock, ThinkingDelta, Usage
+    CapabilitySupport, ContentBlock, EffortCapability, Message,
+    ModelCapabilities, ModelInfo, RawContentBlockDeltaEvent,
+    RawContentBlockStartEvent, RawContentBlockStopEvent,
+    RawMessageDeltaEvent, RawMessageStartEvent, RawMessageStopEvent,
+    RawMessageStreamEvent, StopReason, TextBlock, TextDelta,
+    ThinkingBlock, ThinkingCapability, ThinkingDelta, ThinkingTypes,
+    Usage
 )

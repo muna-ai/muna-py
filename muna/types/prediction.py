@@ -34,10 +34,12 @@ class PredictionResource(BaseModel):
         type (str): Resource type.
         url (str): Resource URL.
         name (str): Resource name.
+        size (int): Resource size in bytes.
     """
     type: str = Field(description="Resource type.")
     url: str = Field(description="Resource URL.")
     name: str | None = Field(None, description="Resource name.")
+    size: int | None = Field(None, description="Resource size in bytes.")
 
 class PredictionRequirements(BaseModel):
     """
@@ -46,7 +48,6 @@ class PredictionRequirements(BaseModel):
     Members:
         gpu_count (int): Number of GPUs the predictor uses. `None` if it requires no GPU.
         gpu_architecture (str): Required GPU compute architecture (e.g. `sm_100`).
-        disk_bytes (int): Total size of the predictor's resources in bytes.
     """
     gpu_count: int | None = Field(
         default=None,
@@ -59,12 +60,6 @@ class PredictionRequirements(BaseModel):
         description="Required GPU compute architecture (e.g. `sm_100`).",
         serialization_alias="gpuArchitecture",
         validation_alias=AliasChoices("gpu_architecture", "gpuArchitecture")
-    )
-    disk_bytes: int | None = Field(
-        default=None,
-        description="Total size of the predictor's resources in bytes.",
-        serialization_alias="diskBytes",
-        validation_alias=AliasChoices("disk_bytes", "diskBytes")
     )
 
 class Prediction(BaseModel):

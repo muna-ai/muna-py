@@ -8,6 +8,7 @@ from .audio import AudioService
 from .chat import ChatService
 from .embeddings import EmbeddingService
 from .images import ImageService
+from .models import ModelService
 
 class OpenAIClient:
     """
@@ -18,11 +19,13 @@ class OpenAIClient:
         embeddings (EmbeddingsService): Embeddings service.
         audio (AudioService): Audio service.
         image (ImageService): Image service.
+        models (ModelService): Model service.
     """
     chat: ChatService
     embeddings: EmbeddingService
     audio: AudioService
     images: ImageService
+    models: ModelService
 
     def __init__(
         self,
@@ -33,3 +36,4 @@ class OpenAIClient:
         self.embeddings = EmbeddingService(predictors, predictions)
         self.audio = AudioService(predictors, predictions)
         self.images = ImageService(predictors, predictions)
+        self.models = ModelService(predictors)
