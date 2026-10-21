@@ -7,7 +7,7 @@ from ctypes import byref, c_int, c_int32, c_void_p, create_string_buffer
 from pathlib import Path
 from typing import final
 
-from ..types import Acceleration
+from ..types import Acceleration, Device
 from .fxnc import get_fxnc, status_to_error, FXNStatus
 
 @final
@@ -81,7 +81,7 @@ class Configuration:
             raise RuntimeError(f"Failed to set configuration acceleration with error: {status_to_error(status)}")
 
     @property
-    def devices(self) -> list[object]:
+    def devices(self) -> list[int]:
         count = c_int32()
         status = get_fxnc().FXNConfigurationGetDevices(
             self.__configuration,
@@ -104,11 +104,11 @@ class Configuration:
         return list(device_array[:min(count.value, capacity.value)])
 
     @devices.setter
-    def devices(self, devices: list[object]):
-        device_array = (c_void_p * len(devices))(*devices) if devices else None
+    def devices(self, devices: list[Device]):
+        pointers = (c_void_p * len(devices))(*(device.pointer for device in devices)) if devices else None
         status = get_fxnc().FXNConfigurationSetDevices(
             self.__configuration,
-            device_array,
+            pointers,
             len(devices)
         )
         if status != FXNStatus.OK:

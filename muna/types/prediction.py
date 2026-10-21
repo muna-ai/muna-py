@@ -3,7 +3,7 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 from typing import Literal
 
 from .value import RemoteValue
@@ -37,7 +37,35 @@ class PredictionResource(BaseModel):
     """
     type: str = Field(description="Resource type.")
     url: str = Field(description="Resource URL.")
-    name: str | None = Field(default=None, description="Resource name.")
+    name: str | None = Field(None, description="Resource name.")
+
+class PredictionRequirements(BaseModel):
+    """
+    Hardware requirements for a prediction.
+
+    Members:
+        gpu_count (int): Number of GPUs the predictor uses. `None` if it requires no GPU.
+        gpu_architecture (str): Required GPU compute architecture (e.g. `sm_100`).
+        disk_bytes (int): Total size of the predictor's resources in bytes.
+    """
+    gpu_count: int | None = Field(
+        default=None,
+        description="Number of GPUs the predictor uses. `None` if it requires no GPU.",
+        serialization_alias="gpuCount",
+        validation_alias=AliasChoices("gpu_count", "gpuCount")
+    )
+    gpu_architecture: str | None = Field(
+        default=None,
+        description="Required GPU compute architecture (e.g. `sm_100`).",
+        serialization_alias="gpuArchitecture",
+        validation_alias=AliasChoices("gpu_architecture", "gpuArchitecture")
+    )
+    disk_bytes: int | None = Field(
+        default=None,
+        description="Total size of the predictor's resources in bytes.",
+        serialization_alias="diskBytes",
+        validation_alias=AliasChoices("disk_bytes", "diskBytes")
+    )
 
 class Prediction(BaseModel):
     """
@@ -46,8 +74,9 @@ class Prediction(BaseModel):
     Members:
         id (str): Prediction identifier.
         tag (str): Predictor tag.
-        configuration (str): Prediction configuration token. This is only populated for `EDGE` predictions.
-        resources (list): Prediction resources. This is only populated for `EDGE` predictions.
+        configuration (str): Prediction configuration token.
+        resources (list): Prediction resources.
+        requirements (PredictionRequirements): Prediction hardware requirements.
         results (list): Prediction results.
         latency (float): Prediction latency in milliseconds.
         error (str): Prediction error. This is `None` if the prediction completed successfully.
@@ -56,16 +85,17 @@ class Prediction(BaseModel):
     """
     id: str = Field(description="Prediction identifier.")
     tag: str = Field(description="Predictor tag.")
-    configuration: str | None = Field(default=None, description="Prediction configuration token. This is only populated for `EDGE` predictions.")
-    resources: list[PredictionResource] | None = Field(default=None, description="Prediction resources. This is only populated for `EDGE` predictions.")
-    results: list[object] | None = Field(default=None, description="Prediction results.")
-    latency: float | None = Field(default=None, description="Prediction latency in milliseconds.")
-    error: str | None = Field(default=None, description="Prediction error. This is `None` if the prediction completed successfully.")
-    logs: str | None = Field(default=None, description="Prediction logs.")
+    configuration: str | None = Field(None, description="Prediction configuration token.")
+    resources: list[PredictionResource] | None = Field(None, description="Prediction resources.")
+    requirements: PredictionRequirements | None = Field(None, description="Prediction hardware requirements.")
+    results: list[object] | None = Field(None, description="Prediction results.")
+    latency: float | None = Field(None, description="Prediction latency in milliseconds.")
+    error: str | None = Field(None, description="Prediction error. This is `None` if the prediction completed successfully.")
+    logs: str | None = Field(None, description="Prediction logs.")
     created: str = Field(description="Date created.")
 
 class RemotePrediction(Prediction):
     """
     Remote prediction.
     """
-    results: list[RemoteValue] | None = Field(default=None, description="Prediction results.")
+    results: list[RemoteValue] | None = Field(None, description="Prediction results.")

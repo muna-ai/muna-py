@@ -1,5 +1,8 @@
 ## 0.1.33
-*INCOMPLETE*
++ Added `Device` type for specifying local compute devices.
++ Added `devices` parameter to `muna.predictions.create` and `muna.predictions.stream` methods.
++ Added `PredictionRequirements` type and `Prediction.requirements` field describing the hardware a compiled model needs.
++ Removed `device` parameter from `muna.predictions.create` and `muna.predictions.stream` methods. Use `devices` instead.
 
 ## 0.1.32
 + Added support for running compiled models from Hugging Face repositories with `hf:<repo-id>` tags.

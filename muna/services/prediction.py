@@ -19,7 +19,7 @@ from ..api import parse_configuration_claims, parse_hf_tag, MunaClient, Predicti
 from ..c import Configuration, Predictor, Prediction as CPrediction, ValueMap
 from ..c.value import _ensure_object_serializable, Value as CValue, _TENSOR_DTYPES
 from ..types import (
-    Acceleration, Dtype, Prediction,
+    Acceleration, Device, Dtype, Prediction,
     RemotePrediction, RemoteValue, Value
 )
 
@@ -45,12 +45,20 @@ class PredictionService:
         *,
         inputs: dict[str, Value] | None=None,
         acceleration: Acceleration="local_auto",
-        device=None,
+        devices: list[Device | str] | None=None,
         client_id: str | None=None,
         configuration_id: str | None=None
     ) -> Prediction:
         """
         Create a prediction.
+
+        Parameters:
+            tag (str): Predictor tag.
+            inputs (dict): Input values.
+            acceleration (Acceleration): Prediction acceleration.
+            devices (list): Local compute devices, as `Device` instances or `cuda:<index>` strings.
+            client_id (str): Client identifier for raw predictions.
+            configuration_id (str): Configuration identifier for raw predictions.
         """
         if inputs is None:
             return self.__create_raw_prediction(
@@ -71,7 +79,7 @@ class PredictionService:
                 tag,
                 inputs=inputs,
                 acceleration=acceleration,
-                device=device
+                devices=devices
             )
         return self.__create_remote_prediction(
             tag,
@@ -85,17 +93,23 @@ class PredictionService:
         *,
         inputs: dict[str, Value],
         acceleration: Acceleration="local_auto",
-        device=None
+        devices: list[Device | str] | None=None
     ) -> Iterator[Prediction]:
         """
         Stream a prediction.
+
+        Parameters:
+            tag (str): Predictor tag.
+            inputs (dict): Input values.
+            acceleration (Acceleration): Prediction acceleration.
+            devices (list): Local compute devices, as `Device` instances or `cuda:<index>` strings.
         """
         if acceleration.startswith("local_"):
             yield from self.__stream_local_prediction(
                 tag,
                 inputs=inputs,
                 acceleration=acceleration,
-                device=device
+                devices=devices
             )
         else:
             yield from self.__stream_remote_prediction(
@@ -121,14 +135,14 @@ class PredictionService:
         *,
         inputs: dict[str, Value],
         acceleration: Acceleration,
-        device=None
+        devices: list[Device | str] | None=None
     ) -> Prediction:
         if not inputs:
             return self.cache.retrieve(tag)
         predictor = self.__get_predictor(
             tag,
             acceleration=acceleration,
-            device=device
+            devices=devices
         )
         with (
             ValueMap.from_dict(inputs) as input_map,
@@ -142,12 +156,12 @@ class PredictionService:
         *,
         inputs: dict[str, Value],
         acceleration: Acceleration,
-        device=None
+        devices: list[Device | str] | None=None
     ) -> Iterator[Prediction]:
         predictor = self.__get_predictor(
             tag=tag,
             acceleration=acceleration,
-            device=device
+            devices=devices
         )
         with (
             ValueMap.from_dict(inputs) as input_map,
@@ -229,7 +243,7 @@ class PredictionService:
         tag: str,
         *,
         acceleration: Acceleration="local_auto",
-        device: object | None=None
+        devices: list[Device | str] | None=None
     ) -> Predictor:
         if tag in self.__predictors:
             return self.__predictors[tag]
@@ -238,7 +252,7 @@ class PredictionService:
             predictor = self.__create_predictor(
                 prediction,
                 acceleration=acceleration,
-                device=device
+                devices=devices
             )
         except _PredictorCreationError:
             if parse_hf_tag(tag) is not None:
@@ -250,7 +264,7 @@ class PredictionService:
             predictor = self.__create_predictor(
                 prediction,
                 acceleration=acceleration,
-                device=device
+                devices=devices
             )
         self.__predictors[tag] = predictor
         return predictor
@@ -260,13 +274,14 @@ class PredictionService:
         prediction: Prediction,
         *,
         acceleration: Acceleration,
-        device: object
+        devices: list[Device | str] | None
     ) -> Predictor:
+        parsed_devices = [Device.parse(device) for device in devices or []]
         with Configuration() as configuration:
             configuration.tag = prediction.tag
             configuration.token = prediction.configuration
             configuration.acceleration = acceleration
-            configuration.devices = [] if device is None else [device]
+            configuration.devices = parsed_devices
             for resource in prediction.resources:
                 configuration.add_resource(resource.type, resource.url)
             for entry in _parse_preload_claim(prediction.configuration):
