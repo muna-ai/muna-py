@@ -10,11 +10,18 @@ from ._ort import OnnxRuntimeInferenceSessionMetadataBase
 from ._torch import TorchInferenceMetadataBase
 
 CudaArchitecture = Literal[
-    "sm_80",    # Ampere
-    "sm_89",    # Ada Lovelace
-    "sm_90",    # Hopper
-    "sm_100",   # Blackwell
+    # Ampere
+    "sm_80",
+    # Ada Lovelace
+    "sm_89",
+    # Hopper    
+    "sm_90",
+    # Blackwell
+    "sm_100",   # Datacenter
     "sm_103",   # Blackwell Ultra
+    "sm_120",   # Consumer & workstation
+    # Rubin
+    "sm_107",
 ]
 
 class _TensorRTInferenceMetadataBase(BaseModel, **ConfigDict(frozen=True)):
