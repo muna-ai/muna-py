@@ -35,7 +35,7 @@ def load_hf_manifest(hf_tag: HFTag) -> HFManifest:
     """
     manifest_path = download_hf_file(
         hf_tag.repo_id,
-        "muna.json",
+        "config.json",
         revision=hf_tag.revision
     )
     manifest = HFManifest.model_validate_json(manifest_path.read_text(encoding="utf-8"))
