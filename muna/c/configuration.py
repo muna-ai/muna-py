@@ -156,14 +156,21 @@ class Configuration:
         return buffer.value.decode("utf-8")
 
     @classmethod
-    def get_client_id(cls) -> str:
+    def get_target(cls) -> str:
         buffer = create_string_buffer(64)
-        status = get_fxnc().FXNConfigurationGetClientID(buffer, len(buffer))
-        if status == FXNStatus.OK:
-            return buffer.value.decode("utf-8")
-        else:
-            raise RuntimeError(f"Failed to retrieve client identifier with error: {status_to_error(status)}")
-        
+        status = get_fxnc().FXNConfigurationGetTarget(buffer, len(buffer))
+        if status != FXNStatus.OK:
+            raise RuntimeError(f"Failed to retrieve target with error: {status_to_error(status)}")
+        return buffer.value.decode("utf-8")
+
+    @classmethod
+    def get_compute_architecture(cls) -> str | None:
+        buffer = create_string_buffer(16)
+        status = get_fxnc().FXNConfigurationGetComputeArchitecture(buffer, len(buffer))
+        if status != FXNStatus.OK:
+            raise RuntimeError(f"Failed to retrieve compute architecture with error: {status_to_error(status)}")
+        return buffer.value.decode("utf-8") or None
+
     def __enter__(self):
         return self
 

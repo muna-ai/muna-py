@@ -1,5 +1,10 @@
 ## 0.1.35
-*INCOMPLETE*
++ Added `compute_architecture` parameter to `muna.predictions.create` method for overriding the detected compute architecture (e.g. `sm_100`, `gfx942`, `metal4`).
++ Renamed `client_id` parameter in `muna.predictions.create` method to `target`.
++ Removed `PredictionRequirements.gpu_architecture` field. The compute architecture is now requested by the client instead of reported by the predictor.
++ Removed `--gpu-count` option from `muna deploy` CLI command. The GPU count now comes from the predictor's requirements for the selected GPU.
++ Removed `beta.CompileConstant.meta` field.
++ Updated Function to 0.0.51.
 
 ## 0.1.34
 + Added `PredictionResource.size` field for the resource size in bytes.

@@ -46,7 +46,8 @@ class PredictionService:
         inputs: dict[str, Value] | None=None,
         acceleration: Acceleration="local_auto",
         devices: list[Device | str] | None=None,
-        client_id: str | None=None,
+        target: str | None=None,
+        compute_architecture: str | None=None,
         configuration_id: str | None=None
     ) -> Prediction:
         """
@@ -57,16 +58,22 @@ class PredictionService:
             inputs (dict): Input values.
             acceleration (Acceleration): Prediction acceleration.
             devices (list): Local compute devices, as `Device` instances or `cuda:<index>` strings.
-            client_id (str): Client identifier for raw predictions.
+            target (str): Target triple for raw predictions.
+            compute_architecture (str): GPU compute architecture for raw predictions (e.g. `sm_100`, `gfx942`, `metal4`).
             configuration_id (str): Configuration identifier for raw predictions.
         """
         if inputs is None:
             return self.__create_raw_prediction(
                 tag,
-                client_id=(
-                    client_id
-                    if client_id is not None
-                    else Configuration.get_client_id()
+                target=(
+                    target
+                    if target is not None
+                    else Configuration.get_target()
+                ),
+                compute_architecture=(
+                    compute_architecture
+                    if compute_architecture is not None
+                    else Configuration.get_compute_architecture()
                 ),
                 configuration_id=(
                     configuration_id
@@ -189,7 +196,7 @@ class PredictionService:
                 "tag": tag,
                 "inputs": input_map,
                 "acceleration": acceleration,
-                "clientId": Configuration.get_client_id()
+                "target": Configuration.get_target()
             },
             response_type=RemotePrediction
         )
@@ -213,7 +220,7 @@ class PredictionService:
                 "tag": tag,
                 "inputs": input_map,
                 "acceleration": acceleration,
-                "clientId": Configuration.get_client_id(),
+                "target": Configuration.get_target(),
                 "stream": True
             },
             response_type=_RemotePredictionEvent
@@ -224,7 +231,8 @@ class PredictionService:
         self,
         tag: str,
         *,
-        client_id: str,
+        target: str,
+        compute_architecture: str | None,
         configuration_id: str
     ) -> Prediction:
         return self.client.request(
@@ -232,7 +240,8 @@ class PredictionService:
             path="/predictions",
             body={
                 "tag": tag,
-                "clientId": client_id,
+                "target": target,
+                "computeArchitecture": compute_architecture,
                 "configurationId": configuration_id,
             },
             response_type=Prediction

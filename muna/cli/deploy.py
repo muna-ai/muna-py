@@ -43,10 +43,6 @@ def deploy_function(
         help="Number of vCPUs to request.",
         min=0,
     )] = None,
-    gpu_count: Annotated[int | None, Option(
-        help="Number of GPUs to request.",
-        min=1
-    )] = None,
     memory: Annotated[int | None, Option(
         help="Memory to request in MB.",
         min=16
@@ -139,11 +135,6 @@ def deploy_function(
             output_price=output_price
         )
         acceleration = cast(Acceleration, f"remote_{gpu or 'cpu'}")
-        acceleration = (
-            (acceleration, gpu_count)
-            if gpu_count is not None
-            else acceleration
-        )
         try:
             # Create deployment
             with CustomProgressTask(

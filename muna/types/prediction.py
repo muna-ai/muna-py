@@ -47,19 +47,12 @@ class PredictionRequirements(BaseModel):
 
     Members:
         gpu_count (int): Number of GPUs the predictor uses. `None` if it requires no GPU.
-        gpu_architecture (str): Required GPU compute architecture (e.g. `sm_100`).
     """
     gpu_count: int | None = Field(
         default=None,
         description="Number of GPUs the predictor uses. `None` if it requires no GPU.",
         serialization_alias="gpuCount",
         validation_alias=AliasChoices("gpu_count", "gpuCount")
-    )
-    gpu_architecture: str | None = Field(
-        default=None,
-        description="Required GPU compute architecture (e.g. `sm_100`).",
-        serialization_alias="gpuArchitecture",
-        validation_alias=AliasChoices("gpu_architecture", "gpuArchitecture")
     )
 
 class Prediction(BaseModel):

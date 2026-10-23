@@ -10,6 +10,7 @@ from json import loads
 from pathlib import Path
 from pydantic import ValidationError
 from time import time
+from typing import NamedTuple
 from urllib.parse import urlparse
 
 from ..c import Configuration
@@ -40,7 +41,7 @@ class PredictionCache:
         """
         self.__client = client
         self.__now = now
-        self.__identity: tuple[str, str] | None = None
+        self.__identity: _Identity | None = None
         self.__invalidated_prediction_ids: dict[str, str] = {}
 
     def retrieve(self, tag: str) -> Prediction:
@@ -62,8 +63,8 @@ class PredictionCache:
         """
         if hf_tag := parse_hf_tag(tag):
             return _create_hf_prediction(hf_tag)
-        client_id, configuration_id = self.__resolve_identity()
-        key = _get_cache_key(tag, client_id, configuration_id)
+        identity = self.__resolve_identity()
+        key = _get_cache_key(tag, identity)
         prediction = self.__load_prediction(key)
         if (
             prediction is not None and
@@ -74,8 +75,7 @@ class PredictionCache:
         try:
             refreshed = self.__create_prediction(
                 tag,
-                client_id=client_id,
-                configuration_id=configuration_id,
+                identity=identity,
                 key=key,
                 cached_prediction_id=prediction.id if prediction is not None else None
             )
@@ -99,18 +99,18 @@ class PredictionCache:
         """
         if parse_hf_tag(tag) is not None:
             return
-        client_id, configuration_id = self.__resolve_identity()
-        key = _get_cache_key(tag, client_id, configuration_id)
+        key = _get_cache_key(tag, self.__resolve_identity())
         prediction = self.__load_prediction(key)
         if prediction is not None and prediction.id:
             self.__invalidated_prediction_ids[key] = prediction.id
         self.__client.set_cache_entry(key, None)
 
-    def __resolve_identity(self) -> tuple[str, str]:
+    def __resolve_identity(self) -> "_Identity":
         if self.__identity is None:
-            self.__identity = (
-                Configuration.get_client_id(),
-                Configuration.get_unique_id()
+            self.__identity = _Identity(
+                target=Configuration.get_target(),
+                compute_architecture=Configuration.get_compute_architecture(),
+                configuration_id=Configuration.get_unique_id()
             )
         return self.__identity
 
@@ -118,8 +118,7 @@ class PredictionCache:
         self,
         tag: str,
         *,
-        client_id: str,
-        configuration_id: str,
+        identity: "_Identity",
         key: str,
         cached_prediction_id: str | None
     ) -> Prediction:
@@ -132,8 +131,9 @@ class PredictionCache:
         )
         body: dict[str, object] = {
             "tag": tag,
-            "clientId": client_id,
-            "configurationId": configuration_id,
+            "target": identity.target,
+            "computeArchitecture": identity.compute_architecture,
+            "configurationId": identity.configuration_id,
         }
         if prediction_id:
             body["predictionId"] = prediction_id
@@ -235,13 +235,25 @@ def _should_refresh_token(
     refresh_at = iat + (exp - iat) / 2
     return now >= refresh_at
 
+class _Identity(NamedTuple):
+    """
+    Device identity a cached prediction was created for.
+    """
+    target: str
+    compute_architecture: str | None
+    configuration_id: str
+
 def _get_cache_key(
     tag: str,
-    client_id: str,
-    configuration_id: str
+    identity: _Identity
 ) -> str:
     encoded = "".join(
         f"{len(value)}:{value}"
-        for value in (tag, client_id, configuration_id)
+        for value in (
+            tag,
+            identity.target,
+            identity.compute_architecture or "",
+            identity.configuration_id
+        )
     )
     return f"muna.prediction.{encoded}"

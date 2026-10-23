@@ -5,10 +5,9 @@
 
 from __future__ import annotations
 from pydantic import BaseModel, Field
-from typing import cast
 
 from ...api import MunaClient
-from ...types import Acceleration
+from ...types import Acceleration, Prediction
 from ._schema import (
     Deployment, DeploymentAccess, DeploymentGPU, DeploymentKind,
     DeploymentPricing, DeploymentProvider, DeploymentSpec
@@ -17,8 +16,6 @@ from .baremetal import create_baremetal_deployment
 from .baseten import create_baseten_deployment
 from .modal import create_modal_deployment
 from .spheron import create_spheron_deployment
-
-DeploymentAcceleration = Acceleration | tuple[Acceleration, int] 
 
 class DeploymentService:
     """
@@ -32,7 +29,7 @@ class DeploymentService:
         self,
         tag: str,
         provider: DeploymentProvider,
-        acceleration: DeploymentAcceleration,
+        acceleration: Acceleration,
         *,
         name: str | None = None,
         kind: DeploymentKind = "dedicated",
@@ -53,7 +50,7 @@ class DeploymentService:
         Parameters:
             tag (str): Predictor tag.
             provider (DeploymentProvider): Compute provider.
-            acceleration (DeploymentAcceleration): Accelerator, optionally paired with its count.
+            acceleration (Acceleration): Accelerator. The GPU count comes from the predictor's requirements.
             name (str): Human-readable deployment name.
             kind (DeploymentKind): Deployment availability kind.
             access (DeploymentAccess): Deployment access mode.
@@ -70,7 +67,8 @@ class DeploymentService:
         Returns:
             Deployment: Created deployment.
         """
-        gpu, gpu_count = _parse_gpu(acceleration)
+        gpu = _parse_gpu(acceleration)
+        gpu_count = self.__resolve_gpu_count(tag, gpu)
         spec = DeploymentSpec(
             tag=tag,
             provider=provider,
@@ -98,6 +96,28 @@ class DeploymentService:
             endpoint=deployment.endpoint_url
         )
         return deployment
+
+    def __resolve_gpu_count(
+        self,
+        tag: str,
+        gpu: DeploymentGPU
+    ) -> int:
+        """
+        Resolve the number of GPUs one replica of the predictor occupies on a given GPU.
+        This creates an inspection prediction, which is not billed because it has no configuration.
+        """
+        prediction = self.client.request(
+            method="POST",
+            path="/predictions",
+            body={
+                "tag": tag,
+                "target": _DEPLOYMENT_TARGET,
+                "computeArchitecture": _GPU_COMPUTE_ARCHITECTURES[gpu]
+            },
+            response_type=Prediction
+        )
+        requirements = prediction.requirements
+        return (requirements.gpu_count if requirements else None) or 1
 
     def __create_record(self, spec: DeploymentSpec) -> _DeploymentRecord:
         """
@@ -154,20 +174,15 @@ def _create_deployment(
         case "modal":     return create_modal_deployment(spec, deployment_key=key)
         case "spheron":   return create_spheron_deployment(spec, deployment_key=key)
 
-def _parse_gpu(acceleration: DeploymentAcceleration) -> tuple[DeploymentGPU, int]:
+def _parse_gpu(acceleration: Acceleration) -> DeploymentGPU:
     """
-    Parse a deployment acceleration into a GPU type and count.
+    Parse a deployment acceleration into a GPU type.
     """
-    count = acceleration[1] if isinstance(acceleration, tuple) else 1
-    acceleration = cast(
-        Acceleration,
-        acceleration[0] if isinstance(acceleration, tuple) else acceleration
-    )
     match acceleration:
-        case "remote_a100": return "a100", count
-        case "remote_h100": return "h100", count
-        case "remote_h200": return "h200", count
-        case "remote_b200": return "b200", count
+        case "remote_a100": return "a100"
+        case "remote_h100": return "h100"
+        case "remote_h200": return "h200"
+        case "remote_b200": return "b200"
         case _: raise ValueError(f"Unsupported deployment acceleration: {acceleration!r}.")
 
 class _SharedDeployment(Deployment):
@@ -198,3 +213,12 @@ class _CreateDeploymentRecordInput(BaseModel):
 
 class _UpdateDeploymentRecordInput(BaseModel):
     endpoint: str
+
+_DEPLOYMENT_TARGET = "x86_64-unknown-linux-gnu"
+
+_GPU_COMPUTE_ARCHITECTURES: dict[DeploymentGPU, str] = {
+    "a100": "sm_80",
+    "h100": "sm_90",
+    "h200": "sm_90",
+    "b200": "sm_100",
+}

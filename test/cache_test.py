@@ -98,36 +98,53 @@ def test_raw_prediction_bypasses_cache():
 
     service.create(
         "@test/model",
-        client_id="client",
+        target="x86_64-unknown-linux-gnu",
+        compute_architecture="sm_100",
         configuration_id="configuration"
     )
 
     assert len(client.requests) == 1
+    assert client.requests[0]["target"] == "x86_64-unknown-linux-gnu"
+    assert client.requests[0]["computeArchitecture"] == "sm_100"
     assert len(client.store) == 0
+
+
+def test_cached_fetch_sends_device_identity():
+    client = _FakeClient(lambda _: _prediction("first", iat=100, exp=1_100))
+    cache = PredictionCache(client, now=lambda: 150)
+
+    cache.retrieve("@test/model")
+
+    assert client.requests[0]["target"] == "x86_64-unknown-linux-gnu"
+    assert client.requests[0]["computeArchitecture"] == "sm_100"
+    assert client.requests[0]["configurationId"] == "device-a"
 
 
 def test_legacy_token_does_not_refresh():
     token = _token(iat=100)
 
-    assert not PredictionCache._should_refresh_token(token, now=10_000)
+    assert not cache_module._should_refresh_token(token, now=10_000)
 
 
 def test_token_refreshes_at_half_life():
     token = _token(iat=100, exp=1_100)
 
-    assert not PredictionCache._should_refresh_token(token, now=599)
-    assert PredictionCache._should_refresh_token(token, now=600)
+    assert not cache_module._should_refresh_token(token, now=599)
+    assert cache_module._should_refresh_token(token, now=600)
 
 
 def test_malformed_token_refreshes():
-    assert PredictionCache._should_refresh_token("not-a-token", now=0)
+    assert cache_module._should_refresh_token("not-a-token", now=0)
 
 
-def test_cache_key_includes_client_and_configuration():
-    key = PredictionCache._get_cache_key("tag", "client-a", "configuration-a")
+def test_cache_key_includes_target_architecture_and_configuration():
+    identity = cache_module._Identity("target-a", "sm_100", "configuration-a")
+    key = cache_module._get_cache_key("tag", identity)
 
-    assert key != PredictionCache._get_cache_key("tag", "client-b", "configuration-a")
-    assert key != PredictionCache._get_cache_key("tag", "client-a", "configuration-b")
+    assert key != cache_module._get_cache_key("tag", identity._replace(target="target-b"))
+    assert key != cache_module._get_cache_key("tag", identity._replace(compute_architecture="sm_90"))
+    assert key != cache_module._get_cache_key("tag", identity._replace(compute_architecture=None))
+    assert key != cache_module._get_cache_key("tag", identity._replace(configuration_id="configuration-b"))
 
 def _token(*, iat: int | None=None, exp: int | None=None) -> str:
     claims = {
@@ -179,8 +196,12 @@ class _FakeClient:
 class _FakeConfiguration:
 
     @classmethod
-    def get_client_id(cls) -> str:
-        return "linux-x86_64"
+    def get_target(cls) -> str:
+        return "x86_64-unknown-linux-gnu"
+
+    @classmethod
+    def get_compute_architecture(cls) -> str | None:
+        return "sm_100"
 
     @classmethod
     def get_unique_id(cls) -> str:
