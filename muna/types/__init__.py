@@ -11,7 +11,7 @@ from .prediction import (
 )
 from .predictor import (
     Predictor, PredictorAccess, PredictorStatus,
-    Signature
+    PredictorTenancy, Signature
 )
 from .user import User
 from .value import Dtype, RemoteValue, Value

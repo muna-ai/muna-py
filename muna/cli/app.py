@@ -10,10 +10,10 @@ from ..version import __version__
 
 from .auth import app as auth_app
 from .compile import compile_function
-from .deploy import deploy_function
+from .deploy import app as deployments_app, deploy_function
 from .misc import cli_options
 from .predictions import create_prediction
-from .predictors import archive_predictor, delete_predictor, retrieve_predictor
+from .predictors import app as predictors_app
 from .resources import app as resources_app
 from .triage import triage_predictor
 
@@ -30,42 +30,41 @@ app = typer.Typer(
 # Add top level options
 app.callback()(cli_options)
 
-# Deploy
+# Compilation
 app.command(
     name="compile",
     help="Compile a model for deployment.",
-    rich_help_panel="Deploy 🚀"
+    rich_help_panel="Compile ⚡"
 )(compile_function)
+
+# Predictions
 app.command(
     name="predict",
     help="Invoke a compiled model.",
     context_settings={ "allow_extra_args": True, "ignore_unknown_options": True },
-    rich_help_panel="Deploy 🚀"
+    rich_help_panel="Compile ⚡"
 )(create_prediction)
+app.add_typer(
+    predictors_app,
+    name="predictors",
+    help="Manage your compiled models.",
+    rich_help_panel="Compile ⚡"
+)
+
+# Deployments
 app.command(
     name="deploy",
-    help="Deploy a compiled model onto a compute cloud.",
+    help="Deploy a model on Muna.",
     rich_help_panel="Deploy 🚀"
 )(deploy_function)
+app.add_typer(
+    deployments_app,
+    name="deployments",
+    help="Manage your deployments.",
+    rich_help_panel="Deploy 🚀"
+)
 
-# Models
-app.command(
-    name="retrieve",
-    help="Retrieve a compiled model.",
-    rich_help_panel="Manage 📦"
-)(retrieve_predictor)
-app.command(
-    name="archive",
-    help="Archive a compiled model." ,
-    rich_help_panel="Manage 📦"
-)(archive_predictor)
-app.command(
-    name="delete",
-    help="Delete a compiled model.",
-    rich_help_panel="Manage 📦"
-)(delete_predictor)
-
-# Subcommands
+# Auth
 app.add_typer(
     auth_app,
     name="auth",

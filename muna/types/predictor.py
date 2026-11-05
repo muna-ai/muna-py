@@ -13,6 +13,7 @@ from .user import User
 PredictorAccess = Literal["public", "private", "unlisted"]
 PredictorDistribution = Literal["hosted", "community"]
 PredictorStatus = Literal["compiling", "active", "archived"]
+PredictorTenancy = Literal["shared", "dedicated"]
 
 class Predictor(BaseModel):
     """

@@ -4,15 +4,11 @@
 #
 
 from __future__ import annotations
-from abc import ABC, abstractmethod
 from pydantic import BaseModel, Field
 from typing import Annotated, Literal
 
-DeploymentKind = Literal["shared", "dedicated"]
 DeploymentAccess = Literal["public", "unlisted", "private"]
-DeploymentGPU = Literal["a100", "h100", "h200", "b200"]
 DeploymentPricingKind = Literal["tokens", "images", "duration"]
-DeploymentProvider = Literal["baremetal", "baseten",  "modal", "spheron"]
 
 class TokenDeploymentPricing(BaseModel):
     """
@@ -62,6 +58,7 @@ class DurationDeploymentPricing(BaseModel):
         serialization_alias="perMinute"
     )
 
+# Superuser only
 DeploymentPricing = Annotated[
     TokenDeploymentPricing      |
     ImageDeploymentPricing      |
@@ -69,33 +66,17 @@ DeploymentPricing = Annotated[
     Field(discriminator="kind")
 ]
 
-class DeploymentSpec(BaseModel):
+class Deployment(BaseModel):
     """
-    Predictor deployment specification.
+    Predictor deployment on Muna inference endpoints.
+
+    Members:
+        id (str): Deployment identifier.
+        tag (str): Predictor tag.
+        access (DeploymentAccess): Deployment access mode.
+        created (str): Date created.
     """
+    id: str = Field(description="Deployment identifier.")
     tag: str = Field(description="Predictor tag.")
-    kind: DeploymentKind = Field(description="Deployment kind.")
-    access: DeploymentAccess = Field("public", description="Deployment access mode.")
-    provider: DeploymentProvider = Field(description="Deployment compute provider.")
-    name: str = Field(description="Human readable deployment name.")
-    cpu: int | None = Field(None, description="Deployment vCPU count.")
-    gpu: DeploymentGPU | None = Field(None, description="Deployment GPU.")
-    gpu_count: int | None = Field(None, description="Deployment GPU count.", ge=1)
-    memory: int | None = Field(None, description="Deployment memory size in megabytes.")
-    concurrency: int | None = Field(None, description="Deployment request concurrency for load balancing.")
-    min_replicas: int | None = Field(None, description="Deployment minimum replica count for autoscaling.")
-    max_replicas: int | None = Field(None, description="Deployment maximum replica count for autoscaling.")
-    scaledown_window: float | None = Field(None, description="Deployment scaledown window in seconds for autoscaling.")
-    ssh_host: str | None = Field(None, description="Deployment SSH host URL. Required for baremetal deployments.")
-    endpoint_url: str | None = Field(None, description="Deployment URL override. Required for baremetal deployments.")
-    pricing: DeploymentPricing | None = Field(None, description="Deployment pricing.")
-
-class Deployment(BaseModel, ABC):
-    endpoint_url: str = Field(description="Deployment endpoint URL.")
-    dashboard_url: str | None = Field(None, description="Deployment management URL on provider platform.")
-
-    @abstractmethod
-    def wait(self):
-        """
-        Block until the deployment is live and healthy.
-        """
+    access: DeploymentAccess = Field(description="Deployment access mode.")
+    created: str = Field(description="Date created.")

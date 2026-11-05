@@ -3,14 +3,21 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
+from __future__ import annotations
 from importlib.util import module_from_spec, spec_from_file_location
 from inspect import getmembers, getmodulename, isfunction
 from pathlib import Path
 from pydantic import BaseModel
-from rich import print as print_rich
+from rich import get_console, print as print_rich
+from rich.console import Console, ConsoleOptions, Group, RenderResult
+from rich.live import Live
+from rich.spinner import Spinner
+from rich.table import Table
+from rich.text import Text
 import sys
-from typer import Argument, Option
-from typing import Annotated, Callable, Literal
+from time import monotonic
+from typer import Argument, Exit, Option
+from typing import Annotated, Callable, Iterator, Literal
 from urllib.parse import urlparse, urlunparse
 
 from ..api import MunaAPIError
@@ -29,14 +36,24 @@ def compile_function(
         file_okay=True,
         dir_okay=False,
         help="Python source path or URL."
-    )],
-    overwrite: Annotated[bool, Option(
-        "--overwrite",
-        help="Whether to delete any existing predictor with the same tag before compiling."
-    )]=False
+    )]
 ):
     muna = Muna(get_access_key())
-    path: Path = Path(path).resolve()
+    compile_predictor(Path(path), muna=muna)
+
+def compile_predictor(
+    path: Path,
+    *,
+    muna: Muna
+) -> str:
+    """
+    Compile the predictor function in a Python module, showing live progress.
+    Raises `CompileError` if the predictor fails to compile.
+
+    Returns:
+        str: Predictor tag.
+    """
+    path = path.resolve()
     with CustomProgress():
         # Load
         with CustomProgressTask(loading_text="Loading predictor...") as task:
@@ -89,30 +106,101 @@ def compile_function(
                         response_type=_Predictor
                     )
                 except MunaAPIError as ex:
-                    if ex.status_code != 409 or not overwrite:
+                    if ex.status_code != 409:
                         raise
+            events = muna.client.stream(
+                method="POST",
+                path=f"/predictors/{spec.tag}/compile",
+                body=spec.model_dump(
+                    mode="json",
+                    exclude=spec.model_extra.keys(),
+                    by_alias=True
+                ),
+                response_type=_LogEvent | _ErrorEvent | _CompileEvent
+            )
+            first_compile_event: _CompileEvent | None = None
             with ProgressLogQueue() as task_queue:
-                for event in muna.client.stream(
-                    method="POST",
-                    path=f"/predictors/{spec.tag}/compile",
-                    body=spec.model_dump(
-                        mode="json",
-                        exclude=spec.model_extra.keys(),
-                        by_alias=True
-                    ),
-                    response_type=_LogEvent | _ErrorEvent
-                ):
+                for event in events:
                     match event.event:
                         case "log":
                             task_queue.push_log(event)
                         case "error":
                             task_queue.push_error(event)
                             raise CompileError(event.data.error)
+                        case "compile":
+                            # Leave the codegen view, since Rich cannot run two live displays
+                            # at once. The rest of the stream is consumed by the compile view.
+                            first_compile_event = event
+                            break
     predictor_url = _compute_predictor_url(muna.client.api_url, spec.tag)
-    print_rich(
-        f"\n[bold spring_green3]🎉 Predictor is now being compiled.[/bold spring_green3] "
+    # The API predates compile progress, so implementations compile without a live view
+    if first_compile_event is None:
+        print_rich(
+            f"\n[bold spring_green3]🎉 Predictor is now being compiled.[/bold spring_green3] "
+            f"Check it out at [link={predictor_url}]{predictor_url}[/link]"
+        )
+        return spec.tag
+    _watch_compile(
+        first_compile_event,
+        events=events,
+        tag=spec.tag,
+        predictor_url=predictor_url
+    )
+    # Return
+    return spec.tag
+
+def _watch_compile(
+    first_event: _CompileEvent,
+    *,
+    events: Iterator[_LogEvent | _ErrorEvent | _CompileEvent],
+    tag: str,
+    predictor_url: str
+):
+    console = get_console()
+    view = _CompileView(first_event.data.targets)
+    try:
+        with Live(view, console=console, refresh_per_second=12):
+            for event in events:
+                match event.event:
+                    case "compile":
+                        view.targets = event.data.targets
+                    case "error":
+                        view.final = True
+                        raise CompileError(event.data.error)
+            view.final = True
+    except KeyboardInterrupt:
+        console.print(
+            f"\n[bold yellow]Stopped watching.[/bold yellow] Compilation continues in the "
+            f"background. Track it at [link={predictor_url}]{predictor_url}[/link]"
+        )
+        raise Exit(130)
+    # Report
+    elapsed = _format_duration(monotonic() - view.start)
+    targets = view.targets
+    console.print()
+    if not all(counts.is_done for counts in targets.values()):
+        console.print(
+            f"[bold yellow]Still compiling after {elapsed}.[/bold yellow] Compilation continues "
+            f"in the background. Track it at [link={predictor_url}]{predictor_url}[/link]"
+        )
+        return
+    failed_targets = [target for target, counts in targets.items() if counts.active == 0]
+    if failed_targets:
+        raise CompileError(
+            f"Failed to compile predictor for {', '.join(failed_targets)} because no "
+            f"implementation compiled for {'this target' if len(failed_targets) == 1 else 'these targets'}. "
+            f"See the compile logs at {predictor_url}"
+        )
+    console.print(
+        f"[bold spring_green3]🎉 Compiled {tag} in {elapsed}.[/bold spring_green3] "
         f"Check it out at [link={predictor_url}]{predictor_url}[/link]"
     )
+    failed = sum(counts.error for counts in targets.values())
+    if failed:
+        console.print(
+            f"[grey50]{failed} implementation{'s' if failed != 1 else ''} failed to compile; "
+            f"other implementations cover every target.[/grey50]"
+        )
 
 def _populate_dialect(
     dialect: CompileDialect,
@@ -190,8 +278,139 @@ class _ErrorEvent(BaseModel):
     event: Literal["error"]
     data: _ErrorData
 
+class _TargetCounts(BaseModel):
+    idle: int = 0
+    compiling: int = 0
+    active: int = 0
+    error: int = 0
+
+    @property
+    def total(self) -> int:
+        return self.idle + self.compiling + self.active + self.error
+
+    @property
+    def is_done(self) -> bool:
+        return self.idle == 0 and self.compiling == 0
+
+class _CompileData(BaseModel):
+    targets: dict[str, _TargetCounts]
+
+class _CompileEvent(BaseModel):
+    event: Literal["compile"]
+    data: _CompileData
+
 class CompileError(Exception):
     pass
+
+class _CompileView:
+    """
+    Live per-target view of implementation compiles.
+    Each `compile` event carries a full snapshot, so the view only renders the latest one.
+    """
+
+    def __init__(self, targets: dict[str, _TargetCounts]):
+        self.targets = targets
+        self.final = False
+        self.start = monotonic()
+        # Spinners animate relative to their first render, so they must persist across renders
+        self.__spinner = Spinner("dots")
+        self.__target_spinners: dict[str, Spinner] = { }
+
+    def __rich_console__(
+        self,
+        console: Console,
+        options: ConsoleOptions
+    ) -> RenderResult:
+        targets = self.targets
+        total = sum(counts.total for counts in targets.values())
+        all_done = all(counts.is_done for counts in targets.values())
+        any_failed = any(counts.is_done and counts.active == 0 for counts in targets.values())
+        if not all_done:
+            header_icon = self.__pending_icon(self.__spinner)
+        elif any_failed:
+            header_icon = Text("✘", style="bright_red")
+        else:
+            header_icon = Text("✔", style="bold green")
+        header = Table.grid(padding=(0, 1))
+        header.add_column(width=1)
+        header.add_column()
+        header.add_row(
+            header_icon,
+            Text.assemble(
+                f"Compiling {total} implementations ",
+                (_format_duration(monotonic() - self.start), "grey50")
+            )
+        )
+        # The bar only fits next to the longest target triple on wide terminals
+        show_bar = options.max_width >= 100
+        rows = Table.grid(padding=(0, 1))
+        rows.add_column(no_wrap=True, min_width=3)
+        rows.add_column(no_wrap=True, min_width=1)
+        rows.add_column(no_wrap=True)
+        if show_bar:
+            rows.add_column(no_wrap=True)
+        rows.add_column(no_wrap=True)
+        for target, counts in targets.items():
+            spinner = self.__target_spinners.setdefault(target, Spinner("dots"))
+            cells = [
+                Text("└──", style="grey50"),
+                self.__target_icon(counts, spinner),
+                Text(target, style="cyan")
+            ]
+            if show_bar:
+                cells.append(_render_bar(counts, width=16))
+            cells.append(_render_summary(counts))
+            rows.add_row(*cells)
+        yield Group(header, rows)
+
+    def __target_icon(
+        self,
+        counts: _TargetCounts,
+        spinner: Spinner
+    ):
+        if not counts.is_done:
+            return self.__pending_icon(spinner)
+        if counts.active == 0:
+            return Text("✘", style="bright_red")
+        return Text("✔", style="bold green")
+
+    def __pending_icon(self, spinner: Spinner):
+        return Text("…", style="grey50") if self.final else spinner
+
+def _render_bar(
+    counts: _TargetCounts,
+    *,
+    width: int
+) -> Text:
+    total = max(counts.total, 1)
+    segments = [
+        (counts.active, "green"),
+        (counts.error, "bright_red"),
+        (counts.compiling, "yellow"),
+        (counts.idle, "grey35"),
+    ]
+    text = Text()
+    used = 0
+    for i, (count, style) in enumerate(segments):
+        n = round(count / total * width) if i < len(segments) - 1 else width - used
+        n = max(0, min(n, width - used))
+        text.append("━" * n, style=style)
+        used += n
+    return text
+
+def _render_summary(counts: _TargetCounts) -> Text:
+    text = Text(f"{counts.active}/{counts.total} compiled", style="bold" if counts.is_done else "")
+    if counts.compiling:
+        text.append(f" · {counts.compiling} compiling", style="yellow")
+    if counts.idle:
+        text.append(f" · {counts.idle} queued", style="grey50")
+    if counts.error:
+        text.append(f" · {counts.error} failed", style="bright_red")
+    return text
+
+def _format_duration(seconds: float) -> str:
+    minutes, seconds = divmod(int(seconds), 60)
+    return f"{minutes}m {seconds:02d}s" if minutes else f"{seconds}s"
 
 class ProgressLogQueue:
 

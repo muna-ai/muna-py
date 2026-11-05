@@ -5,21 +5,14 @@
 
 from __future__ import annotations
 from pydantic import BaseModel, Field
+from urllib.parse import quote
 
-from ...api import MunaClient
-from ...types import Acceleration, Prediction
-from ._schema import (
-    Deployment, DeploymentAccess, DeploymentGPU, DeploymentKind,
-    DeploymentPricing, DeploymentProvider, DeploymentSpec
-)
-from .baremetal import create_baremetal_deployment
-from .baseten import create_baseten_deployment
-from .modal import create_modal_deployment
-from .spheron import create_spheron_deployment
+from ...api import MunaAPIError, MunaClient
+from ._schema import Deployment, DeploymentAccess, DeploymentPricing
 
 class DeploymentService:
     """
-    Deploy compiled models to compute clouds.
+    Deploy compiled models on Muna inference endpoints.
     """
 
     def __init__(self, client: MunaClient):
@@ -28,197 +21,103 @@ class DeploymentService:
     def create(
         self,
         tag: str,
-        provider: DeploymentProvider,
-        acceleration: Acceleration,
         *,
-        name: str | None = None,
-        kind: DeploymentKind = "dedicated",
-        access: DeploymentAccess = "public",
-        cpu: int | None = None,
-        memory: int | None = None,
-        concurrency: int | None = None,
-        min_replicas: int | None = None,
-        max_replicas: int | None = None,
-        scaledown_window: float | None = None,
-        ssh_host: str | None = None,
-        endpoint_url: str | None = None,
+        access: DeploymentAccess = "private",
         pricing: DeploymentPricing | None = None
     ) -> Deployment:
         """
-        Create a deployment.
+        Deploy a predictor, or update the existing deployment of the predictor.
 
         Parameters:
             tag (str): Predictor tag.
-            provider (DeploymentProvider): Compute provider.
-            acceleration (Acceleration): Accelerator. The GPU count comes from the predictor's requirements.
-            name (str): Human-readable deployment name.
-            kind (DeploymentKind): Deployment availability kind.
-            access (DeploymentAccess): Deployment access mode.
-            cpu (int): Number of virtual CPUs.
-            memory (int): Memory size in megabytes.
-            concurrency (int): Request concurrency for load balancing.
-            min_replicas (int): Minimum replica count for autoscaling.
-            max_replicas (int): Maximum replica count for autoscaling.
-            scaledown_window (float): Autoscaling scale-down window in seconds.
-            ssh_host (str): SSH target for a baremetal deployment.
-            endpoint_url (str): Public base URL for a baremetal deployment.
-            pricing (DeploymentPricing): Pricing for a shared deployment.
+            access (DeploymentAccess): Deployment access mode. Only superusers can create non-private deployments.
+            pricing (DeploymentPricing): Prices that callers pay. Only superusers can set pricing.
 
         Returns:
-            Deployment: Created deployment.
+            Deployment: Deployment.
         """
-        gpu = _parse_gpu(acceleration)
-        gpu_count = self.__resolve_gpu_count(tag, gpu)
-        spec = DeploymentSpec(
+        body = _CreateDeploymentInput(
             tag=tag,
-            provider=provider,
-            kind=kind,
             access=access,
-            name=name or f"Muna: {tag}",
-            cpu=cpu,
-            gpu=gpu,
-            gpu_count=gpu_count,
-            memory=memory,
-            concurrency=concurrency,
-            min_replicas=min_replicas,
-            max_replicas=max_replicas,
-            scaledown_window=scaledown_window,
-            ssh_host=ssh_host,
-            endpoint_url=endpoint_url,
             pricing=pricing
-        )
-        record = self.__create_record(spec)
-        if spec.kind == "shared":
-            return _SharedDeployment(endpoint_url=record.endpoint or "")
-        deployment = _create_deployment(spec, record.key)
-        self.__update_record(
-            record.id,
-            endpoint=deployment.endpoint_url
-        )
-        return deployment
-
-    def __resolve_gpu_count(
-        self,
-        tag: str,
-        gpu: DeploymentGPU
-    ) -> int:
-        """
-        Resolve the number of GPUs one replica of the predictor occupies on a given GPU.
-        This creates an inspection prediction, which is not billed because it has no configuration.
-        """
-        prediction = self.client.request(
-            method="POST",
-            path="/predictions",
-            body={
-                "tag": tag,
-                "target": _DEPLOYMENT_TARGET,
-                "computeArchitecture": _GPU_COMPUTE_ARCHITECTURES[gpu]
-            },
-            response_type=Prediction
-        )
-        requirements = prediction.requirements
-        return (requirements.gpu_count if requirements else None) or 1
-
-    def __create_record(self, spec: DeploymentSpec) -> _DeploymentRecord:
-        """
-        Create a deployment record.
-        """
-        body = _CreateDeploymentRecordInput(
-            tag=spec.tag,
-            name=spec.name,
-            provider=spec.provider,
-            kind=spec.kind,
-            access=spec.access,
-            gpu=spec.gpu,
-            gpu_count=spec.gpu_count,
-            pricing=spec.pricing
         )
         return self.client.request(
             method="POST",
             path="/deployments",
-            body=body,
-            response_type=_DeploymentRecord
+            body=body.model_dump(mode="json", by_alias=True, exclude_none=True),
+            response_type=Deployment
         )
 
-    def __update_record(
-        self,
-        deployment_id: str,
-        *,
-        endpoint: str | None
-    ) -> _DeploymentRecord:
+    def retrieve(self, tag: str) -> Deployment | None:
         """
-        Update a deployment record.
+        Retrieve the deployment of a predictor.
+
+        Parameters:
+            tag (str): Predictor tag.
+
+        Returns:
+            Deployment: Deployment, or `None` if the predictor is not deployed.
         """
-        if endpoint is None:
-            return
-        body = _UpdateDeploymentRecordInput(
-            endpoint=endpoint
+        page = self.client.request(
+            method="GET",
+            path=f"/deployments?tag={quote(tag, safe='')}&limit=1",
+            response_type=_DeploymentPage
         )
-        return self.client.request(
-            method="PATCH",
-            path=f"/deployments/{deployment_id}",
-            body=body,
-            response_type=_DeploymentRecord
-        )
+        return page.data[0] if page.data else None
 
-def _create_deployment(
-    spec: DeploymentSpec,
-    key: str
-) -> Deployment:
-    """
-    Create a deployment.
-    """
-    match spec.provider:
-        case "baremetal": return create_baremetal_deployment(spec, deployment_key=key)
-        case "baseten":   return create_baseten_deployment(spec, deployment_key=key)
-        case "modal":     return create_modal_deployment(spec, deployment_key=key)
-        case "spheron":   return create_spheron_deployment(spec, deployment_key=key)
+    def list(self) -> list[Deployment]:
+        """
+        List your deployments.
 
-def _parse_gpu(acceleration: Acceleration) -> DeploymentGPU:
-    """
-    Parse a deployment acceleration into a GPU type.
-    """
-    match acceleration:
-        case "remote_a100": return "a100"
-        case "remote_h100": return "h100"
-        case "remote_h200": return "h200"
-        case "remote_b200": return "b200"
-        case _: raise ValueError(f"Unsupported deployment acceleration: {acceleration!r}.")
+        Returns:
+            list: Deployments.
+        """
+        deployments: list[Deployment] = []
+        while True:
+            page = self.client.request(
+                method="GET",
+                path=f"/deployments?offset={len(deployments)}&limit={_PAGE_SIZE}",
+                response_type=_DeploymentPage
+            )
+            deployments.extend(page.data)
+            if not page.data or len(deployments) >= page.pagination.total:
+                return deployments
 
-class _SharedDeployment(Deployment):
-    """
-    Shared deployment served by the Muna inference control plane.
-    """
+    def delete(self, tag: str) -> bool:
+        """
+        Delete the deployment of a predictor.
 
-    def wait(self):
-        pass
+        Parameters:
+            tag (str): Predictor tag.
 
-class _DeploymentRecord(BaseModel):
-    """
-    Deployment record.
-    """
-    id: str = Field(description="Deployment identifier.")
-    key: str | None = Field(None, description="Deployment-specific API key for authentication.")
-    endpoint: str | None = Field(None, description="Deployment endpoint.")
+        Returns:
+            bool: Whether the deployment was deleted.
+        """
+        deployment = self.retrieve(tag)
+        if deployment is None:
+            return False
+        try:
+            self.client.request(
+                method="DELETE",
+                path=f"/deployments/{deployment.id}"
+            )
+        except MunaAPIError as error:
+            if error.status_code == 404:
+                return False
+            raise
+        return True
 
-class _CreateDeploymentRecordInput(BaseModel):
+_PAGE_SIZE = 100
+
+class _CreateDeploymentInput(BaseModel):
     tag: str
-    name: str
-    provider: DeploymentProvider
-    kind: DeploymentKind
+    kind: str = "shared"
     access: DeploymentAccess
-    gpu: DeploymentGPU
-    gpu_count: int = Field(serialization_alias="gpuCount")
     pricing: DeploymentPricing | None
 
-class _UpdateDeploymentRecordInput(BaseModel):
-    endpoint: str
+class _Pagination(BaseModel):
+    total: int = Field(description="Total number of results.")
 
-_DEPLOYMENT_TARGET = "x86_64-unknown-linux-gnu"
-
-_GPU_COMPUTE_ARCHITECTURES: dict[DeploymentGPU, str] = {
-    "a100": "sm_80",
-    "h100": "sm_90",
-    "h200": "sm_90",
-    "b200": "sm_100",
-}
+class _DeploymentPage(BaseModel):
+    data: list[Deployment]
+    pagination: _Pagination
