@@ -4,7 +4,8 @@
 #
 
 from collections.abc import Callable
-from numpy import ndarray
+from math import isfinite
+from numpy import array, ascontiguousarray, float32, isfinite as samples_are_finite, ndarray
 from typing import BinaryIO
 
 from ...c import Value
@@ -58,6 +59,10 @@ class TranscriptionService:
         Returns:
             Transcription: Result transcription.
         """
+        if stream:
+            raise ValueError("Streaming transcription is not supported.")
+        if not isfinite(temperature) or not 0. <= temperature <= 1.:
+            raise ValueError("Transcription temperature must be between 0 and 1.")
         # Ensure we have a delegate
         if model not in self.__cache:
             self.__cache[model] = self.__create_delegate(model)
@@ -104,6 +109,9 @@ class TranscriptionService:
                 f"{tag} cannot be used with OpenAI transcription API because "
                 "it does not have a valid audio input parameter."
             )
+        sample_rate = audio_param.sample_rate
+        if sample_rate is None or sample_rate <= 0:
+            raise ValueError("Transcription audio input must declare a positive sample rate.")
         # Get optional input params
         _, language_param = get_parameter(
             signature.inputs,
@@ -125,7 +133,7 @@ class TranscriptionService:
             signature.outputs,
             dtype={ Dtype.string, Dtype.list }
         )
-        if transcription_param is None:
+        if transcription_param is None or transcription_param_idx is None:
             raise ValueError(
                 f"{tag} cannot be used with OpenAI transcription API because "
                 "it has no output string parameter."
@@ -145,7 +153,7 @@ class TranscriptionService:
             # Build prediction input map
             samples = self.__read_audio_samples(
                 file,
-                sample_rate=audio_param.sample_rate
+                sample_rate=sample_rate
             )
             audio_input = [samples] if audio_param.dtype == Dtype.array_list else samples
             input_map = { audio_param.name: audio_input }
@@ -154,7 +162,7 @@ class TranscriptionService:
             if prompt_param is not None and prompt is not None:
                 input_map[prompt_param.name] = prompt
             if temperature_param is not None:
-                input_map[temperature_param.name] = temperature
+                input_map[temperature_param.name] = array(temperature, dtype=temperature_param.dtype)
             # Create prediction
             prediction = self.__predictions.create(
                 tag=model,
@@ -166,13 +174,17 @@ class TranscriptionService:
             if prediction.error:
                 raise RuntimeError(prediction.error)
             # Extract transcription text
+            if prediction.results is None or transcription_param_idx >= len(prediction.results):
+                raise RuntimeError(f"{tag} returned no transcription result")
             text = prediction.results[transcription_param_idx]
             if isinstance(text, list):
+                if not text:
+                    raise RuntimeError(f"{tag} returned an empty transcription list")
                 text = text[0]
             if not isinstance(text, str):
                 raise RuntimeError(f"{tag} returned object of type {type(text)} instead of a string")
             # Create result
-            duration = samples.shape[0] / audio_param.sample_rate
+            duration = samples.shape[0] / sample_rate
             result = Transcription(
                 text=text,
                 usage=Transcription.DurationUsage(
@@ -198,15 +210,31 @@ class TranscriptionService:
                         f"Audio sample rate {file.sample_rate}Hz does not match "
                         f"the required sample rate of {sample_rate}Hz."
                     )
-                return file.samples
+                samples = file.samples
+                expected_channels = samples.shape[1] if isinstance(samples, ndarray) and samples.ndim == 2 else 1
+                if file.channel_count != expected_channels:
+                    raise ValueError("Audio channel count does not match the PCM shape.")
             case file if hasattr(file, "read"):
-                with Value.from_bytes(
-                    file.read(),
-                    f"audio/*;rate={sample_rate}"
-                ) as audio_value:
-                    return audio_value.to_object()
+                data = file.read()
+                if not data:
+                    raise ValueError("Audio file is empty.")
+                try:
+                    with Value.from_bytes(data, f"audio/*;rate={sample_rate}") as audio_value:
+                        samples = audio_value.to_object()
+                except RuntimeError as error:
+                    raise ValueError(f"Cannot decode audio: {error}") from error
             case _:
                 raise TypeError(
                     f"Expected `BinaryIO` or `Audio` instance "
                     f"but got `{type(file).__qualname__}`"
                 )
+        if (
+            not isinstance(samples, ndarray) or
+            samples.dtype != float32 or
+            samples.ndim not in (1, 2) or
+            any(dimension <= 0 for dimension in samples.shape) or
+            not samples_are_finite(samples).all()
+        ):
+            raise ValueError("Audio must be nonempty float32 PCM shaped [frames] or [frames, channels].")
+        # Native Value maps a dense buffer and does not carry NumPy strides.
+        return ascontiguousarray(samples)

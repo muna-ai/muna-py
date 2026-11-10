@@ -1,14 +1,11 @@
 ## 0.1.37
-+ Added `tenancy` parameter to `@compile` decorator for choosing between `shared` and `dedicated` GPUs.
-+ Added `max_queue_time` parameter to `@compile` decorator for limiting how long a request waits for compute before it is rejected. Pass a long duration like `"24h"` to opt into batch inference.
-+ Added `muna deploy <path>` CLI command for compiling and deploying a Python function in one step.
 + Added `muna deployments list` CLI command to list your deployments.
 + Added `muna deployments delete` CLI command to delete a deployment.
 + Added `muna.beta.deployments.retrieve` method to retrieve a deployment.
 + Added `muna.beta.deployments.list` method to list your deployments.
 + Added `muna.beta.deployments.delete` method to delete a deployment.
 + Updated `muna compile` CLI command to show live compile progress for each target after code generation.
-+ Updated `muna deploy` CLI command to deploy onto Muna inference endpoints.
++ Updated `muna deploy` CLI command to deploy onto Muna hosted compute.
 + Renamed `muna reteieve` CLI command to `muna predictors retrieve`.
 + Renamed `muna archive` CLI command to `muna predictors archive`.
 + Renamed `muna delete` CLI command to `muna predictors delete`.

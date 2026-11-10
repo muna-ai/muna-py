@@ -3,8 +3,10 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
-from ._schema import (
-    Deployment, DeploymentAccess, DeploymentPricing, DeploymentPricingKind,
-    DurationDeploymentPricing, ImageDeploymentPricing, TokenDeploymentPricing
+from .schema import (
+    ComputeDeploymentPricing, Deployment, DeploymentPricing, DeploymentPricingKind,
+    DeploymentStatus, DeploymentPreparation, DeploymentHealth, DeploymentFailure,
+    DeploymentProgress, DeploymentTenancy, DurationDeploymentPricing,
+    ImageDeploymentPricing, TokenDeploymentPricing
 )
-from ._service import DeploymentService
+from .service import DeploymentError, DeploymentService

@@ -9,9 +9,6 @@ from .prediction import (
     Acceleration, Prediction, PredictionRequirements,
     PredictionResource, RemotePrediction
 )
-from .predictor import (
-    Predictor, PredictorAccess, PredictorStatus,
-    PredictorTenancy, Signature
-)
+from .predictor import Predictor, PredictorAccess, PredictorStatus, Signature
 from .user import User
 from .value import Dtype, RemoteValue, Value

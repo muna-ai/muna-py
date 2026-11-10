@@ -44,7 +44,9 @@ def compile_function(
 def compile_predictor(
     path: Path,
     *,
-    muna: Muna
+    muna: Muna,
+    required_targets: list[str] | None = None,
+    show_completion: bool = True
 ) -> str:
     """
     Compile the predictor function in a Python module, showing live progress.
@@ -64,6 +66,7 @@ def compile_predictor(
                 name=func.__name__
             )
             spec: PredictorSpec = func.__predictor_spec
+            _validate_required_targets(spec.targets, required_targets)
             if spec.tag is None:
                 user = muna.users.retrieve()
                 spec.tag = f"@{user.username}/{func.__name__.replace('_', '-')}"
@@ -135,16 +138,19 @@ def compile_predictor(
     predictor_url = _compute_predictor_url(muna.client.api_url, spec.tag)
     # The API predates compile progress, so implementations compile without a live view
     if first_compile_event is None:
-        print_rich(
-            f"\n[bold spring_green3]🎉 Predictor is now being compiled.[/bold spring_green3] "
-            f"Check it out at [link={predictor_url}]{predictor_url}[/link]"
-        )
+        if show_completion:
+            print_rich(
+                f"\n[bold spring_green3]🎉 Predictor is now being compiled.[/bold spring_green3] "
+                f"Check it out at [link={predictor_url}]{predictor_url}[/link]"
+            )
         return spec.tag
+    # Watch compile
     _watch_compile(
         first_compile_event,
         events=events,
         tag=spec.tag,
-        predictor_url=predictor_url
+        predictor_url=predictor_url,
+        show_completion=show_completion
     )
     # Return
     return spec.tag
@@ -154,7 +160,8 @@ def _watch_compile(
     *,
     events: Iterator[_LogEvent | _ErrorEvent | _CompileEvent],
     tag: str,
-    predictor_url: str
+    predictor_url: str,
+    show_completion: bool = True
 ):
     console = get_console()
     view = _CompileView(first_event.data.targets)
@@ -177,8 +184,8 @@ def _watch_compile(
     # Report
     elapsed = _format_duration(monotonic() - view.start)
     targets = view.targets
-    console.print()
     if not all(counts.is_done for counts in targets.values()):
+        console.print()
         console.print(
             f"[bold yellow]Still compiling after {elapsed}.[/bold yellow] Compilation continues "
             f"in the background. Track it at [link={predictor_url}]{predictor_url}[/link]"
@@ -191,10 +198,12 @@ def _watch_compile(
             f"implementation compiled for {'this target' if len(failed_targets) == 1 else 'these targets'}. "
             f"See the compile logs at {predictor_url}"
         )
-    console.print(
-        f"[bold spring_green3]🎉 Compiled {tag} in {elapsed}.[/bold spring_green3] "
-        f"Check it out at [link={predictor_url}]{predictor_url}[/link]"
-    )
+    if show_completion:
+        console.print()
+        console.print(
+            f"[bold spring_green3]🎉 Compiled {tag} in {elapsed}.[/bold spring_green3] "
+            f"Check it out at [link={predictor_url}]{predictor_url}[/link]"
+        )
     failed = sum(counts.error for counts in targets.values())
     if failed:
         console.print(
@@ -257,6 +266,20 @@ def _compute_predictor_url(
     netloc = hostname if not parsed_url.port else f"{hostname}:{parsed_url.port}"
     predictor_url = urlunparse(parsed_url._replace(netloc=netloc, path=f"{tag}"))
     return predictor_url
+
+def _validate_required_targets(
+    targets: list[str] | None,
+    required_targets: list[str] | None
+) -> None:
+    if targets is None or not required_targets:
+        return
+    missing = sorted(set(required_targets) - set(targets))
+    if missing:
+        raise ValueError(
+            "Cannot compile predictor because its explicit targets exclude required targets: "
+            f"{', '.join(missing)}. Include these exact triples in @compile(targets=...), "
+            "or omit targets to use the defaults."
+        )
 
 class _Predictor(BaseModel):
     tag: str

@@ -191,7 +191,8 @@ class PredictionService:
         }
         remote_prediction = self.client.request(
             method="POST",
-            path="/predictions/remote",
+            path="/predictions",
+            base_url=self.client.inference_url,
             body={
                 "tag": tag,
                 "inputs": input_map,
@@ -215,7 +216,8 @@ class PredictionService:
         }
         for event in self.client.stream(
             method="POST",
-            path="/predictions/remote",
+            path="/predictions",
+            base_url=self.client.inference_url,
             body={
                 "tag": tag,
                 "inputs": input_map,
@@ -345,6 +347,7 @@ def _parse_local_prediction(
     *,
     tag: str
 ) -> Prediction:
+    created = datetime.now(timezone.utc).isoformat(timespec="microseconds")
     output_map = prediction.results
     results: list[Value] | None = None
     if output_map:
@@ -360,7 +363,7 @@ def _parse_local_prediction(
         latency=prediction.latency,
         error=prediction.error,
         logs=prediction.logs,
-        created=datetime.now(timezone.utc).isoformat()
+        created=created
     )
 
 def _create_remote_value(obj: Value | RemoteValue) -> RemoteValue:

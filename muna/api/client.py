@@ -32,6 +32,7 @@ DOWNLOAD_MAX_FILES = 16                          # parallel connections for hf_t
 class MunaAPIError(Exception):
 
     def __init__(self, message: str, status_code: int):
+        message = message.strip() or "The API returned an empty error response."
         super().__init__(message, status_code)
         self.message = message
         self.status_code = status_code
@@ -48,6 +49,7 @@ class MunaClient:
     ) -> None:
         self.access_key = access_key
         self.api_url = api_url or "https://api.muna.ai/v1"
+        self.inference_url = environ.get("MUNA_INFERENCE_URL", "https://inference.muna.ai/v1")
 
     def request(
         self,
@@ -55,7 +57,8 @@ class MunaClient:
         method: Literal["GET", "HEAD", "POST", "PATCH", "DELETE"],
         path: str,
         body: dict[str, object] | BaseModel | None=None,
-        response_type: Type[T]=None
+        response_type: Type[T]=None,
+        base_url: str | None=None
     ) -> T:
         """
         Make a request to a REST endpoint.
@@ -65,10 +68,11 @@ class MunaClient:
             path (str): Endpoint path.
             body (dict): Request JSON body.
             response_type (Type): Response type.
+            base_url (str): Base URL override. Defaults to the configured API URL.
         """
         response = request(
             method=method,
-            url=f"{self.api_url}{path}",
+            url=f"{(base_url if base_url is not None else self.api_url).rstrip('/')}{path}",
             json=_coerce_body(body),
             headers={ "Authorization": f"Bearer {self.access_key}" }
         )
@@ -89,7 +93,8 @@ class MunaClient:
         method: Literal["GET", "HEAD", "POST", "PATCH", "DELETE"],
         path: str,
         body: dict[str, object] | BaseModel | None=None,
-        response_type: Type[T]=None
+        response_type: Type[T]=None,
+        base_url: str | None=None
     ) -> Iterator[T]:
         """
         Make a request to a REST endpoint and consume the response as a server-sent events stream.
@@ -99,10 +104,11 @@ class MunaClient:
             path (str): Endpoint path.
             body (dict): Request JSON body.
             response_type (Type): Response type.
+            base_url (str): Base URL override. Defaults to the configured API URL.
         """
         response = request(
             method=method,
-            url=f"{self.api_url}{path}",
+            url=f"{(base_url if base_url is not None else self.api_url).rstrip('/')}{path}",
             json=_coerce_body(body),
             headers={
                 "Accept": "text/event-stream",
@@ -110,31 +116,35 @@ class MunaClient:
             },
             stream=True
         )
-        if not response.ok:
-            try:
-                error = _ErrorResponse(**response.json()).errors[0].message
-            except JSONDecodeError:
-                error = response.text
-            raise MunaAPIError(error, response.status_code)
-        event = None
-        data: str = ""
-        for line in response.iter_lines(decode_unicode=True):
-            if line is None:
-                break
-            line: str = line.strip()
-            if line:
-                if line.startswith("event:"):
-                    event = line[len("event:"):].strip()
-                elif line.startswith("data:"):
-                    line_data = line[len("data:"):].strip()
-                    data = f"{data}\n{line_data}"
-                continue
-            if event is not None:
-                yield _parse_sse_event(event, data, response_type)
+        response.encoding = "utf-8"
+        try:
+            if not response.ok:
+                try:
+                    error = _ErrorResponse(**response.json()).errors[0].message
+                except JSONDecodeError:
+                    error = response.text
+                raise MunaAPIError(error, response.status_code)
             event = None
-            data = ""
-        if event or data:
-            yield _parse_sse_event(event, data, response_type)
+            data: str = ""
+            for line in response.iter_lines(decode_unicode=True):
+                if line is None:
+                    break
+                line: str = line.strip()
+                if line:
+                    if line.startswith("event:"):
+                        event = line[len("event:"):].strip()
+                    elif line.startswith("data:"):
+                        line_data = line[len("data:"):].strip()
+                        data = f"{data}\n{line_data}"
+                    continue
+                if event is not None:
+                    yield _parse_sse_event(event, data, response_type)
+                event = None
+                data = ""
+            if event or data:
+                yield _parse_sse_event(event, data, response_type)
+        finally:
+            response.close()
 
     def download(
         self,

@@ -30,31 +30,15 @@ app = typer.Typer(
 # Add top level options
 app.callback()(cli_options)
 
-# Compilation
+# Deployments
 app.command(
     name="compile",
     help="Compile a model for deployment.",
-    rich_help_panel="Compile ⚡"
+    rich_help_panel="Deploy 🚀"
 )(compile_function)
-
-# Predictions
-app.command(
-    name="predict",
-    help="Invoke a compiled model.",
-    context_settings={ "allow_extra_args": True, "ignore_unknown_options": True },
-    rich_help_panel="Compile ⚡"
-)(create_prediction)
-app.add_typer(
-    predictors_app,
-    name="predictors",
-    help="Manage your compiled models.",
-    rich_help_panel="Compile ⚡"
-)
-
-# Deployments
 app.command(
     name="deploy",
-    help="Deploy a model on Muna.",
+    help="Deploy a model on Muna cloud.",
     rich_help_panel="Deploy 🚀"
 )(deploy_function)
 app.add_typer(
@@ -62,6 +46,20 @@ app.add_typer(
     name="deployments",
     help="Manage your deployments.",
     rich_help_panel="Deploy 🚀"
+)
+
+# Compiled Models
+app.command(
+    name="predict",
+    help="Invoke a compiled model.",
+    context_settings={ "allow_extra_args": True, "ignore_unknown_options": True },
+    rich_help_panel="Models 🧠"
+)(create_prediction)
+app.add_typer(
+    predictors_app,
+    name="predictors",
+    help="Manage your compiled models.",
+    rich_help_panel="Models 🧠"
 )
 
 # Auth
