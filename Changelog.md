@@ -1,3 +1,6 @@
+## 0.1.38
+*INCOMPLETE*
+
 ## 0.1.37
 + Added `muna deployments list` CLI command to list your deployments.
 + Added `muna deployments delete` CLI command to delete a deployment.
