@@ -4,30 +4,28 @@
 #
 
 from __future__ import annotations
-from base64 import b64decode
 from collections import defaultdict
-from collections.abc import Callable
-from io import BytesIO
-from numpy import ndarray
-from PIL import Image
-from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 from typing import overload, Iterator, Literal
+from typing_extensions import TypedDict
 
-from ...c import Value
 from ...services import PredictorService, PredictionService
-from ...types import Acceleration, Device, Dtype, Parameter, Prediction
-from ..annotations import get_parameter
-from ..errors import prediction_error_to_exception
-from .schema import (
-    ChatCompletion, ChatCompletionChunk, ChatCompletionContentPartFile,
-    ChatCompletionContentPartImage, ChatCompletionContentPartInputAudio,
-    ChatCompletionContentPartRefusal, ChatCompletionContentPartText,
+from ...types import Acceleration, Device
+from ..adapters.completions import (
+    OpenAICompletionsAdapter, OpenAICompletionsOptions,
+    ChatCompletion, ChatCompletionChunk,
     ChatCompletionFunctionTool, ChatCompletionMessageFunctionToolCall,
     ChatCompletionReasoningEffort, ChatCompletionToolChoice, Choice,
-    Message, _ResponseFormatDict, StreamChoice
+    Message, StreamChoice
 )
 
-ChatCompletionDelegate = Callable[..., ChatCompletion | Iterator[ChatCompletionChunk]]
+class _ResponseFormatTextDict(TypedDict):
+    type: Literal["text"]
+
+class _ResponseFormatJsonSchemaDict(TypedDict):
+    type: Literal["json_schema"]
+    json_schema: dict[str, object]
+
+_ResponseFormatDict = _ResponseFormatTextDict | _ResponseFormatJsonSchemaDict
 
 class ChatCompletionService:
     """
@@ -41,7 +39,7 @@ class ChatCompletionService:
     ):
         self.__predictors = predictors
         self.__predictions = predictions
-        self.__cache = dict[str, ChatCompletionDelegate]()
+        self.__cache: dict[str, OpenAICompletionsAdapter] = {}
 
     @overload
     def create(
@@ -127,17 +125,15 @@ class ChatCompletionService:
         Returns:
             ChatCompletion | Iterator[ChatCompletionChunk]: Chat completion or chat completion chunks if streaming.
         """
-        # Ensure we have a delegate
         if model not in self.__cache:
-            self.__cache[model] = self.__create_delegate(model)
-        # Make prediction
-        delegate = self.__cache[model]
-        result = delegate(
+            predictor = self.__predictors.retrieve(model)
+            if predictor is None:
+                raise ValueError(f"Predictor {model} could not be found")
+            self.__cache[model] = OpenAICompletionsAdapter.from_signature(predictor.signature)
+        adapter = self.__cache[model]
+        inputs = adapter.inputs(
             messages=messages,
-            model=model,
-            stream=stream,
             tools=tools,
-            tool_choice=tool_choice,
             response_format=response_format,
             reasoning_effort=reasoning_effort,
             max_completion_tokens=max_completion_tokens,
@@ -145,308 +141,17 @@ class ChatCompletionService:
             top_p=top_p,
             seed=seed,
             frequency_penalty=frequency_penalty,
-            presence_penalty=presence_penalty,
+            presence_penalty=presence_penalty
+        )
+        predictions = self.__predictions.stream(
+            tag=model,
+            inputs=inputs,
             acceleration=acceleration,
-            devices=devices
+            devices=devices,
+            passthrough=True
         )
-        # Return
-        return result
-
-    def __create_delegate(self, tag: str) -> ChatCompletionDelegate:
-        # Retrieve predictor
-        predictor = self.__predictors.retrieve(tag)
-        if not predictor:
-            raise ValueError(
-                f"{tag} cannot be used with OpenAI chat completions API because "
-                "the predictor could not be found. Check that your access key "
-                "is valid and that you have access to the predictor."
-            )
-        # Check that there is only one required input parameter
-        signature = predictor.signature
-        required_inputs = [param for param in signature.inputs if not param.optional]
-        if len(required_inputs) != 1:
-            raise ValueError(
-                f"{tag} cannot be used with OpenAI chat completions API because "
-                "it has more than one required input parameter."
-            )
-        # Check that the input parameter is `list[Message]`
-        _, input_param = get_parameter(required_inputs, dtype=Dtype.list)
-        if input_param is None:
-            raise ValueError(
-                f"{tag} cannot be used with OpenAI chat completions API because "
-                "it does not have a valid chat messages input parameter."
-            )
-        # Get optional inputs
-        _, response_format_param = get_parameter(
-            signature.inputs,
-            dtype=Dtype.dict,
-            denotation="openai.chat.completions.response_format"
-        )
-        _, reasoning_effort_param = get_parameter(
-            signature.inputs,
-            dtype=Dtype.string,
-            denotation="openai.chat.completions.reasoning_effort"
-        )
-        _, max_output_tokens_param = get_parameter(
-            signature.inputs,
-            dtype={
-                Dtype.int8, Dtype.int16, Dtype.int32, Dtype.int64,
-                Dtype.uint8, Dtype.uint16, Dtype.uint32, Dtype.uint64
-            },
-            denotation="openai.chat.completions.max_output_tokens"
-        )
-        _, temperature_param = get_parameter(
-            signature.inputs,
-            dtype={ Dtype.float32, Dtype.float64 },
-            denotation="openai.chat.completions.temperature"
-        )
-        _, top_p_param = get_parameter(
-            signature.inputs,
-            dtype={ Dtype.float32, Dtype.float64 },
-            denotation="openai.chat.completions.top_p"
-        )
-        _, seed_param = get_parameter(
-            signature.inputs,
-            dtype={
-                Dtype.int8, Dtype.int16, Dtype.int32, Dtype.int64,
-                Dtype.uint8, Dtype.uint16, Dtype.uint32, Dtype.uint64
-            },
-            denotation="openai.chat.completions.seed"
-        )
-        _, frequency_penalty_param = get_parameter(
-            signature.inputs,
-            dtype={ Dtype.float32, Dtype.float64 },
-            denotation="openai.chat.completions.frequency_penalty"
-        )
-        _, presence_penalty_param = get_parameter(
-            signature.inputs,
-            dtype={ Dtype.float32, Dtype.float64 },
-            denotation="openai.chat.completions.presence_penalty"
-        )
-        _, images_param = get_parameter(
-            signature.inputs,
-            dtype=Dtype.image_list,
-            denotation="openai.chat.completions.images"
-        )
-        _, audios_param = get_parameter(
-            signature.inputs,
-            dtype=Dtype.array_list,
-            denotation="openai.chat.completions.audios"
-        )
-        _, tools_param = get_parameter(
-            signature.inputs,
-            dtype=Dtype.list,
-            denotation="openai.chat.completions.tools"
-        )
-        # Get chat completion chunk output param
-        completion_param_idx = next((
-            idx
-            for idx, param in enumerate(signature.outputs)
-            if (
-                param.dtype == Dtype.dict and
-                param.value_schema["title"] == "ChatCompletionChunk"
-            )
-        ), None)
-        if completion_param_idx is None:
-            raise ValueError(
-                f"{tag} cannot be used with OpenAI chat completions API because "
-                "it does not have a valid chat completion chunk output parameter. "
-                "Chat predictors must yield `ChatCompletionChunk` outputs."
-            )
-        # Create delegate
-        def delegate(
-            *,
-            messages: list[Message],
-            model: str,
-            stream: bool,
-            tools: list[ChatCompletionFunctionTool | dict] | None,
-            tool_choice: ChatCompletionToolChoice | None,
-            response_format: _ResponseFormatDict | None,
-            reasoning_effort: Literal["none", "minimal", "low", "medium", "high", "xhigh"] | None,
-            max_completion_tokens: int | None,
-            temperature: float | None,
-            top_p: float | None,
-            seed: int | None,
-            frequency_penalty: float | None,
-            presence_penalty: float | None,
-            acceleration: Acceleration,
-            devices: list[Device | str] | None
-        ) -> ChatCompletion | Iterator[ChatCompletionChunk]:
-            # Check tool support
-            if tools and tools_param is None:
-                raise ValueError(
-                    f"{model} does not support tool calling because it does "
-                    "not declare a tools input parameter."
-                )
-            # Build prediction input map
-            conversation = _normalize_conversation(
-                messages,
-                images_param=images_param,
-                audios_param=audios_param
-            )
-            input_map = { input_param.name: conversation.messages }
-            if images_param and conversation.images:
-                input_map[images_param.name] = conversation.images
-            if audios_param and conversation.audios:
-                input_map[audios_param.name] = conversation.audios
-            if tools:
-                input_map[tools_param.name] = [
-                    tool.model_dump(exclude_none=True)
-                    if isinstance(tool, BaseModel)
-                    else tool
-                    for tool in tools
-                ]
-            if response_format_param and response_format:
-                input_map[response_format_param.name] = response_format
-            if reasoning_effort_param and reasoning_effort:
-                input_map[reasoning_effort_param.name] = reasoning_effort
-            if max_output_tokens_param and max_completion_tokens is not None:
-                input_map[max_output_tokens_param.name] = max_completion_tokens
-            if temperature_param and temperature is not None:
-                input_map[temperature_param.name] = temperature
-            if top_p_param and top_p is not None:
-                input_map[top_p_param.name] = top_p
-            if seed_param and seed is not None:
-                input_map[seed_param.name] = seed
-            if frequency_penalty_param and frequency_penalty is not None:
-                input_map[frequency_penalty_param.name] = frequency_penalty
-            if presence_penalty_param and presence_penalty is not None:
-                input_map[presence_penalty_param.name] = presence_penalty
-            # Predict
-            prediction_stream = self.__predictions.stream(
-                tag=model,
-                inputs=input_map,
-                acceleration=acceleration,
-                devices=devices
-            )
-            completion_stream = _gather_completion_outputs(prediction_stream, completion_param_idx)
-            chunks = map(_parse_chat_completion_chunk, completion_stream)
-            # Return
-            if stream:
-                return chunks
-            else:
-                return _merge_chunks(list(chunks))
-        # Return
-        return delegate
-
-def _normalize_conversation(
-    messages: list[Message],
-    *,
-    images_param: Parameter | None,
-    audios_param: Parameter | None
-) -> _NormalizedConversation:
-    """
-    Prepare a conversation for the predictor: decode media parts into parallel
-    lists correlated by order of appearance across all messages, replacing each
-    with a payload-free placeholder (`{"type": "image"}` / `{"type": "audio"}`).
-    """
-    if not messages:
-        raise ValueError("`messages` must contain at least one message.")
-    normalized: list[dict[str, object]] = []
-    images: list[Image.Image] = []
-    audios: list[ndarray] = []
-    for index, raw in enumerate(messages):
-        message = _MESSAGE.validate_python(raw)
-        _validate_message(index, message)
-        wire = _MESSAGE.dump_python(message, mode="json", exclude_none=True)
-        content = message.get("content")
-        if message["role"] == "assistant" and content is None:
-            wire["content"] = ""
-        if isinstance(content, list):
-            parts: list[object] = wire["content"]
-            for index, part in enumerate(content):
-                match part:
-                    case ChatCompletionContentPartImage() if images_param:
-                        images.append(_decode_image(part.image_url.url))
-                        parts[index] = { "type": "image" }
-                    case ChatCompletionContentPartInputAudio() if audios_param:
-                        audios.append(_decode_audio(
-                            part.input_audio,
-                            sample_rate=audios_param.sample_rate
-                        ))
-                        parts[index] = { "type": "audio" }
-                    case ChatCompletionContentPartImage() | ChatCompletionContentPartInputAudio():
-                        raise ValueError(f"`{part.type}` content is not supported by this model.")
-                    case ChatCompletionContentPartFile():
-                        raise ValueError("File content parts are not yet supported.")
-        normalized.append(wire)
-    return _NormalizedConversation(
-        messages=normalized,
-        images=images,
-        audios=audios
-    )
-
-def _validate_message(index: int, message: Message) -> None:
-    """
-    Reject a message that carries nothing for the model to read.
-    """
-    role = message["role"]
-    if role in ("assistant", "tool"):
-        return
-    content = message.get("content")
-    match content:
-        case str():
-            has_payload = bool(content.strip())
-        case list():
-            has_payload = any(
-                part.text.strip() if isinstance(part, ChatCompletionContentPartText) else
-                part.refusal.strip() if isinstance(part, ChatCompletionContentPartRefusal) else
-                True
-                for part in content
-            )
-        case _:
-            has_payload = False
-    if not has_payload:
-        raise ValueError(
-            f"`messages[{index}]` ({role} message) must have non-empty `content`. "
-            "Text content must contain non-whitespace characters."
-        )
-
-def _decode_image(url: str) -> Image.Image:
-    """
-    Decode an `image_url` content part's `data:` URL into an RGBA pixel buffer.
-    Remote URLs are rejected: fetching is the caller's job.
-    """
-    if not url.startswith("data:"):
-        raise ValueError(
-            "`image_url` content must be a base64 `data:` URL. Fetch remote "
-            "images and pass them inline as data URLs."
-        )
-    meta, sep, payload = url.removeprefix("data:").partition(",")
-    if not sep:
-        raise ValueError("Malformed data URL in `image_url` content part.")
-    mime = meta.split(";")[0] or "image/*"
-    try:
-        data = b64decode(payload, validate=True)
-    except ValueError as error:
-        raise ValueError(f"Failed to decode base64 image data: {error}") from None
-    try:
-        image = Image.open(BytesIO(data))
-        return image.convert("RGBA")
-    except OSError:
-        raise ValueError(f"Failed to decode image content of type `{mime}` into an image.") from None
-
-def _decode_audio(
-    input_audio: ChatCompletionContentPartInputAudio.InputAudio,
-    *,
-    sample_rate: int
-) -> ndarray:
-    """
-    Decode an audio content part into linear PCM samples at the
-    predictor's declared sample rate.
-    """
-    data = b64decode(input_audio.data)
-    with Value.from_bytes(data, f"audio/{input_audio.format};rate={sample_rate}") as value:
-        return value.to_object()
-
-def _gather_completion_outputs(
-    stream: Iterator[Prediction],
-    completion_param_idx: int
-) -> Iterator[object]:
-    for prediction in stream:
-        if prediction.error:
-            raise prediction_error_to_exception(prediction.error)
-        yield prediction.results[completion_param_idx]
+        chunks = adapter.adapt(predictions, OpenAICompletionsOptions(include_usage=True))
+        return chunks if stream else _merge_chunks(list(chunks))
 
 def _merge_chunks(chunks: list[ChatCompletionChunk]) -> ChatCompletion:
     if not chunks:
@@ -455,7 +160,10 @@ def _merge_chunks(chunks: list[ChatCompletionChunk]) -> ChatCompletion:
     for chunk in chunks:
         for choice in chunk.choices:
             choices_map[choice.index].append(choice)
-    choices = [_create_chat_completion_choice(index, choices) for index, choices in choices_map.items()]
+    choices = [
+        _create_chat_completion_choice(index, choices)
+        for index, choices in choices_map.items()
+    ]
     chunk_usages = [chunk.usage for chunk in chunks if chunk.usage is not None]
     usage = ChatCompletion.Usage(
         prompt_tokens=sum(usage.prompt_tokens for usage in chunk_usages),
@@ -483,21 +191,15 @@ def _merge_chunks(chunks: list[ChatCompletionChunk]) -> ChatCompletion:
     )
     return completion
 
-def _parse_chat_completion_chunk(data: dict[str, object]) -> ChatCompletionChunk:
-    try:
-        return TypeAdapter(ChatCompletionChunk).validate_python(data)
-    except ValidationError:
-        pass
-    raise ValueError(
-        f"Failed to parse chat completion chunk from model output: {data}. "
-        "Chat predictors must yield `ChatCompletionChunk` outputs."
-    )
-
 def _create_chat_completion_choice(
     index: int,
     choices: list[StreamChoice]
 ) -> Choice:
-    role = choices[0].delta.role
+    role = next((
+        choice.delta.role
+        for choice in choices
+        if choice.delta is not None and choice.delta.role is not None
+    ), "assistant")
     content = "".join(
         choice.delta.content
         for choice in choices
@@ -553,14 +255,3 @@ def _merge_tool_calls(choices: list[StreamChoice]) -> list[ChatCompletionMessage
             arguments=call["arguments"]
         )
     ) for _, call in sorted(calls.items())]
-
-class _NormalizedConversation(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
-    """
-    Result of media translation: wire-shaped messages (media parts replaced by
-    placeholders) plus the parallel media lists those placeholders index into.
-    """
-    messages: list[dict[str, object]]
-    images: list[Image.Image]
-    audios: list[ndarray]
-
-_MESSAGE = TypeAdapter(Message)

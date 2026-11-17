@@ -3,17 +3,14 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
-from base64 import b64encode
-from collections.abc import Callable
-from numpy import ndarray
 from typing import Literal
 
 from ...services import PredictorService, PredictionService
-from ...types import Acceleration, Device, Dtype
-from ..annotations import get_parameter
-from .schema import EmbeddingCreateResponse, Embedding
-
-EmbeddingDelegate = Callable[..., EmbeddingCreateResponse]
+from ...types import Acceleration, Device
+from ..adapters import (
+    EmbeddingCreateResponse, OpenAIEmbeddingsAdapter,
+    OpenAIEmbeddingsOptions
+)
 
 class EmbeddingService:
     """
@@ -27,7 +24,7 @@ class EmbeddingService:
     ):
         self.__predictors = predictors
         self.__predictions = predictions
-        self.__cache = dict[str, EmbeddingDelegate]()
+        self.__cache: dict[str, OpenAIEmbeddingsAdapter] = {}
 
     def create(
         self,
@@ -50,142 +47,22 @@ class EmbeddingService:
             acceleration (Acceleration): Prediction acceleration.
             devices (list): Local compute devices.
         """
-        input = [input] if isinstance(input, str) else input
-        # Ensure we have a delegate
+        # Ensure adapter
         if model not in self.__cache:
-            self.__cache[model] = self.__create_delegate(model)
-        # Make prediction
-        delegate = self.__cache[model]
-        result = delegate(
-            input=input,
-            model=model,
-            dimensions=dimensions,
-            encoding_format=encoding_format or "float",
+            predictor = self.__predictors.retrieve(model)
+            if predictor is None:
+                raise ValueError(f"Predictor {model} could not be found")
+            self.__cache[model] = OpenAIEmbeddingsAdapter.from_signature(predictor.signature)
+        # Create prediction
+        adapter = self.__cache[model]
+        inputs = adapter.inputs(input=input, dimensions=dimensions)
+        prediction = self.__predictions.create(
+            tag=model,
+            inputs=inputs,
             acceleration=acceleration,
-            devices=devices
+            devices=devices,
+            passthrough=True
         )
-        # Return
-        return result
-
-    def __create_delegate(self, tag: str) -> EmbeddingDelegate:
-        # Retrieve predictor
-        predictor = self.__predictors.retrieve(tag)
-        if not predictor:
-            raise ValueError(
-                f"{tag} cannot be used with OpenAI embedding API because "
-                "the predictor could not be found. Check that your access key "
-                "is valid and that you have access to the predictor."
-            )
-        # Check that there is only one required input parameter
-        signature = predictor.signature
-        required_inputs = [param for param in signature.inputs if not param.optional]
-        if len(required_inputs) != 1:
-            raise ValueError(
-                f"{tag} cannot be used with OpenAI embedding API because "
-                "it has more than one required input parameter."
-            )
-        # Check that the input parameter is `list[str]`
-        _, input_param = get_parameter(required_inputs, dtype=Dtype.list)
-        if input_param is None:
-            raise ValueError(
-                f"{tag} cannot be used with OpenAI embedding API because "
-                "it does not have a valid text embedding input parameter."
-            )
-        # Get the Matryoshka dim parameter (optional)
-        _, matryoshka_param = get_parameter(
-            signature.inputs,
-            dtype={
-                Dtype.int8, Dtype.int16, Dtype.int32, Dtype.int64,
-                Dtype.uint8, Dtype.uint16, Dtype.uint32, Dtype.uint64
-            },
-            denotation="openai.embeddings.dims"
-        )
-        # Get the embedding output parameter index
-        embedding_param_idx, _ = get_parameter(
-            signature.outputs,
-            dtype=Dtype.float32,
-            denotation="embedding"
-        )
-        if embedding_param_idx is None:
-            raise ValueError(
-                f"{tag} cannot be used with OpenAI embedding API because "
-                "it has no outputs with an `embedding` denotation."
-            )
-        # Get usage output param
-        usage_param_idx = next((
-            idx
-            for idx, param in enumerate(signature.outputs)
-            if param.value_schema and param.value_schema.get("title") == "Usage"
-        ), None)
-        # Define delegate
-        def delegate(
-            *,
-            input: list[str],
-            model: str,
-            dimensions: int | None,
-            encoding_format: Literal["float", "base64"],
-            acceleration: Acceleration,
-            devices: list[Device | str] | None
-        ) -> EmbeddingCreateResponse:
-            # Build prediction input map
-            input_map = { input_param.name: input }
-            if dimensions is not None and matryoshka_param is not None:
-                input_map[matryoshka_param.name] = dimensions
-            # Create prediction
-            prediction = self.__predictions.create(
-                tag=model,
-                inputs=input_map,
-                acceleration=acceleration,
-                devices=devices
-            )
-            # Check for error
-            if prediction.error:
-                raise RuntimeError(prediction.error)
-            # Check embedding return type
-            embedding_matrix = prediction.results[embedding_param_idx] # (N,D)
-            if not isinstance(embedding_matrix, ndarray):
-                raise RuntimeError(f"{tag} returned object of type {type(embedding_matrix)} instead of an embedding matrix")
-            if embedding_matrix.dtype != "float32":
-                raise RuntimeError(f"{tag} returned embedding matrix with invalid data type: {embedding_matrix.dtype}")
-            if embedding_matrix.ndim != 2:
-                raise RuntimeError(f"{tag} returned embedding matrix with invalid shape: {embedding_matrix.shape}")
-            # Create embedding response
-            usage = (
-                EmbeddingCreateResponse.Usage(**prediction.results[usage_param_idx])
-                if usage_param_idx is not None
-                else EmbeddingCreateResponse.Usage(prompt_tokens=0, total_tokens=0)
-            )
-            embeddings = [self.__parse_embedding(
-                embedding,
-                index=idx,
-                encoding_format=encoding_format
-            ) for idx, embedding in enumerate(embedding_matrix)]
-            response = EmbeddingCreateResponse(
-                object="list",
-                model=model,
-                data=embeddings,
-                usage=usage
-            )
-            # Return
-            return response
-        # Return
-        return delegate
-
-    def __parse_embedding(
-        self,
-        embedding_vector: ndarray,
-        *,
-        index: int,
-        encoding_format: Literal["float", "base64"]
-    ) -> Embedding:
-        data = (
-            b64encode(embedding_vector.tobytes()).decode()
-            if encoding_format == "base64" else
-            embedding_vector.tolist()
-        )
-        embedding = Embedding(
-            object="embedding",
-            embedding=data,
-            index=index
-        )
-        return embedding
+        # Adapt
+        options = OpenAIEmbeddingsOptions(encoding_format=encoding_format or "float")
+        return adapter.adapt(prediction, options)

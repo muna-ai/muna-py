@@ -1,20 +1,15 @@
-# 
+#
 #   Muna
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
 from __future__ import annotations
-from collections.abc import Callable
-from numpy import ndarray
-from requests import Response
-
-from ...c import Value
 from ...services import PredictorService, PredictionService
-from ...types import Acceleration, Device, Dtype
-from ..annotations import get_parameter
-from .schema import SpeechCreateResponse, SpeechResponseFormat, SpeechStreamFormat
-
-SpeechDelegate = Callable[..., object]
+from ...types import Acceleration, Device
+from ..adapters.speech import (
+    OpenAISpeechAdapter, OpenAISpeechOptions, SpeechCreateResponse,
+    SpeechResponseFormat, SpeechStreamFormat
+)
 
 class SpeechService:
     """
@@ -28,8 +23,8 @@ class SpeechService:
     ):
         self.__predictors = predictors
         self.__predictions = predictions
-        self.__cache = dict[str, SpeechDelegate]()
-    
+        self.__cache: dict[str, OpenAISpeechAdapter] = {}
+
     def create(
         self,
         *,
@@ -55,157 +50,31 @@ class SpeechService:
             acceleration (Acceleration): Prediction acceleration.
             devices (list): Local compute devices.
         """
-        # Ensure we have a delegate
+        # Ensure adapter
         if model not in self.__cache:
-            self.__cache[model] = self.__create_delegate(model)
-        # Make prediction
-        delegate = self.__cache[model]
-        result = delegate(
+            predictor = self.__predictors.retrieve(model)
+            if predictor is None:
+                raise ValueError(f"Predictor {model} could not be found")
+            self.__cache[model] = OpenAISpeechAdapter.from_signature(predictor.signature)
+        # Predict
+        adapter = self.__cache[model]
+        inputs = adapter.inputs(
             input=input,
-            model=model,
             voice=voice,
-            response_format=response_format,
-            speed=speed,
-            stream_format=stream_format,
+            speed=speed
+        )
+        prediction = self.__predictions.create(
+            tag=model,
+            inputs=inputs,
             acceleration=acceleration,
-            devices=devices
+            devices=devices,
+            passthrough=True
         )
+        # Adapt
+        options = OpenAISpeechOptions(
+            response_format=response_format,
+            stream_format=stream_format
+        )
+        response = adapter.adapt(prediction, options)
         # Return
-        return result
-
-    def __create_delegate(self, tag: str) -> SpeechDelegate:
-        # Retrieve predictor
-        predictor = self.__predictors.retrieve(tag)
-        if not predictor:
-            raise ValueError(
-                f"{tag} cannot be used with OpenAI speech API because "
-                "the predictor could not be found. Check that your access key "
-                "is valid and that you have access to the predictor."
-            )
-        # Get required inputs
-        signature = predictor.signature
-        required_inputs = [param for param in signature.inputs if not param.optional]
-        if len(required_inputs) != 2:
-            raise ValueError(
-                f"{tag} cannot be used with OpenAI speech API because "
-                "it does not have exactly two required input parameters."
-            )
-        # Get the text input param
-        _, input_param = get_parameter(required_inputs, dtype=Dtype.string)
-        if input_param is None:
-            raise ValueError(
-                f"{tag} cannot be used with OpenAI speech API because "
-                "it does not have the required speech input parameter."
-            )
-        # Get the voice input param
-        _, voice_param = get_parameter(
-            required_inputs,
-            dtype=Dtype.string,
-            denotation="openai.audio.speech.voice"
-        )
-        if voice_param is None:
-            raise ValueError(
-                f"{tag} cannot be used with OpenAI speech API because "
-                "it does not have the required speech voice parameter."
-            )
-        # Get the speed input param (optional)
-        _, speed_param = get_parameter(
-            signature.inputs,
-            dtype={ Dtype.float32, Dtype.float64 },
-            denotation="openai.audio.speech.speed"
-        )
-        # Get the audio output parameter index
-        audio_param_idx, audio_param = get_parameter(
-            signature.outputs,
-            dtype=Dtype.float32,
-            denotation="audio"
-        )
-        if audio_param is None:
-            raise ValueError(
-                f"{tag} cannot be used with OpenAI speech API because "
-                "it has no outputs with an `audio` denotation."
-            )
-        # Define delegate
-        def delegate(
-            *,
-            input: str,
-            model: str,
-            voice: str,
-            response_format: SpeechResponseFormat,
-            speed: float,
-            stream_format: SpeechStreamFormat,
-            acceleration: Acceleration,
-            devices: list[Device | str] | None
-        ) -> SpeechCreateResponse:
-            # Check stream format
-            if stream_format != "audio":
-                raise ValueError(
-                    f"Cannot create speech with stream format `{stream_format}` "
-                    f"because only `audio` is currently supported."
-                )
-            # Build prediction input map
-            input_map = {
-                input_param.name: input,
-                voice_param.name: voice
-            }
-            if speed_param is not None:
-                input_map[speed_param.name] = speed
-            # Create prediction
-            prediction = self.__predictions.create(
-                tag=model,
-                inputs=input_map,
-                acceleration=acceleration,
-                devices=devices
-            )
-            # Check for error
-            if prediction.error:
-                raise RuntimeError(prediction.error)
-            # Check returned audio
-            audio = prediction.results[audio_param_idx]
-            if not isinstance(audio, ndarray):
-                raise RuntimeError(f"{tag} returned object of type {type(audio)} instead of an audio tensor")
-            if audio.ndim not in [1, 2]:
-                raise RuntimeError(f"{tag} returned audio tensor with invalid shape: {audio.shape}")
-            # Create response
-            content, content_type = _create_response_data(
-                audio,
-                sample_rate=audio_param.sample_rate,
-                response_format=response_format
-            )
-            response = Response()
-            response.status_code = 200
-            response.headers = {
-                "Content-Type": content_type,
-                "Content-Length": len(content)
-            }
-            response._content = content
-            result = SpeechCreateResponse(
-                content=content,
-                response=response
-            )
-            # Return
-            return result
-        # Return
-        return delegate
-
-def _create_response_data(
-    audio: ndarray,
-    *,
-    sample_rate: int,
-    response_format: SpeechResponseFormat
-) -> tuple[bytes, str]:
-    channels = audio.shape[1] if audio.ndim == 2 else 1 # assume interleaved
-    if response_format == "pcm":
-        content_type = ";".join([
-            f"audio/pcm",
-            f"rate={sample_rate}",
-            f"channels={channels}",
-            f"encoding=float",
-            f"bits=32"
-        ])
-        data = audio.tobytes()
-        return data, content_type
-    with Value.from_object(audio) as audio_value:
-        content_type = f"audio/{response_format};rate={sample_rate}"
-        data = audio_value.serialize(content_type)
-        return data, content_type
+        return response

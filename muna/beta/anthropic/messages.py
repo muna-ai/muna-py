@@ -4,24 +4,21 @@
 #
 
 from __future__ import annotations
-from collections.abc import Callable, Iterator
-from pydantic import TypeAdapter, ValidationError
+from collections.abc import Iterator
+from json import loads
 from typing import overload, Literal
 
 from ...services import PredictorService, PredictionService
-from ...types import Acceleration, Device, Dtype, Prediction
-from ..annotations import get_parameter
-from ..errors import prediction_error_to_exception
-from ..openai.schema import ChatCompletionChunk, Message as OpenAIMessage
-from .schema import (
+from ...types import Acceleration, Device
+
+from ..adapters.messages import (
+    AnthropicMessagesAdapter,
     Message, RawContentBlockDeltaEvent, RawContentBlockStartEvent,
     RawContentBlockStopEvent, RawMessageDeltaEvent, RawMessageStartEvent,
     RawMessageStopEvent, RawMessageStreamEvent, StopReason, TextBlock,
     TextDelta, ThinkingBlock, ThinkingDelta, Usage, _MessageParamDict,
-    _TextBlockParamDict
+    _TextBlockParamDict, InputJSONDelta, ToolParam, ToolUseBlock
 )
-
-MessageDelegate = Callable[..., Message | Iterator[RawMessageStreamEvent]]
 
 class MessageService:
     """
@@ -35,7 +32,7 @@ class MessageService:
     ):
         self.__predictors = predictors
         self.__predictions = predictions
-        self.__cache = dict[str, MessageDelegate]()
+        self.__cache: dict[str, AnthropicMessagesAdapter] = {}
 
     @overload
     def create(
@@ -50,6 +47,7 @@ class MessageService:
         temperature: float | None=None,
         top_k: int | None=None,
         top_p: float | None=None,
+        tools: list[ToolParam] | None=None,
         acceleration: Acceleration="local_auto",
         devices: list[Device | str] | None=None
     ) -> Message: ...
@@ -67,6 +65,7 @@ class MessageService:
         temperature: float | None=None,
         top_k: int | None=None,
         top_p: float | None=None,
+        tools: list[ToolParam] | None=None,
         acceleration: Acceleration="local_auto",
         devices: list[Device | str] | None=None
     ) -> Iterator[RawMessageStreamEvent]: ...
@@ -83,6 +82,7 @@ class MessageService:
         temperature: float | None=None,
         top_k: int | None=None,
         top_p: float | None=None,
+        tools: list[ToolParam] | None=None,
         acceleration: Acceleration="local_auto",
         devices: list[Device | str] | None=None
     ) -> Message | Iterator[RawMessageStreamEvent]:
@@ -99,32 +99,39 @@ class MessageService:
             temperature (float): Amount of randomness injected into the response.
             top_k (int): Only sample from the top K options for each subsequent token.
             top_p (float): Nucleus sampling coefficient.
+            tools (list): Tools the model may call.
             acceleration (Acceleration): Prediction acceleration.
             devices (list): Local compute devices.
 
         Returns:
             Message | Iterator[RawMessageStreamEvent]: Message or raw message stream events if streaming.
         """
-        # Ensure we have a delegate
+
         if model not in self.__cache:
-            self.__cache[model] = self.__create_delegate(model)
-        # Make prediction
-        delegate = self.__cache[model]
-        result = delegate(
+            predictor = self.__predictors.retrieve(model)
+            if predictor is None:
+                raise ValueError(f"Predictor {model} could not be found")
+            self.__cache[model] = AnthropicMessagesAdapter.from_signature(predictor.signature)
+        adapter = self.__cache[model]
+        inputs = adapter.inputs(
             max_tokens=max_tokens,
             messages=messages,
-            model=model,
-            stop_sequences=stop_sequences,
-            stream=stream,
             system=system,
+            stop_sequences=stop_sequences,
             temperature=temperature,
             top_k=top_k,
             top_p=top_p,
-            acceleration=acceleration,
-            devices=devices
+            tools=tools
         )
-        # Return
-        return result
+        predictions = self.__predictions.stream(
+            tag=model,
+            inputs=inputs,
+            acceleration=acceleration,
+            devices=devices,
+            passthrough=True
+        )
+        events = adapter.adapt(predictions)
+        return events if stream else MessageStream(events).get_final_message()
 
     def stream(
         self,
@@ -137,6 +144,7 @@ class MessageService:
         temperature: float | None=None,
         top_k: int | None=None,
         top_p: float | None=None,
+        tools: list[ToolParam] | None=None,
         acceleration: Acceleration="local_auto",
         devices: list[Device | str] | None=None
     ) -> MessageStream:
@@ -152,6 +160,7 @@ class MessageService:
             temperature (float): Amount of randomness injected into the response.
             top_k (int): Only sample from the top K options for each subsequent token.
             top_p (float): Nucleus sampling coefficient.
+            tools (list): Tools the model may call.
             acceleration (Acceleration): Prediction acceleration.
             devices (list): Local compute devices.
 
@@ -168,123 +177,11 @@ class MessageService:
             temperature=temperature,
             top_k=top_k,
             top_p=top_p,
+            tools=tools,
             acceleration=acceleration,
             devices=devices
         )
         return MessageStream(events)
-
-    def __create_delegate(self, tag: str) -> MessageDelegate:
-        # Retrieve predictor
-        predictor = self.__predictors.retrieve(tag)
-        if not predictor:
-            raise ValueError(
-                f"{tag} cannot be used with Anthropic messages API because "
-                "the predictor could not be found. Check that your access key "
-                "is valid and that you have access to the predictor."
-            )
-        # Check that there is only one required input parameter
-        signature = predictor.signature
-        required_inputs = [param for param in signature.inputs if not param.optional]
-        if len(required_inputs) != 1:
-            raise ValueError(
-                f"{tag} cannot be used with Anthropic messages API because "
-                "it has more than one required input parameter."
-            )
-        # Check that the input parameter is a message list
-        _, input_param = get_parameter(required_inputs, dtype=Dtype.list)
-        if input_param is None:
-            raise ValueError(
-                f"{tag} cannot be used with Anthropic messages API because "
-                "it does not have a valid chat messages input parameter."
-            )
-        # Get optional inputs
-        _, max_output_tokens_param = get_parameter(
-            signature.inputs,
-            dtype=_INT_DTYPES,
-            denotation="openai.chat.completions.max_output_tokens"
-        )
-        _, stop_sequences_param = get_parameter(
-            signature.inputs,
-            dtype=Dtype.list,
-            denotation="openai.chat.completions.stop"
-        )
-        _, temperature_param = get_parameter(
-            signature.inputs,
-            dtype=_FLOAT_DTYPES,
-            denotation="openai.chat.completions.temperature"
-        )
-        _, top_k_param = get_parameter(
-            signature.inputs,
-            dtype=_INT_DTYPES,
-            denotation="anthropic.messages.top_k"
-        )
-        _, top_p_param = get_parameter(
-            signature.inputs,
-            dtype=_FLOAT_DTYPES,
-            denotation="openai.chat.completions.top_p"
-        )
-        # Get chat completion chunk output param
-        completion_param_idx = next((
-            idx
-            for idx, param in enumerate(signature.outputs)
-            if (
-                param.dtype == Dtype.dict and
-                param.value_schema["title"] == "ChatCompletionChunk"
-            )
-        ), None)
-        if completion_param_idx is None:
-            raise ValueError(
-                f"{tag} cannot be used with Anthropic messages API because "
-                "it does not have a valid chat completion chunk output parameter. "
-                "Chat predictors must yield `ChatCompletionChunk` outputs."
-            )
-        # Create delegate
-        def delegate(
-            *,
-            max_tokens: int,
-            messages: list[_MessageParamDict],
-            model: str,
-            stop_sequences: list[str] | None,
-            stream: bool,
-            system: str | list[_TextBlockParamDict] | None,
-            temperature: float | None,
-            top_k: int | None,
-            top_p: float | None,
-            acceleration: Acceleration,
-            devices: list[Device | str] | None
-        ) -> Message | Iterator[RawMessageStreamEvent]:
-            # Build prediction input map
-            input_map = { input_param.name: _to_openai_messages(messages, system) }
-            if max_output_tokens_param and max_tokens is not None:
-                input_map[max_output_tokens_param.name] = max_tokens
-            if stop_sequences_param and stop_sequences is not None:
-                input_map[stop_sequences_param.name] = stop_sequences
-            if temperature_param and temperature is not None:
-                input_map[temperature_param.name] = temperature
-            if top_k_param and top_k is not None:
-                input_map[top_k_param.name] = top_k
-            if top_p_param and top_p is not None:
-                input_map[top_p_param.name] = top_p
-            # Predict
-            prediction_stream = self.__predictions.stream(
-                tag=model,
-                inputs=input_map,
-                acceleration=acceleration,
-                devices=devices
-            )
-            completion_stream = _gather_prediction_outputs(
-                prediction_stream,
-                completion_param_idx
-            )
-            chunks = map(_parse_completion_chunk, completion_stream)
-            events = _stream_events(chunks)
-            # Return
-            if stream:
-                return events
-            else:
-                return MessageStream(events).get_final_message()
-        # Return
-        return delegate
 
 class MessageStream:
     """
@@ -294,11 +191,15 @@ class MessageStream:
     def __init__(self, events: Iterator[RawMessageStreamEvent]):
         self.__events = events
         self.__message: Message | None = None
+        self.__tool_json: dict[int, str] = {}
 
     def __enter__(self) -> MessageStream:
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        close = getattr(self.__events, "close", None)
+        if close is not None:
+            close()
         return False
 
     def __iter__(self) -> Iterator[RawMessageStreamEvent]:
@@ -334,13 +235,24 @@ class MessageStream:
             case RawMessageStartEvent():
                 self.__message = event.message.model_copy(deep=True)
             case RawContentBlockStartEvent() if self.__message is not None:
-                self.__message.content.append(event.content_block.model_copy())
+                self.__message.content.append(event.content_block.model_copy(deep=True))
             case RawContentBlockDeltaEvent() if self.__message is not None:
                 block = self.__message.content[event.index]
                 if isinstance(event.delta, TextDelta) and isinstance(block, TextBlock):
                     block.text += event.delta.text
                 elif isinstance(event.delta, ThinkingDelta) and isinstance(block, ThinkingBlock):
                     block.thinking += event.delta.thinking
+                elif isinstance(event.delta, InputJSONDelta) and isinstance(block, ToolUseBlock):
+                    self.__tool_json[event.index] = (
+                        self.__tool_json.get(event.index, "") + event.delta.partial_json
+                    )
+            case RawContentBlockStopEvent() if self.__message is not None:
+                data = self.__tool_json.pop(event.index, None)
+                if data is not None:
+                    value = loads(data)
+                    if not isinstance(value, dict):
+                        raise ValueError("Tool input must be a JSON object")
+                    self.__message.content[event.index].input = value
             case RawMessageDeltaEvent() if self.__message is not None:
                 self.__message.stop_reason = event.delta.stop_reason
                 self.__message.stop_sequence = event.delta.stop_sequence
@@ -352,132 +264,3 @@ class MessageStream:
                 self.__message.usage.cache_read_input_tokens = usage.cache_read_input_tokens
             case _:
                 pass
-
-def _to_openai_messages(
-    messages: list[_MessageParamDict],
-    system: str | list[_TextBlockParamDict] | None
-) -> list[OpenAIMessage]:
-    if not messages:
-        raise ValueError("`messages` must contain at least one message.")
-    result = list[OpenAIMessage]()
-    if system is not None:
-        result.append({ "role": "system", "content": _flatten_content(system) })
-    for index, message in enumerate(messages):
-        content = _flatten_content(message["content"])
-        if message["role"] != "assistant" and not content.strip():
-            raise ValueError(
-                f"`messages[{index}]` ({message['role']} message) must have non-empty "
-                "`content`. Text content must contain non-whitespace characters."
-            )
-        result.append({ "role": message["role"], "content": content })
-    return result
-
-def _flatten_content(content: str | list[_TextBlockParamDict]) -> str:
-    if isinstance(content, str):
-        return content
-    if any(block["type"] != "text" for block in content):
-        raise ValueError(
-            "Failed to create message because only `text` content "
-            "blocks are currently supported"
-        )
-    return "".join(block["text"] for block in content)
-
-def _gather_prediction_outputs(
-    stream: Iterator[Prediction],
-    output_param_idx: int
-) -> Iterator[object]:
-    for prediction in stream:
-        if prediction.error:
-            raise prediction_error_to_exception(prediction.error)
-        yield prediction.results[output_param_idx]
-
-def _parse_completion_chunk(data: object) -> ChatCompletionChunk:
-    try:
-        return TypeAdapter(ChatCompletionChunk).validate_python(data)
-    except ValidationError:
-        pass
-    raise ValueError(
-        f"Failed to parse chat completion chunk from model output: {data}. "
-        "Chat predictors must yield `ChatCompletionChunk` outputs."
-    )
-
-def _stream_events(chunks: Iterator[ChatCompletionChunk]) -> Iterator[RawMessageStreamEvent]:
-    started = False
-    block_idx = -1
-    block_type: Literal["thinking", "text"] | None = None
-    stop_reason: StopReason = "end_turn"
-    usage = Usage(output_tokens=0)
-    for chunk in chunks:
-        if not started:
-            yield RawMessageStartEvent(message=Message(
-                id=chunk.id,
-                content=[],
-                model=chunk.model,
-                stop_reason=None,
-                usage=Usage(input_tokens=0, output_tokens=0)
-            ))
-            started = True
-        if chunk.usage:
-            details = chunk.usage.prompt_tokens_details
-            cache_read = details.cached_tokens if details else None
-            cache_write = details.cache_write_tokens if details else None
-            usage.input_tokens = chunk.usage.prompt_tokens - (cache_read or 0) - (cache_write or 0)
-            usage.output_tokens += chunk.usage.completion_tokens
-            usage.cache_read_input_tokens = cache_read
-            usage.cache_creation_input_tokens = cache_write
-        choice = chunk.choices[0] if chunk.choices else None
-        if choice is None:
-            continue
-        if choice.finish_reason:
-            stop_reason = _STOP_REASON_MAP.get(choice.finish_reason, "end_turn")
-        if choice.delta is None:
-            continue
-        deltas: list[tuple[Literal["thinking", "text"], str | None]] = [
-            ("thinking", choice.delta.reasoning_content),
-            ("text", choice.delta.content)
-        ]
-        for kind, text in deltas:
-            if not text:
-                continue
-            if block_type != kind:
-                if block_type is not None:
-                    yield RawContentBlockStopEvent(index=block_idx)
-                block_idx += 1
-                block_type = kind
-                yield RawContentBlockStartEvent(
-                    index=block_idx,
-                    content_block=(
-                        ThinkingBlock(thinking="")
-                        if kind == "thinking"
-                        else TextBlock(text="")
-                    )
-                )
-            yield RawContentBlockDeltaEvent(
-                index=block_idx,
-                delta=(
-                    ThinkingDelta(thinking=text)
-                    if kind == "thinking"
-                    else TextDelta(text=text)
-                )
-            )
-    if block_type is not None:
-        yield RawContentBlockStopEvent(index=block_idx)
-    yield RawMessageDeltaEvent(
-        delta=RawMessageDeltaEvent.MessageDelta(stop_reason=stop_reason),
-        usage=usage
-    )
-    yield RawMessageStopEvent()
-
-_STOP_REASON_MAP: dict[str, StopReason] = {
-    "stop": "end_turn",
-    "length": "max_tokens",
-    "content_filter": "refusal",
-    "tool_calls": "tool_use"
-}
-
-_INT_DTYPES = {
-    Dtype.int8, Dtype.int16, Dtype.int32, Dtype.int64,
-    Dtype.uint8, Dtype.uint16, Dtype.uint32, Dtype.uint64
-}
-
-_FLOAT_DTYPES = { Dtype.float32, Dtype.float64 }

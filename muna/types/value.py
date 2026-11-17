@@ -38,6 +38,15 @@ class Dtype(StrEnum):
     array_list  = "array_list"
     image_list  = "image_list"
 
+class RemoteValue(BaseModel):
+    """
+    Remote value.
+    """
+    data: str | list[RemoteValue] | None = Field(description="Value URL, or a sequence of typed remote values.")
+    dtype: Dtype = Field(description="Value type.", validation_alias=AliasChoices("dtype", "type"))
+
+RemoteValue.model_rebuild()
+
 Value = (
     None                |
     float               |
@@ -50,14 +59,6 @@ Value = (
     dict[str, object]   |
     Image.Image         |
     bytes               |
-    BytesIO
+    BytesIO             |
+    RemoteValue
 )
-
-class RemoteValue(BaseModel):
-    """
-    Remote value.
-    """
-    data: str | list[RemoteValue] | None = Field(description="Value URL, or a sequence of typed remote values.")
-    dtype: Dtype = Field(description="Value type.", validation_alias=AliasChoices("dtype", "type"))
-
-RemoteValue.model_rebuild()

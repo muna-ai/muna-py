@@ -6,7 +6,6 @@
 from pydantic import AliasChoices, BaseModel, Field
 from typing import Literal
 
-from .value import RemoteValue
 
 Acceleration = Literal[
     "local_auto",
@@ -81,9 +80,3 @@ class Prediction(BaseModel):
     error: str | None = Field(None, description="Prediction error. This is `None` if the prediction completed successfully.")
     logs: str | None = Field(None, description="Prediction logs.")
     created: str = Field(description="Date created.")
-
-class RemotePrediction(Prediction):
-    """
-    Remote prediction.
-    """
-    results: list[RemoteValue] | None = Field(None, description="Prediction results.")

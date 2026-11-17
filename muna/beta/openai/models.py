@@ -3,10 +3,21 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
+from pydantic import BaseModel, Field
+from typing import Literal
+
 from ...services import PredictorService
 from ...types import Signature
 from ..utils import rfc3339_to_unix, split_tag
-from .schema import Model
+
+class Model(BaseModel):
+    """
+    OpenAI model object: exactly the four fields OpenAI documents.
+    """
+    id: str = Field(description="Model identifier (the predictor tag).")
+    object: Literal["model"] = Field("model", description="Object type, always `model`.")
+    created: int = Field(description="Creation time in Unix seconds.")
+    owned_by: str = Field(description="Model owner, the tag's `@owner`.")
 
 class ModelService:
     """

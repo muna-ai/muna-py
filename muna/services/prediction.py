@@ -20,7 +20,7 @@ from ..c import Configuration, Predictor, Prediction as CPrediction, ValueMap
 from ..c.value import _ensure_object_serializable, Value as CValue, _TENSOR_DTYPES
 from ..types import (
     Acceleration, Device, Dtype, Prediction,
-    RemotePrediction, RemoteValue, Value
+    RemoteValue, Value
 )
 
 class PredictionService:
@@ -48,7 +48,8 @@ class PredictionService:
         devices: list[Device | str] | None=None,
         target: str | None=None,
         compute_architecture: str | None=None,
-        configuration_id: str | None=None
+        configuration_id: str | None=None,
+        passthrough: bool=False
     ) -> Prediction:
         """
         Create a prediction.
@@ -91,7 +92,8 @@ class PredictionService:
         return self.__create_remote_prediction(
             tag,
             inputs=inputs,
-            acceleration=acceleration
+            acceleration=acceleration,
+            passthrough=passthrough
         )
 
     def stream(
@@ -100,7 +102,8 @@ class PredictionService:
         *,
         inputs: dict[str, Value],
         acceleration: Acceleration="local_auto",
-        devices: list[Device | str] | None=None
+        devices: list[Device | str] | None=None,
+        passthrough: bool=False
     ) -> Iterator[Prediction]:
         """
         Stream a prediction.
@@ -122,7 +125,8 @@ class PredictionService:
             yield from self.__stream_remote_prediction(
                 tag,
                 inputs=inputs,
-                acceleration=acceleration
+                acceleration=acceleration,
+                passthrough=passthrough
             )
 
     def delete(self, tag: str) -> bool:
@@ -146,6 +150,7 @@ class PredictionService:
     ) -> Prediction:
         if not inputs:
             return self.cache.retrieve(tag)
+        inputs = _deserialize_inputs(inputs)
         predictor = self.__get_predictor(
             tag,
             acceleration=acceleration,
@@ -165,6 +170,7 @@ class PredictionService:
         acceleration: Acceleration,
         devices: list[Device | str] | None=None
     ) -> Iterator[Prediction]:
+        inputs = _deserialize_inputs(inputs)
         predictor = self.__get_predictor(
             tag=tag,
             acceleration=acceleration,
@@ -183,7 +189,8 @@ class PredictionService:
         tag: str,
         *,
         inputs: dict[str, Value],
-        acceleration: Acceleration
+        acceleration: Acceleration,
+        passthrough: bool=False
     ) -> Prediction:
         input_map = {
             name: _create_remote_value(value).model_dump(mode="json")
@@ -199,16 +206,17 @@ class PredictionService:
                 "acceleration": acceleration,
                 "target": Configuration.get_target()
             },
-            response_type=RemotePrediction
+            response_type=Prediction
         )
-        return _parse_remote_prediction(remote_prediction)
+        return _parse_remote_prediction(remote_prediction, passthrough=passthrough)
 
     def __stream_remote_prediction(
         self,
         tag: str,
         *,
         inputs: dict[str, Value],
-        acceleration: Acceleration
+        acceleration: Acceleration,
+        passthrough: bool=False
     ) -> Iterator[Prediction]:
         input_map = {
             name: _create_remote_value(value).model_dump(mode="json")
@@ -225,9 +233,9 @@ class PredictionService:
                 "target": Configuration.get_target(),
                 "stream": True
             },
-            response_type=_RemotePredictionEvent
+            response_type=_PredictionEvent
         ):
-            yield _parse_remote_prediction(event.data)
+            yield _parse_remote_prediction(event.data, passthrough=passthrough)
 
     def __create_raw_prediction(
         self,
@@ -462,21 +470,27 @@ def _parse_remote_value(value: RemoteValue) -> Value:
                 "because it is not supported"
             )
 
-def _parse_remote_prediction(prediction: RemotePrediction) -> Prediction:
-    results = (
-        list(map(_parse_remote_value, prediction.results))
-        if prediction.results is not None
-        else None
-    )
-    return Prediction(
-        id=prediction.id,
-        tag=prediction.tag,
-        results=results,
-        latency=prediction.latency,
-        error=prediction.error,
-        logs=prediction.logs,
-        created=prediction.created
-    )
+def _deserialize_inputs(inputs: dict[str, Value]) -> dict[str, Value]:
+    # Resolve wire values at the execution boundary, before entering native code.
+    return {
+        name: _parse_remote_value(value) if isinstance(value, RemoteValue) else value
+        for name, value in inputs.items()
+    }
+
+def _parse_remote_prediction(
+    prediction: Prediction,
+    *,
+    passthrough: bool=False
+) -> Prediction:
+    # Prediction is the common envelope. Only this remote execution path
+    # interprets result dictionaries as wire values; native dict outputs retain
+    # their ordinary meaning when constructing a local Prediction.
+    if prediction.results is None:
+        return prediction
+    values = [RemoteValue.model_validate(value) for value in prediction.results]
+    return prediction.model_copy(update={
+        "results": values if passthrough else [_parse_remote_value(value) for value in values]
+    })
 
 def _upload_value_data(
     data: BytesIO,
@@ -494,9 +508,9 @@ def _download_value_data(url: str) -> BytesIO:
     response.raise_for_status()
     return BytesIO(response.content)
 
-class _RemotePredictionEvent(BaseModel):
+class _PredictionEvent(BaseModel):
     event: Literal["prediction"]
-    data: RemotePrediction
+    data: Prediction
 
 class _PreloadEntry(BaseModel, **ConfigDict(frozen=True)):
     tag: str

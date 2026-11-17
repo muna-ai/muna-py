@@ -1,5 +1,5 @@
 ## 0.1.39
-*INCOMPLETE*
++ Minor updates.
 
 ## 0.1.38
 + Added `beta.openai.images.edit` method for editing an image with a prompt with image editing models.

@@ -3,7 +3,7 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
-from .schema import (
+from ..adapters.system_one import (
     Answer, Choice, ChoiceAnswer, Content, Noul, NoulAnswer,
     Question, Score, ScoreAnswer, SystemOneResponse
 )

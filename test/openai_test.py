@@ -8,20 +8,22 @@ from io import BytesIO
 from muna import Muna
 from muna.beta import Annotations
 from muna.beta.openai import (
-    ChatCompletionChunk, ChoiceDeltaToolCall, DeltaMessage, Message,
-    StreamChoice
+    ChatCompletionChunk, ChoiceDeltaToolCall, DeltaMessage,
+    Message, StreamChoice
 )
 from muna.beta.errors import prediction_error_to_exception
-from muna.beta.openai.completions import _merge_tool_calls, _normalize_conversation
+from muna.beta.openai.completions import _merge_tool_calls
+from muna.beta.adapters import OpenAICompletionsAdapter
 from muna.beta.openai.models import _create_model
 from muna.types import Dtype, Parameter, Signature
 from pathlib import Path
 from PIL import Image
 from pytest import raises
+from types import SimpleNamespace
 from typing import Iterator
 
 def test_normalize_string_content_passes_through():
-    conversation = _normalize_conversation(
+    conversation = _conversation(
         [
             { "role": "system", "content": "You are a helpful assistant." },
             Message(role="user", content="What is the capital of France?")
@@ -42,7 +44,7 @@ def test_normalize_text_parts_pass_through_verbatim():
         { "type": "text", "text": "line one" },
         { "type": "text", "text": "line two" }
     ]
-    conversation = _normalize_conversation(
+    conversation = _conversation(
         [{ "role": "user", "content": parts }],
         images_param=None,
         audios_param=None
@@ -51,7 +53,7 @@ def test_normalize_text_parts_pass_through_verbatim():
 
 def test_normalize_refusal_passes_through_verbatim():
     parts = [{ "type": "refusal", "refusal": "I cannot help with that." }]
-    conversation = _normalize_conversation(
+    conversation = _conversation(
         [{ "role": "assistant", "content": parts }],
         images_param=None,
         audios_param=None
@@ -63,9 +65,9 @@ def test_message_typed_dict_kwargs_construction():
     assert isinstance(message, dict)
     assert message == { "role": "user", "content": "hi" }
 
-def test_normalize_image_parts_decode_in_order_across_messages():
+def test_normalize_image_parts_preserve_order_across_messages():
     images_param = Annotations.ChatImages(description="Images.")
-    conversation = _normalize_conversation(
+    conversation = _conversation(
         [
             {
                 "role": "user",
@@ -92,16 +94,16 @@ def test_normalize_image_parts_decode_in_order_across_messages():
     )
     # The nth placeholder across the conversation indexes the nth image.
     assert len(conversation.images) == 2
-    assert conversation.images[0].getpixel((0, 0)) == (255, 0, 0, 255)
-    assert conversation.images[1].getpixel((0, 0)) == (0, 255, 0, 255)
+    assert conversation.images[0].data == _png_data_url((255, 0, 0, 255))
+    assert conversation.images[1].data == _png_data_url((0, 255, 0, 255))
     first = conversation.messages[0]["content"]
     assert first == [{ "type": "text", "text": "first" }, { "type": "image" }]
     second = conversation.messages[1]["content"]
     assert second == [{ "type": "image" }]
 
 def test_normalize_undeclared_image_raises():
-    with raises(ValueError, match="image_url"):
-        _normalize_conversation(
+    with raises(ValueError, match="image content"):
+        _conversation(
             [
                 {
                     "role": "user",
@@ -117,32 +119,18 @@ def test_normalize_undeclared_image_raises():
             audios_param=None
         )
 
-def test_normalize_remote_and_malformed_image_urls_raise():
-    images_param = Annotations.ChatImages(description="Images.")
-    for url in [
-        "https://example.com/cat.png",
-        "data:image/png;base64",
-        "data:image/png;base64,!!!",
-        "data:image/png;base64,AA=="
-    ]:
-        with raises(ValueError):
-            _normalize_conversation(
-                [{
-                    "role": "user",
-                    "content": [{ "type": "image_url", "image_url": { "url": url } }]
-                }],
-                images_param=images_param,
-                audios_param=None
-            )
-    with raises(ValueError, match="data:"):
-        _normalize_conversation(
-            [{
-                "role": "user",
-                "content": [{ "type": "image_url", "image_url": { "url": "https://example.com/cat.png" } }]
-            }],
-            images_param=images_param,
-            audios_param=None
-        )
+def test_normalize_remote_image_urls_pass_through():
+    url = "https://example.com/cat.png"
+    conversation = _conversation(
+        [{
+            "role": "user",
+            "content": [{"type": "image_url", "image_url": {"url": url}}]
+        }],
+        images_param=Annotations.ChatImages(description="Images."),
+        audios_param=None
+    )
+    assert conversation.images[0].data == url
+    assert conversation.messages[0]["content"] == [{"type": "image"}]
 
 def test_model_is_exactly_the_openai_object():
     signature = Signature(
@@ -160,7 +148,7 @@ def test_model_is_exactly_the_openai_object():
 
 def test_normalize_file_part_raises():
     with raises(ValueError, match="File content parts"):
-        _normalize_conversation(
+        _conversation(
             [
                 {
                     "role": "user",
@@ -177,7 +165,7 @@ def test_normalize_file_part_raises():
         )
 
 def test_normalize_tool_turns_pass_through():
-    conversation = _normalize_conversation(
+    conversation = _conversation(
         [
             {
                 "role": "assistant",
@@ -206,18 +194,18 @@ def test_normalize_rejects_user_messages_without_payload():
     # trims it (Gemma 4 then describes an image it never got).
     for content in ["", "   ", None, [], [{ "type": "text", "text": " \n" }]]:
         with raises(ValueError, match=r"messages\[0\]"):
-            _normalize_conversation(
+            _conversation(
                 [{ "role": "user", "content": content }],
                 images_param=None,
                 audios_param=None
             )
     with raises(ValueError, match="at least one message"):
-        _normalize_conversation([], images_param=None, audios_param=None)
+        _conversation([], images_param=None, audios_param=None)
 
 def test_normalize_accepts_empty_assistant_turns():
     # Replayed history from a reasoning-only or interrupted completion.
     for content in ["", None, "  "]:
-        conversation = _normalize_conversation(
+        conversation = _conversation(
             [
                 { "role": "user", "content": "hi" },
                 { "role": "assistant", "content": content },
@@ -230,7 +218,7 @@ def test_normalize_accepts_empty_assistant_turns():
         assert assistant["role"] == "assistant"
         assert isinstance(assistant["content"], str)
     # Empty tool results are payload on their own.
-    _normalize_conversation(
+    _conversation(
         [{ "role": "tool", "content": "", "tool_call_id": "call_1" }],
         images_param=None,
         audios_param=None
@@ -383,6 +371,20 @@ def test_create_transcription():
             model="@moonshine/moonshine-base",
         )
     assert transcription.text.lower().startswith("going along slushy country roads")
+
+def _conversation(messages, *, images_param, audios_param):
+    adapter = OpenAICompletionsAdapter(
+        messages=Parameter(name="messages", dtype=Dtype.list),
+        output=0,
+        images=images_param.model_copy(update={"name": "images"}) if images_param else None,
+        audios=audios_param.model_copy(update={"name": "audios"}) if audios_param else None
+    )
+    inputs = adapter.inputs(messages=messages)
+    return SimpleNamespace(
+        messages=inputs["messages"],
+        images=inputs["images"].data if "images" in inputs else [],
+        audios=inputs.get("audios", [])
+    )
 
 def _png_data_url(color: tuple[int, int, int, int]) -> str:
     buffer = BytesIO()
