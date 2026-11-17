@@ -420,7 +420,12 @@ def _create_remote_value(obj: Value | RemoteValue) -> RemoteValue:
             )
 
 def _parse_remote_value(value: RemoteValue) -> Value:
+    # Handle list
+    if isinstance(value.data, list):
+        return [_parse_remote_value(item) for item in value.data]
+    # Download
     buffer = _download_value_data(value.data) if value.data else None
+    # Deserialize
     is_tensor = value.dtype in _TENSOR_DTYPES
     match value.dtype:
         case Dtype.null:

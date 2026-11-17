@@ -276,3 +276,20 @@ class Parameter(BaseModel, **ConfigDict(arbitrary_types_allowed=True)):
             denotation="segmentation_map",
             **kwargs
         )
+
+    @classmethod
+    def Model3D(
+        cls,
+        *,
+        description: str,
+        **kwargs
+    ) -> Parameter:
+        """
+        3D model parameter.
+        """
+        return Parameter(
+            name="",
+            description=description,
+            denotation="3d",
+            **kwargs
+        )

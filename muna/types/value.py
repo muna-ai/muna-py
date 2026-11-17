@@ -3,6 +3,7 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
+from __future__ import annotations
 from enum import StrEnum
 from io import BytesIO
 from numpy import ndarray
@@ -56,5 +57,7 @@ class RemoteValue(BaseModel):
     """
     Remote value.
     """
-    data: str | None = Field(description="Value URL. This is a remote or data URL.")
+    data: str | list[RemoteValue] | None = Field(description="Value URL, or a sequence of typed remote values.")
     dtype: Dtype = Field(description="Value type.", validation_alias=AliasChoices("dtype", "type"))
+
+RemoteValue.model_rebuild()

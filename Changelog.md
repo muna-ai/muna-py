@@ -1,5 +1,7 @@
 ## 0.1.38
-*INCOMPLETE*
++ Added `beta.openai.images.edit` method for editing an image with a prompt with image editing models.
++ Added `beta.Annotations.ImagePrompt` annotation method for string parameters that guide image editing.
++ Added `Parameter.Model3D` annotation method for 3D model parameters.
 
 ## 0.1.37
 + Added `muna deployments list` CLI command to list your deployments.

@@ -298,7 +298,7 @@ class _DeploymentProgressDisplay:
             "preparing": "Deploying predictor",
             "resolving": "Deploying predictor",
             "waiting": "Waiting for a serving node",
-            "downloading": "Downloading resources"
+            "downloading": "Staging resources"
         }[self.progress.stage]
 
     def update(self, progress: DeploymentProgress):
