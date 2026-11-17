@@ -1,3 +1,6 @@
+## 0.1.39
+*INCOMPLETE*
+
 ## 0.1.38
 + Added `beta.openai.images.edit` method for editing an image with a prompt with image editing models.
 + Added `beta.Annotations.ImagePrompt` annotation method for string parameters that guide image editing.
