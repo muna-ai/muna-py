@@ -1,5 +1,5 @@
 ## 0.1.40
-*INCOMPLETE*
++ Minor updates.
 
 ## 0.1.39
 + Minor updates.

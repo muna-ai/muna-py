@@ -163,7 +163,7 @@ class OpenAICompletionsAdapter(Adapter[Iterable[Prediction], OpenAICompletionsOp
     """
     Prepare chat inputs and lazily adapt a prediction stream into chunks.
     """
-    kind: Literal["openai.chat.completions.create"] = "openai.chat.completions.create"
+    kind: Literal["openai.chat.completions.create"] = Field("openai.chat.completions.create", init=False)
     messages: Parameter
     output: int
     images: Parameter | None = None
@@ -180,7 +180,10 @@ class OpenAICompletionsAdapter(Adapter[Iterable[Prediction], OpenAICompletionsOp
     stop: Parameter | None = None
 
     @classmethod
-    def from_signature(cls, signature: Signature) -> OpenAICompletionsAdapter:
+    def from_signature(cls, signature: Signature) -> OpenAICompletionsAdapter | None:
+        """
+        Create an OpenAI chat completions adapter from a predictor signature.
+        """
         signature = signature.model_copy(deep=True)
         # Messages parameter
         messages = [
@@ -188,7 +191,7 @@ class OpenAICompletionsAdapter(Adapter[Iterable[Prediction], OpenAICompletionsOp
             if not p.optional and p.dtype == Dtype.list
         ]
         if len(messages) != 1:
-            raise ValueError("Chat requires one required messages list input")
+            return None
         # Images parameter
         _, images = get_parameter(
             signature.inputs,
@@ -262,7 +265,7 @@ class OpenAICompletionsAdapter(Adapter[Iterable[Prediction], OpenAICompletionsOp
             denotation="openai.chat.completions.stop"
         )
         # Validate inputs
-        validate_inputs(signature, [
+        if not validate_inputs(signature, [
             messages[0],
             images,
             audios,
@@ -276,10 +279,11 @@ class OpenAICompletionsAdapter(Adapter[Iterable[Prediction], OpenAICompletionsOp
             reasoning_effort,
             tools,
             stop
-        ])
+        ]):
+            return None
         # Check audios
         if audios is not None and audios.sample_rate is None:
-            raise ValueError("Chat audio input must declare a sample_rate")
+            return None
         # Get completion chunk output
         outputs = [
             i
@@ -287,7 +291,7 @@ class OpenAICompletionsAdapter(Adapter[Iterable[Prediction], OpenAICompletionsOp
             if p.dtype == Dtype.dict and (p.value_schema or {}).get("title") == "ChatCompletionChunk"
         ]
         if len(outputs) != 1:
-            raise ValueError("Chat requires one ChatCompletionChunk dictionary output")
+            return None
         # Return
         return cls(
             messages=messages[0].model_copy(deep=True),
@@ -321,6 +325,9 @@ class OpenAICompletionsAdapter(Adapter[Iterable[Prediction], OpenAICompletionsOp
         tools: list | None = None,
         stop: list[str] | None = None
     ) -> dict[str, Value]:
+        """
+        Create prediction inputs from a chat completions request.
+        """
         inputs = self._conversation(messages)
         if self.temperature is not None and temperature is not None:
             inputs[self.temperature.name] = temperature

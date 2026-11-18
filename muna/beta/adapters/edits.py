@@ -9,6 +9,7 @@ from io import BytesIO
 from os import PathLike
 from pathlib import Path
 from PIL import Image
+from pydantic import Field
 from typing import BinaryIO, Literal
 
 from ...types import Dtype, Parameter, Prediction, RemoteValue, Signature, Value
@@ -22,7 +23,7 @@ class OpenAIImageEditAdapter(Adapter[Prediction, OpenAIImageOptions, ImageRespon
     """
     Convert Images edit inputs and outputs without executing predictions.
     """
-    kind: Literal["openai.images.edit"] = "openai.images.edit"
+    kind: Literal["openai.images.edit"] = Field("openai.images.edit", init=False)
     prompt: Parameter
     images: Parameter
     output: int
@@ -31,7 +32,7 @@ class OpenAIImageEditAdapter(Adapter[Prediction, OpenAIImageOptions, ImageRespon
     height: Parameter | None = None
 
     @classmethod
-    def from_signature(cls, signature: Signature) -> OpenAIImageEditAdapter:
+    def from_signature(cls, signature: Signature) -> OpenAIImageEditAdapter | None:
         """
         Create an OpenAI image editing adapter from a predictor signature.
         """
@@ -43,7 +44,7 @@ class OpenAIImageEditAdapter(Adapter[Prediction, OpenAIImageOptions, ImageRespon
             denotation="openai.images.prompt"
         )
         if prompt is None:
-            raise ValueError("Requires one scalar string input annotated with ImagePrompt")
+            return None
         # Images parameter
         _, images = get_parameter(
             signature.inputs,
@@ -51,7 +52,7 @@ class OpenAIImageEditAdapter(Adapter[Prediction, OpenAIImageOptions, ImageRespon
             denotation="openai.chat.completions.images"
         )
         if images is None:
-            raise ValueError("Requires one image_list input annotated with ChatImages")
+            return None
         # Optional generation width
         _, width = get_parameter(
             signature.inputs,
@@ -59,7 +60,7 @@ class OpenAIImageEditAdapter(Adapter[Prediction, OpenAIImageOptions, ImageRespon
             denotation="openai.images.width"
         )
         if width is not None and not width.optional:
-            raise ValueError("Image generation `width` input must be optional")
+            return None
         # Optional generation height
         _, height = get_parameter(
             signature.inputs,
@@ -67,7 +68,7 @@ class OpenAIImageEditAdapter(Adapter[Prediction, OpenAIImageOptions, ImageRespon
             denotation="openai.images.height"
         )
         if height is not None and not height.optional:
-            raise ValueError("Image generation `height` input must be optional")
+            return None
         # Optional generation count
         _, count = get_parameter(
             signature.inputs,
@@ -75,9 +76,10 @@ class OpenAIImageEditAdapter(Adapter[Prediction, OpenAIImageOptions, ImageRespon
             denotation="openai.images.count"
         )
         if count is not None and not count.optional:
-            raise ValueError("Image generation `count` input must be optional")
+            return None
         # Validate inputs
-        validate_inputs(signature, [prompt, images, width, height, count])
+        if not validate_inputs(signature, [prompt, images, width, height, count]):
+            return None
         # Image output
         outputs = [
             idx
@@ -85,7 +87,7 @@ class OpenAIImageEditAdapter(Adapter[Prediction, OpenAIImageOptions, ImageRespon
             if param.dtype == Dtype.image_list
         ]
         if len(outputs) != 1:
-            raise ValueError("Requires one unambiguous image_list output")
+            return None
         output = outputs[0]
         # Return
         return cls(
@@ -109,7 +111,7 @@ class OpenAIImageEditAdapter(Adapter[Prediction, OpenAIImageOptions, ImageRespon
         """
         Create prediction inputs from an image editing request.
         """
-        inputs = {self.images.name: image_list(images)}
+        inputs = { self.images.name: image_list(images) }
         if prompt is not None:
             inputs[self.prompt.name] = prompt
         if self.count is not None and n is not None:

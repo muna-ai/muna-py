@@ -126,13 +126,13 @@ class TypeSafeSystemOneAdapter(Adapter[Prediction, TypeSafeSystemOneOptions, Sys
     """
     Prepare typed decision questions and adapt their answers and token usage.
     """
-    kind: Literal["typesafe.system_one"] = "typesafe.system_one"
+    kind: Literal["typesafe.system_one"] = Field("typesafe.system_one", init=False)
     state: Parameter
     questions: Parameter
     output: int
 
     @classmethod
-    def from_signature(cls, signature: Signature) -> TypeSafeSystemOneAdapter:
+    def from_signature(cls, signature: Signature) -> TypeSafeSystemOneAdapter | None:
         """
         Create a TypeSafe system one adapter from a predictor signature.
         """
@@ -145,7 +145,7 @@ class TypeSafeSystemOneAdapter(Adapter[Prediction, TypeSafeSystemOneOptions, Sys
             denotation="typesafe.systemone.state"
         )
         if state is None:
-            raise ValueError("Requires one required list input annotated as typesafe.systemone.state")
+            return None
         # Question map
         _, questions = get_parameter(
             required,
@@ -153,15 +153,16 @@ class TypeSafeSystemOneAdapter(Adapter[Prediction, TypeSafeSystemOneOptions, Sys
             denotation="typesafe.systemone.questions"
         )
         if questions is None:
-            raise ValueError("Requires one required dict input annotated as typesafe.systemone.questions")
-        validate_inputs(signature, [state, questions])
+            return None
+        if not validate_inputs(signature, [state, questions]):
+            return None
         # Typed response
         _, response = get_parameter(
             [param for param in signature.outputs if (param.value_schema or {}).get("title") == "SystemOneResponse"],
             dtype=Dtype.dict
         )
         if response is None:
-            raise ValueError("Requires one SystemOneResponse dictionary output")
+            return None
         # Return
         return cls(
             state=state,

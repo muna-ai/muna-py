@@ -125,11 +125,16 @@ class ChatCompletionService:
         Returns:
             ChatCompletion | Iterator[ChatCompletionChunk]: Chat completion or chat completion chunks if streaming.
         """
+        # Ensure adapter
         if model not in self.__cache:
             predictor = self.__predictors.retrieve(model)
             if predictor is None:
                 raise ValueError(f"Predictor {model} could not be found")
-            self.__cache[model] = OpenAICompletionsAdapter.from_signature(predictor.signature)
+            adapter = OpenAICompletionsAdapter.from_signature(predictor.signature)
+            if adapter is None:
+                raise ValueError(f"Predictor {model} does not support chat completions")
+            self.__cache[model] = adapter
+        # Predict
         adapter = self.__cache[model]
         inputs = adapter.inputs(
             messages=messages,
@@ -150,6 +155,7 @@ class ChatCompletionService:
             devices=devices,
             passthrough=True
         )
+        # Adapt
         chunks = adapter.adapt(predictions, OpenAICompletionsOptions(include_usage=True))
         return chunks if stream else _merge_chunks(list(chunks))
 

@@ -40,7 +40,7 @@ class OpenAITranscriptionsAdapter(Adapter[Prediction, OpenAITranscriptionsOption
     """
     Prepare transcription PCM and adapt text with token or audio-duration usage.
     """
-    kind: Literal["openai.audio.transcriptions.create"] = "openai.audio.transcriptions.create"
+    kind: Literal["openai.audio.transcriptions.create"] = Field("openai.audio.transcriptions.create", init=False)
     audio: Parameter
     output: int
     usage: int | None = None
@@ -49,7 +49,10 @@ class OpenAITranscriptionsAdapter(Adapter[Prediction, OpenAITranscriptionsOption
     temperature: Parameter | None = None
 
     @classmethod
-    def from_signature(cls, signature: Signature) -> OpenAITranscriptionsAdapter:
+    def from_signature(cls, signature: Signature) -> OpenAITranscriptionsAdapter | None:
+        """
+        Create an OpenAI transcriptions adapter from a predictor signature.
+        """
         signature = signature.model_copy(deep=True)
         # Audio input
         _, audio = get_parameter(
@@ -58,9 +61,9 @@ class OpenAITranscriptionsAdapter(Adapter[Prediction, OpenAITranscriptionsOption
             denotation="audio"
         )
         if audio is None:
-            raise ValueError("Requires one required float32 or array_list input annotated as audio")
+            return None
         if audio.sample_rate is None or audio.sample_rate <= 0:
-            raise ValueError("Transcription audio input must declare a positive sample rate")
+            return None
         # Language
         _, language = get_parameter(
             signature.inputs,
@@ -79,11 +82,12 @@ class OpenAITranscriptionsAdapter(Adapter[Prediction, OpenAITranscriptionsOption
             dtype=FLOATS,
             denotation="openai.chat.completions.temperature"
         )
-        validate_inputs(signature, [audio, language, prompt, temperature])
+        if not validate_inputs(signature, [audio, language, prompt, temperature]):
+            return None
         # Text output
         output, text = get_parameter(signature.outputs, dtype={Dtype.string, Dtype.list})
         if text is None:
-            raise ValueError("Requires one string or list output for transcription text")
+            return None
         # Usage is optional; returned usage takes precedence over input duration.
         _, usage = get_parameter(
             [param for param in signature.outputs if (param.value_schema or {}).get("title") == "Usage"],

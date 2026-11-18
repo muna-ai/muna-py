@@ -106,12 +106,16 @@ class MessageService:
         Returns:
             Message | Iterator[RawMessageStreamEvent]: Message or raw message stream events if streaming.
         """
-
+        # Ensure adapter
         if model not in self.__cache:
             predictor = self.__predictors.retrieve(model)
             if predictor is None:
                 raise ValueError(f"Predictor {model} could not be found")
-            self.__cache[model] = AnthropicMessagesAdapter.from_signature(predictor.signature)
+            adapter = AnthropicMessagesAdapter.from_signature(predictor.signature)
+            if adapter is None:
+                raise ValueError(f"Predictor {model} does not support Anthropic messages")
+            self.__cache[model] = adapter
+        # Predict
         adapter = self.__cache[model]
         inputs = adapter.inputs(
             max_tokens=max_tokens,
@@ -130,6 +134,7 @@ class MessageService:
             devices=devices,
             passthrough=True
         )
+        # Adapt
         events = adapter.adapt(predictions)
         return events if stream else MessageStream(events).get_final_message()
 

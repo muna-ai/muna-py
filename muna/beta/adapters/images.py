@@ -50,7 +50,7 @@ class OpenAIImageGenerationAdapter(Adapter[Prediction, OpenAIImageOptions, Image
     """
     Prepare text-to-image inputs and adapt native or encoded image outputs.
     """
-    kind: Literal["openai.images.generate"] = "openai.images.generate"
+    kind: Literal["openai.images.generate"] = Field("openai.images.generate", init=False)
     prompt: Parameter
     output: int
     count: Parameter | None = None
@@ -58,7 +58,7 @@ class OpenAIImageGenerationAdapter(Adapter[Prediction, OpenAIImageOptions, Image
     height: Parameter | None = None
 
     @classmethod
-    def from_signature(cls, signature: Signature) -> OpenAIImageGenerationAdapter:
+    def from_signature(cls, signature: Signature) -> OpenAIImageGenerationAdapter | None:
         """
         Create an OpenAI image generation adapter from a predictor signature.
         """
@@ -70,7 +70,7 @@ class OpenAIImageGenerationAdapter(Adapter[Prediction, OpenAIImageOptions, Image
             denotation="openai.images.prompt"
         )
         if prompt is None:
-            raise ValueError("Requires one scalar string input annotated with ImagePrompt")
+            return None
         # Optional generation width
         _, width = get_parameter(
             signature.inputs,
@@ -78,7 +78,7 @@ class OpenAIImageGenerationAdapter(Adapter[Prediction, OpenAIImageOptions, Image
             denotation="openai.images.width"
         )
         if width is not None and not width.optional:
-            raise ValueError("Image generation `width` input must be optional")
+            return None
         # Optional generation height
         _, height = get_parameter(
             signature.inputs,
@@ -86,7 +86,7 @@ class OpenAIImageGenerationAdapter(Adapter[Prediction, OpenAIImageOptions, Image
             denotation="openai.images.height"
         )
         if height is not None and not height.optional:
-            raise ValueError("Image generation `height` input must be optional")
+            return None
         # Optional generation count
         _, count = get_parameter(
             signature.inputs,
@@ -94,9 +94,10 @@ class OpenAIImageGenerationAdapter(Adapter[Prediction, OpenAIImageOptions, Image
             denotation="openai.images.count"
         )
         if count is not None and not count.optional:
-            raise ValueError("Image generation `count` input must be optional")
+            return None
         # Validate inputs
-        validate_inputs(signature, [prompt, width, height, count])
+        if not validate_inputs(signature, [prompt, width, height, count]):
+            return None
         # Image output
         outputs = [
             idx
@@ -104,7 +105,7 @@ class OpenAIImageGenerationAdapter(Adapter[Prediction, OpenAIImageOptions, Image
             if param.dtype == Dtype.image_list
         ]
         if len(outputs) != 1:
-            raise ValueError("Requires one unambiguous image_list output")
+            return None
         output = outputs[0]
         # Return
         return cls(

@@ -210,7 +210,7 @@ class AnthropicMessagesAdapter(Adapter[Iterable[Prediction], AnthropicMessagesOp
     """
     Prepare Anthropic inputs and lazily adapt prediction chunks into events.
     """
-    kind: Literal["anthropic.messages.create"] = "anthropic.messages.create"
+    kind: Literal["anthropic.messages.create"] = Field("anthropic.messages.create", init=False)
     messages: Parameter
     output: int
     max_tokens: Parameter | None = None
@@ -222,7 +222,7 @@ class AnthropicMessagesAdapter(Adapter[Iterable[Prediction], AnthropicMessagesOp
     images: Parameter | None = None
 
     @classmethod
-    def from_signature(cls, signature: Signature) -> AnthropicMessagesAdapter:
+    def from_signature(cls, signature: Signature) -> AnthropicMessagesAdapter | None:
         """
         Create an Anthropic messages adapter from a predictor signature.
         """
@@ -234,7 +234,7 @@ class AnthropicMessagesAdapter(Adapter[Iterable[Prediction], AnthropicMessagesOp
             denotation="openai.chat.completions.messages"
         )
         if messages is None:
-            raise ValueError("Requires one list input annotated with ChatMessages")
+            return None
         # Maximum output tokens
         _, max_tokens = get_parameter(
             signature.inputs,
@@ -278,11 +278,21 @@ class AnthropicMessagesAdapter(Adapter[Iterable[Prediction], AnthropicMessagesOp
             denotation="openai.chat.completions.images"
         )
         # Validate inputs
-        validate_inputs(signature, [messages, max_tokens, stop_sequences, temperature, top_k, top_p, tools, images])
+        if not validate_inputs(signature, [
+            messages,
+            max_tokens,
+            stop_sequences,
+            temperature,
+            top_k,
+            top_p,
+            tools,
+            images
+        ]):
+            return None
         # Completion chunk output
         output, completion = get_parameter(signature.outputs, dtype=Dtype.dict)
         if completion is None or (completion.value_schema or {}).get("title") != "ChatCompletionChunk":
-            raise ValueError("Requires one ChatCompletionChunk dictionary output")
+            return None
         # Return
         return cls(
             messages=messages,
@@ -308,6 +318,9 @@ class AnthropicMessagesAdapter(Adapter[Iterable[Prediction], AnthropicMessagesOp
         top_p: float | None = None,
         tools: list[ToolParam] | None = None
     ) -> dict[str, Value]:
+        """
+        Create prediction inputs from a messages request.
+        """
         inputs = self._conversation(messages, system)
         if self.max_tokens is not None:
             inputs[self.max_tokens.name] = max_tokens

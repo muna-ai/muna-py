@@ -74,7 +74,10 @@ class ImageService:
             predictor = self.__predictors.retrieve(model)
             if predictor is None:
                 raise ValueError(f"Predictor {model} could not be found")
-            self.__generate_cache[model] = OpenAIImageGenerationAdapter.from_signature(predictor.signature)
+            adapter = OpenAIImageGenerationAdapter.from_signature(predictor.signature)
+            if adapter is None:
+                raise ValueError(f"Predictor {model} does not support image generation")
+            self.__generate_cache[model] = adapter
         # Predict
         adapter = self.__generate_cache[model]
         width, height = _get_image_size(size)
@@ -141,6 +144,8 @@ class ImageService:
                 adapter = OpenAIDepthAdapter.from_signature(signature)
             else:
                 adapter = OpenAIImageEditAdapter.from_signature(signature)
+            if adapter is None:
+                raise ValueError(f"Predictor {model} does not support image editing or depth estimation")
             self.__edit_cache[model] = adapter
         # Predict
         adapter = self.__edit_cache[model]

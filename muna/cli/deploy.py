@@ -28,6 +28,7 @@ from ..logging import CustomProgress, CustomProgressTask
 from ..muna import Muna
 from .auth import get_access_key
 from .compile import compile_predictor
+from ._snippets import print_deployment_example
 
 app = Typer(no_args_is_help=True)
 
@@ -96,6 +97,7 @@ def deploy_function(
                 required_targets=["x86_64-unknown-linux-gnu"],
                 show_completion=False
             )
+            predictor = muna.predictors.retrieve(tag)
         except ValueError as error:
             print(f"[bold red]Error:[/bold red] {error}")
             raise Exit(code=1)
@@ -125,6 +127,7 @@ def deploy_function(
         raise Exit(code=1)
     # Compilation and predictor lookup finish before opening another Rich live view.
     console = get_console()
+    inference_url = muna.client.inference_url
     started = monotonic()
     try:
         with _DeploymentProgressDisplay(console) as display:
@@ -151,13 +154,20 @@ def deploy_function(
         console.print(Text("Resources are prepared, but deployment health is currently unavailable. Retrieve the deployment for details.", style="yellow"))
         raise Exit(1)
     if deployment.status and deployment.status.health.state == "unknown":
-        console.print(Text.assemble("Preparation is complete; current availability is unknown. Endpoint: ", (_INFERENCE_URL, "cyan")))
+        console.print(Text.assemble("Preparation is complete; current availability is unknown. Endpoint: ", (inference_url, "cyan")))
         return
     print(
         f"\n[bold spring_green3]🚀 {deployment.tag} is live.[/bold spring_green3] Call it at "
-        f"[link={_INFERENCE_URL}][bold cyan]{_INFERENCE_URL}[/bold cyan][/link] "
+        f"[link={inference_url}][bold cyan]{inference_url}[/bold cyan][/link] "
         f"with model [bold cyan]{deployment.tag}[/bold cyan]."
     )
+    if predictor is not None:
+        print_deployment_example(
+            console,
+            predictor.signature,
+            deployment.tag,
+            inference_url,
+        )
 
 @app.command(name="list")
 def list_deployments():
@@ -338,5 +348,3 @@ class _DeploymentProgressDisplay:
         row.add_column(overflow="ellipsis", no_wrap=True)
         row.add_row(self.spinner, line)
         yield row
-
-_INFERENCE_URL = "https://inference.muna.ai/v1"

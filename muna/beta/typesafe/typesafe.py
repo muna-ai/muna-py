@@ -53,7 +53,10 @@ class TypeSafeClient:
             predictor = self.__predictors.retrieve(model)
             if predictor is None:
                 raise ValueError(f"Predictor {model} could not be found")
-            self.__cache[model] = TypeSafeSystemOneAdapter.from_signature(predictor.signature)
+            adapter = TypeSafeSystemOneAdapter.from_signature(predictor.signature)
+            if adapter is None:
+                raise ValueError(f"Predictor {model} does not support TypeSafe System One")
+            self.__cache[model] = adapter
         # Predict
         adapter = self.__cache[model]
         inputs = adapter.inputs(

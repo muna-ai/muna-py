@@ -55,7 +55,10 @@ class SpeechService:
             predictor = self.__predictors.retrieve(model)
             if predictor is None:
                 raise ValueError(f"Predictor {model} could not be found")
-            self.__cache[model] = OpenAISpeechAdapter.from_signature(predictor.signature)
+            adapter = OpenAISpeechAdapter.from_signature(predictor.signature)
+            if adapter is None:
+                raise ValueError(f"Predictor {model} does not support speech generation")
+            self.__cache[model] = adapter
         # Predict
         adapter = self.__cache[model]
         inputs = adapter.inputs(

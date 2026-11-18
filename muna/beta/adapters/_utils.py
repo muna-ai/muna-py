@@ -27,25 +27,19 @@ def get_parameter(
             denotation in { None, param.denotation }
         )
     ]
-    match len(matches):
-        case 0: return None, None
-        case 1: return matches[0]
-        case _: raise ValueError(
-            f"{denotation or 'Parameter lookup'} must identify at most one "
-            f"parameter with dtype {dtype}"
-        )
+    if len(matches) != 1:
+        return None, None
+    return matches[0]
 
 def validate_inputs(
     signature: Signature,
     parameters: list[Parameter | None]
-) -> None:
+) -> bool:
     names = [p.name for p in signature.inputs]
     if len(names) != len(set(names)):
-        raise ValueError("Signature input names must be unique")
+        return False
     supported = {p.name for p in parameters if p is not None}
-    unsupported = [p.name for p in signature.inputs if not p.optional and p.name not in supported]
-    if unsupported:
-        raise ValueError(f"Unsupported required inputs: {', '.join(unsupported)}")
+    return all(p.optional or p.name in supported for p in signature.inputs)
 
 def result(prediction: Prediction, index: int) -> object:
     if prediction.error:

@@ -52,7 +52,10 @@ class EmbeddingService:
             predictor = self.__predictors.retrieve(model)
             if predictor is None:
                 raise ValueError(f"Predictor {model} could not be found")
-            self.__cache[model] = OpenAIEmbeddingsAdapter.from_signature(predictor.signature)
+            adapter = OpenAIEmbeddingsAdapter.from_signature(predictor.signature)
+            if adapter is None:
+                raise ValueError(f"Predictor {model} does not support embeddings")
+            self.__cache[model] = adapter
         # Create prediction
         adapter = self.__cache[model]
         inputs = adapter.inputs(input=input, dimensions=dimensions)
@@ -65,4 +68,6 @@ class EmbeddingService:
         )
         # Adapt
         options = OpenAIEmbeddingsOptions(encoding_format=encoding_format or "float")
-        return adapter.adapt(prediction, options)
+        response = adapter.adapt(prediction, options)
+        # Return
+        return response

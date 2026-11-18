@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 from numpy import ascontiguousarray, ndarray
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from requests import Response
 from typing import Literal
 
@@ -32,7 +32,7 @@ class OpenAISpeechAdapter(Adapter[Prediction, OpenAISpeechOptions, SpeechCreateR
     """
     Prepare speech inputs and encode native or remote PCM predictions.
     """
-    kind: Literal["openai.audio.speech.create"] = "openai.audio.speech.create"
+    kind: Literal["openai.audio.speech.create"] = Field("openai.audio.speech.create", init=False)
     input: Parameter
     voice: Parameter
     output: int
@@ -40,7 +40,10 @@ class OpenAISpeechAdapter(Adapter[Prediction, OpenAISpeechOptions, SpeechCreateR
     speed: Parameter | None = None
 
     @classmethod
-    def from_signature(cls, signature: Signature) -> OpenAISpeechAdapter:
+    def from_signature(cls, signature: Signature) -> OpenAISpeechAdapter | None:
+        """
+        Create an OpenAI speech adapter from a predictor signature.
+        """
         signature = signature.model_copy(deep=True)
         required = [param for param in signature.inputs if not param.optional]
         # Voice input
@@ -50,21 +53,22 @@ class OpenAISpeechAdapter(Adapter[Prediction, OpenAISpeechOptions, SpeechCreateR
             denotation="openai.audio.speech.voice"
         )
         if voice is None:
-            raise ValueError("Requires one required string input annotated as speech voice")
+            return None
         # Text input. Voice is also a string, so exclude it from this lookup.
         _, input = get_parameter(
             [param for param in required if param.name != voice.name],
             dtype=Dtype.string
         )
         if input is None:
-            raise ValueError("Requires one required string input for speech text")
+            return None
         # Playback speed
         _, speed = get_parameter(
             signature.inputs,
             dtype=FLOATS,
             denotation="openai.audio.speech.speed"
         )
-        validate_inputs(signature, [input, voice, speed])
+        if not validate_inputs(signature, [input, voice, speed]):
+            return None
         # Audio output
         output, audio = get_parameter(
             signature.outputs,
@@ -72,9 +76,10 @@ class OpenAISpeechAdapter(Adapter[Prediction, OpenAISpeechOptions, SpeechCreateR
             denotation="audio"
         )
         if audio is None:
-            raise ValueError("Requires one float32 output annotated as audio")
+            return None
         if audio.sample_rate is None or audio.sample_rate <= 0:
-            raise ValueError("Speech audio output must declare a positive sample rate")
+            return None
+        # Return
         return cls(
             input=input,
             voice=voice,

@@ -6,7 +6,7 @@
 from __future__ import annotations
 from base64 import b64encode
 from numpy import ndarray
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal
 
 from ...types import Dtype, Parameter, Prediction, Signature, Value
@@ -37,14 +37,14 @@ class OpenAIEmbeddingsAdapter(Adapter[Prediction, OpenAIEmbeddingsOptions, Embed
     """
     Prepare text inputs and adapt an embedding matrix with optional token usage.
     """
-    kind: Literal["openai.embeddings.create"] = "openai.embeddings.create"
+    kind: Literal["openai.embeddings.create"] = Field("openai.embeddings.create", init=False)
     input: Parameter
     output: int
     dimensions: Parameter | None = None
     usage: int | None = None
 
     @classmethod
-    def from_signature(cls, signature: Signature) -> OpenAIEmbeddingsAdapter:
+    def from_signature(cls, signature: Signature) -> OpenAIEmbeddingsAdapter | None:
         """
         Create an OpenAI embeddings adapter from a predictor signature.
         """
@@ -55,7 +55,7 @@ class OpenAIEmbeddingsAdapter(Adapter[Prediction, OpenAIEmbeddingsOptions, Embed
             dtype=Dtype.list
         )
         if input is None:
-            raise ValueError("Requires one required list input for embedding text")
+            return None
         # Matryoshka dimensions
         _, dimensions = get_parameter(
             signature.inputs,
@@ -63,7 +63,8 @@ class OpenAIEmbeddingsAdapter(Adapter[Prediction, OpenAIEmbeddingsOptions, Embed
             denotation="openai.embeddings.dims"
         )
         # Validate inputs
-        validate_inputs(signature, [input, dimensions])
+        if not validate_inputs(signature, [input, dimensions]):
+            return None
         # Embedding matrix
         output, _ = get_parameter(
             signature.outputs,
@@ -71,7 +72,7 @@ class OpenAIEmbeddingsAdapter(Adapter[Prediction, OpenAIEmbeddingsOptions, Embed
             denotation="embedding"
         )
         if output is None:
-            raise ValueError("Requires one float32 output annotated as embedding")
+            return None
         # Token usage
         _, usage = get_parameter(
             [param for param in signature.outputs if (param.value_schema or {}).get("title") == "Usage"],
@@ -90,6 +91,9 @@ class OpenAIEmbeddingsAdapter(Adapter[Prediction, OpenAIEmbeddingsOptions, Embed
         input: str | list[str],
         dimensions: int | None = None
     ) -> dict[str, Value]:
+        """
+        Create prediction inputs from an embeddings request.
+        """
         inputs = { self.input.name: [input] if isinstance(input, str) else input }
         if self.dimensions is not None and dimensions is not None:
             inputs[self.dimensions.name] = dimensions

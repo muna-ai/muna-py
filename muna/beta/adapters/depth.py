@@ -7,7 +7,7 @@ from __future__ import annotations
 from base64 import b64encode
 from io import BytesIO
 from numpy import dtype, ndarray, save, savez_compressed
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal
 
 from ...types import Dtype, Parameter, Prediction, RemoteValue, Signature, Value
@@ -29,7 +29,7 @@ class OpenAIDepthAdapter(Adapter[Prediction, OpenAIDepthOptions, ImageResponse])
     """
     Images edit inputs with lossless, per-map NPY/NPZ response items.
     """
-    kind: Literal["openai.images.edit.depth"] = "openai.images.edit.depth"
+    kind: Literal["openai.images.edit.depth"] = Field("openai.images.edit.depth", init=False)
     prompt: Parameter
     images: Parameter
     output: int
@@ -38,7 +38,10 @@ class OpenAIDepthAdapter(Adapter[Prediction, OpenAIDepthOptions, ImageResponse])
     height: Parameter | None = None
 
     @classmethod
-    def from_signature(cls, signature: Signature) -> OpenAIDepthAdapter:
+    def from_signature(cls, signature: Signature) -> OpenAIDepthAdapter | None:
+        """
+        Create an OpenAI-compatible depth estimation adapter from a predictor signature.
+        """
         signature = signature.model_copy(deep=True)
         # Prompt parameter
         _, prompt = get_parameter(
@@ -47,7 +50,7 @@ class OpenAIDepthAdapter(Adapter[Prediction, OpenAIDepthOptions, ImageResponse])
             denotation="openai.images.prompt"
         )
         if prompt is None:
-            raise ValueError("Requires one scalar string input annotated with ImagePrompt")
+            return None
         # Images parameter
         _, images = get_parameter(
             signature.inputs,
@@ -55,7 +58,7 @@ class OpenAIDepthAdapter(Adapter[Prediction, OpenAIDepthOptions, ImageResponse])
             denotation="openai.chat.completions.images"
         )
         if images is None:
-            raise ValueError("Requires one image_list input annotated with ChatImages")
+            return None
         # Optional generation width
         _, width = get_parameter(
             signature.inputs,
@@ -63,7 +66,7 @@ class OpenAIDepthAdapter(Adapter[Prediction, OpenAIDepthOptions, ImageResponse])
             denotation="openai.images.width"
         )
         if width is not None and not width.optional:
-            raise ValueError("Image generation `width` input must be optional")
+            return None
         # Optional generation height
         _, height = get_parameter(
             signature.inputs,
@@ -71,7 +74,7 @@ class OpenAIDepthAdapter(Adapter[Prediction, OpenAIDepthOptions, ImageResponse])
             denotation="openai.images.height"
         )
         if height is not None and not height.optional:
-            raise ValueError("Image generation `height` input must be optional")
+            return None
         # Optional generation count
         _, count = get_parameter(
             signature.inputs,
@@ -79,9 +82,10 @@ class OpenAIDepthAdapter(Adapter[Prediction, OpenAIDepthOptions, ImageResponse])
             denotation="openai.images.count"
         )
         if count is not None and not count.optional:
-            raise ValueError("Image generation `count` input must be optional")
+            return None
         # Validate inputs
-        validate_inputs(signature, [prompt, images, width, height, count])
+        if not validate_inputs(signature, [prompt, images, width, height, count]):
+            return None
         # Depth output
         output, _ = get_parameter(
             signature.outputs,
@@ -89,7 +93,7 @@ class OpenAIDepthAdapter(Adapter[Prediction, OpenAIDepthOptions, ImageResponse])
             denotation="depth_map"
         )
         if output is None:
-            raise ValueError("Requires one array_list output annotated as depth_map")
+            return None
         # Return
         return cls(
             prompt=prompt,
@@ -109,6 +113,9 @@ class OpenAIDepthAdapter(Adapter[Prediction, OpenAIDepthOptions, ImageResponse])
         width: int | None = None,
         height: int | None = None
     ) -> dict[str, Value]:
+        """
+        Create prediction inputs from a depth estimation request.
+        """
         inputs = { self.images.name: image_list(images) }
         if prompt is not None:
             inputs[self.prompt.name] = prompt
