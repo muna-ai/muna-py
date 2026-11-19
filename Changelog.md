@@ -1,5 +1,5 @@
 ## 0.1.40
-+ Minor updates.
++ Upgraded Function to 0.0.53.
 
 ## 0.1.39
 + Minor updates.
