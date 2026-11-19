@@ -270,6 +270,26 @@ def test_matching_does_not_hide_unexpected_errors(adapter_type, payload, monkeyp
     with raises(ValueError, match="Unexpected lookup bug"):
         adapter_type.from_signature(signature)
 
+@mark.parametrize("adapter_type", [OpenAICompletionsAdapter, AnthropicMessagesAdapter])
+@mark.parametrize("denotation", [None, "openai.chat.completions.tools"])
+def test_chat_requires_messages_denotation(adapter_type, denotation):
+    signature = Signature.model_validate(CASES[0][1])
+    signature.inputs[0].denotation = denotation
+    signature.inputs[0].value_schema = {
+        "type": "array",
+        "items": {"type": "object", "title": "Message"}
+    }
+    assert adapter_type.from_signature(signature) is None
+
+@mark.parametrize("adapter_type", [OpenAICompletionsAdapter, AnthropicMessagesAdapter])
+def test_chat_matches_messages_by_denotation(adapter_type):
+    signature = Signature.model_validate(CASES[0][1])
+    signature.inputs[0].name = "conversation"
+    signature.inputs.append(Parameter(name="unrelated", dtype="list", optional=True))
+    adapter = adapter_type.from_signature(signature)
+    assert adapter is not None
+    assert adapter.messages.name == "conversation"
+
 def test_ambiguous_optional_parameter_is_omitted():
     signature = Signature.model_validate(CASES[0][1])
     signature.inputs.extend([

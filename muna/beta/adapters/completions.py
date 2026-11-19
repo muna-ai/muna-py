@@ -186,11 +186,12 @@ class OpenAICompletionsAdapter(Adapter[Iterable[Prediction], OpenAICompletionsOp
         """
         signature = signature.model_copy(deep=True)
         # Messages parameter
-        messages = [
-            p for p in signature.inputs
-            if not p.optional and p.dtype == Dtype.list
-        ]
-        if len(messages) != 1:
+        _, messages = get_parameter(
+            [p for p in signature.inputs if not p.optional],
+            dtype=Dtype.list,
+            denotation="openai.chat.completions.messages"
+        )
+        if messages is None:
             return None
         # Images parameter
         _, images = get_parameter(
@@ -266,7 +267,7 @@ class OpenAICompletionsAdapter(Adapter[Iterable[Prediction], OpenAICompletionsOp
         )
         # Validate inputs
         if not validate_inputs(signature, [
-            messages[0],
+            messages,
             images,
             audios,
             temperature,
@@ -294,7 +295,7 @@ class OpenAICompletionsAdapter(Adapter[Iterable[Prediction], OpenAICompletionsOp
             return None
         # Return
         return cls(
-            messages=messages[0].model_copy(deep=True),
+            messages=messages,
             output=outputs[0],
             images=images,
             audios=audios,
