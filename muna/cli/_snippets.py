@@ -13,6 +13,7 @@ from ..beta.adapters import (
     OpenAIEmbeddingsAdapter,
     OpenAIImageEditAdapter,
     OpenAIImageGenerationAdapter,
+    OpenAIModel3DAdapter,
     OpenAITranscriptionsAdapter,
 )
 from ..types import Signature
@@ -32,6 +33,7 @@ def deployment_snippet(
         OpenAIEmbeddingsAdapter,
         OpenAIImageEditAdapter,
         OpenAIImageGenerationAdapter,
+        OpenAIModel3DAdapter,
         OpenAITranscriptionsAdapter,
     ):
         adapter = adapter_type.from_signature(signature)
@@ -85,6 +87,20 @@ def openai_snippet(
                 if chunk.choices:
                     print(chunk.choices[0].delta.content or "", end="", flush=True)
             print()
+        ''',
+        "openai.images.edit.model3d": '''\
+            # 🔥 Generate a 3D model from your image
+            response = openai.images.edit(
+                model=MODEL,
+                image=Path("image.png").read_bytes(),
+                prompt="",
+                output_format="ply",
+            )
+
+            # 🚀 Save the 3D model
+            Path("model.ply").write_bytes(
+                b64decode(response.data[0].b64_json)
+            )
         ''',
         "openai.images.edit.depth": '''\
             # 🔥 Estimate depth from an image
@@ -146,7 +162,10 @@ def openai_snippet(
             print(response.text)
         ''',
     }
-    if kind in ("openai.images.generate", "openai.images.edit", "openai.images.edit.depth"):
+    if kind in (
+        "openai.images.generate", "openai.images.edit",
+        "openai.images.edit.depth", "openai.images.edit.model3d"
+    ):
         setup = dedent(setup).replace(
             "from openai import OpenAI\nfrom os import environ",
             "from base64 import b64decode\nfrom openai import OpenAI\nfrom os import environ\nfrom pathlib import Path",

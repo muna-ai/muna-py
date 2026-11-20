@@ -10,7 +10,8 @@ from ...services import PredictorService, PredictionService
 from ...types import Acceleration, Device
 from ..adapters import (
     ImageInput, ImageResponse, OpenAIDepthAdapter, OpenAIDepthOptions,
-    OpenAIImageEditAdapter, OpenAIImageGenerationAdapter, OpenAIImageOptions
+    OpenAIImageEditAdapter, OpenAIImageGenerationAdapter, OpenAIImageOptions,
+    OpenAIModel3DAdapter, OpenAIModel3DOptions
 )
 
 ImageSize = Literal[
@@ -37,7 +38,9 @@ class ImageService:
         self.__predictors = predictors
         self.__predictions = predictions
         self.__generate_cache: dict[str, OpenAIImageGenerationAdapter] = {}
-        self.__edit_cache: dict[str, OpenAIImageEditAdapter | OpenAIDepthAdapter] = {}
+        self.__edit_cache: dict[
+            str, OpenAIImageEditAdapter | OpenAIDepthAdapter | OpenAIModel3DAdapter
+        ] = {}
 
     def generate(
         self,
@@ -99,6 +102,13 @@ class ImageService:
             format=output_format or "png",
             compression=output_compression or 90
         )
+        prediction = self.__predictions.create(
+            tag=model,
+            inputs=inputs,
+            acceleration=acceleration,
+            devices=devices,
+            passthrough=True
+        )
         response = adapter.adapt(prediction, options)
         # Return
         return response
@@ -111,7 +121,7 @@ class ImageService:
         model: str,
         background: Literal["auto", "transparent", "opaque"] | None = None,
         n: int | None = None,
-        output_format: Literal["png", "jpeg", "webp", "raw", "npy", "npz"] | None = None,
+        output_format: Literal["png", "jpeg", "webp", "raw", "npy", "npz", "ply"] | None = None,
         output_compression: int | None = None,
         size: ImageSize | None = None,
         acceleration: Acceleration = "local_auto",
@@ -142,10 +152,14 @@ class ImageService:
             signature = predictor.signature
             if any(param.denotation == "depth_map" for param in signature.outputs):
                 adapter = OpenAIDepthAdapter.from_signature(signature)
+            elif any(param.denotation == "3d" for param in signature.outputs):
+                adapter = OpenAIModel3DAdapter.from_signature(signature)
             else:
                 adapter = OpenAIImageEditAdapter.from_signature(signature)
             if adapter is None:
-                raise ValueError(f"Predictor {model} does not support image editing or depth estimation")
+                raise ValueError(
+                    f"Predictor {model} does not support image editing, depth estimation, or 3D generation"
+                )
             self.__edit_cache[model] = adapter
         # Predict
         adapter = self.__edit_cache[model]
@@ -157,6 +171,21 @@ class ImageService:
             width=width,
             height=height
         )
+        # Select and validate the encoding before executing the predictor.
+        match adapter.kind:
+            case "openai.images.edit.model3d":
+                if background is not None or output_compression is not None:
+                    raise ValueError("3D output does not accept background or output_compression")
+                options = OpenAIModel3DOptions(format=output_format or "ply")
+            case "openai.images.edit.depth":
+                if background is not None or output_compression is not None:
+                    raise ValueError("Depth output does not accept background or output_compression")
+                options = OpenAIDepthOptions(format=output_format or "npz")
+            case "openai.images.edit":
+                options = OpenAIImageOptions(
+                    format=output_format or "png",
+                    compression=output_compression or 90
+                )
         prediction = self.__predictions.create(
             tag=model,
             inputs=inputs,
@@ -164,13 +193,6 @@ class ImageService:
             devices=devices,
             passthrough=True
         )
-        # Adapt
-        match adapter.kind:
-            case "openai.images.edit.depth": options = OpenAIDepthOptions(format=output_format or "npz")
-            case "openai.images.edit": options = OpenAIImageOptions(
-                format=output_format or "png",
-                compression=output_compression or 90
-            )
         response = adapter.adapt(prediction, options)
         # Return
         return response

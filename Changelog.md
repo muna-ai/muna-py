@@ -1,5 +1,5 @@
 ## 0.1.41
-*INCOMPLETE*
++ Minor updates.
 
 ## 0.1.40
 + Fixed `ValueError` when creating a remote prediction with a binary return value.
