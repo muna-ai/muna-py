@@ -441,42 +441,21 @@ def _parse_remote_value(value: RemoteValue) -> Value:
     # Deserialize
     is_tensor = value.dtype in _TENSOR_DTYPES
     match value.dtype:
-        case Dtype.null:
-            return None
-        case _ if is_tensor:
-            c_value = CValue.from_bytes(
-                buffer.getvalue(),
-                mime="application/vnd.muna.tensor"
-            )
-            return c_value.to_object()
-        case Dtype.string:
-            return buffer.getvalue().decode("utf-8")
-        case Dtype.list | Dtype.dict:
-            return loads(buffer.getvalue().decode("utf-8"))
-        case Dtype.image:
-            return Image.open(buffer)
-        case Dtype.array_list:
-            c_value = CValue.from_bytes(
-                buffer.getvalue(),
-                mime="application/x-npz"
-            )
-            return c_value.to_object()
-        case Dtype.image_list:
-            c_value = CValue.from_bytes(
-                buffer.getvalue(),
-                mime="image/avif"
-            )
-            return c_value.to_object()
-        case Dtype.binary:
-            return buffer
-        case _:
-            raise ValueError(
-                f"Failed to parse remote value with type `{value.dtype}` "
-                "because it is not supported"
-            )
+        case Dtype.null:        return None
+        case _ if is_tensor:    return CValue.from_bytes(buffer.getvalue(), mime="application/vnd.muna.tensor").to_object()
+        case Dtype.string:      return buffer.getvalue().decode("utf-8")
+        case Dtype.list:        return loads(buffer.getvalue().decode("utf-8"))
+        case Dtype.dict:        return loads(buffer.getvalue().decode("utf-8"))
+        case Dtype.image:       return Image.open(buffer)
+        case Dtype.array_list:  return CValue.from_bytes(buffer.getvalue(), mime="application/x-npz").to_object()
+        case Dtype.image_list:  return CValue.from_bytes(buffer.getvalue(), mime="image/avif").to_object()
+        case Dtype.binary:      return buffer.getvalue()
+        case _: raise ValueError(
+            f"Failed to parse remote value with type `{value.dtype}` "
+            "because it is not supported"
+        )
 
 def _deserialize_inputs(inputs: dict[str, Value]) -> dict[str, Value]:
-    # Resolve wire values at the execution boundary, before entering native code.
     return {
         name: _parse_remote_value(value) if isinstance(value, RemoteValue) else value
         for name, value in inputs.items()

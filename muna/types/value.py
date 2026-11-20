@@ -59,6 +59,5 @@ Value = (
     dict[str, object]   |
     Image.Image         |
     bytes               |
-    BytesIO             |
     RemoteValue
 )
