@@ -387,28 +387,27 @@ def _create_remote_value(obj: Value | RemoteValue) -> RemoteValue:
         case ndarray():
             buffer = BytesIO()
             savez_compressed(buffer, obj, allow_pickle=False)
-            data = _upload_value_data(buffer)
+            data = _upload_value_data(buffer.getvalue())
             return RemoteValue(data=data, dtype=obj.dtype.name)
         case str():
-            buffer = BytesIO(obj.encode())
-            data = _upload_value_data(buffer, mime="text/plain")
+            data = _upload_value_data(obj.encode(), mime="text/plain")
             return RemoteValue(data=data, dtype=Dtype.string)
         case list() if all(isinstance(tensor, ndarray) for tensor in obj):
             buffer = BytesIO()
             savez_compressed(buffer, *obj, allow_pickle=False)
-            data = _upload_value_data(buffer, mime="application/x-npz")
+            data = _upload_value_data(buffer.getvalue(), mime="application/x-npz")
             return RemoteValue(data=data, dtype=Dtype.array_list)
         case list() if all(isinstance(image, Image.Image) for image in obj):
             value = CValue.from_object(obj)
-            buffer = BytesIO(value.serialize(mime="image/avif"))
+            buffer = value.serialize(mime="image/avif")
             data = _upload_value_data(buffer, mime="image/avif")
             return RemoteValue(data=data, dtype=Dtype.image_list)
         case list():
-            buffer = BytesIO(dumps(obj).encode())
+            buffer = dumps(obj).encode()
             data = _upload_value_data(buffer, mime="application/json")
             return RemoteValue(data=data, dtype=Dtype.list)
         case dict():
-            buffer = BytesIO(dumps(obj).encode())
+            buffer = dumps(obj).encode()
             data = _upload_value_data(buffer, mime="application/json")
             return RemoteValue(data=data, dtype=Dtype.dict)
         case Image.Image():
@@ -416,11 +415,17 @@ def _create_remote_value(obj: Value | RemoteValue) -> RemoteValue:
             format = "PNG" if obj.mode == "RGBA" else "JPEG"
             mime = f"image/{format.lower()}"
             obj.save(buffer, format=format)
-            data = _upload_value_data(buffer, mime=mime)
+            data = _upload_value_data(buffer.getvalue(), mime=mime)
             return RemoteValue(data=data, dtype=Dtype.image)
-        case BytesIO():
+        case bytes():
             data = _upload_value_data(obj)
             return RemoteValue(data=data, dtype=Dtype.binary)
+        case bytearray():
+            return _create_remote_value(bytes(obj))
+        case memoryview():
+            return _create_remote_value(bytes(obj))
+        case BytesIO():
+            return _create_remote_value(obj.getvalue())
         case _:
             raise ValueError(
                 f"Failed to serialize value '{obj}' of type `{type(obj)}` "
@@ -493,11 +498,11 @@ def _parse_remote_prediction(
     })
 
 def _upload_value_data(
-    data: BytesIO,
+    data: bytes,
     *,
     mime: str="application/octet-stream"
 ) -> str:
-    encoded_data = b64encode(data.getvalue()).decode("ascii")
+    encoded_data = b64encode(data).decode("ascii")
     return f"data:{mime};base64,{encoded_data}"
 
 def _download_value_data(url: str) -> BytesIO:

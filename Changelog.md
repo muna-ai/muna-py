@@ -1,4 +1,5 @@
 ## 0.1.40
++ Fixed `ValueError` when creating a remote prediction with a binary return value.
 + Upgraded Function to 0.0.53.
 
 ## 0.1.39
