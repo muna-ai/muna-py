@@ -4,29 +4,11 @@
 #
 
 from pathlib import Path
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
-from typing import Annotated, Literal
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Literal
 
 from ..compile import CompileTarget
 from .litert import LiteRTInterpreterOptions
-
-def _validate_tflite_interpreter(interpreter: "tensorflow.lite.Interpreter") -> "tensorflow.lite.Interpreter": # type: ignore
-    allowed_types = []
-    try:
-        from tensorflow import lite
-        allowed_types.append(lite.Interpreter)
-    except ImportError:
-        pass
-    try:
-        from ai_edge_litert.interpreter import Interpreter
-        allowed_types.append(Interpreter)
-    except ImportError:
-        pass
-    if not allowed_types:
-        raise ImportError("`tensorflow` or `ai-edge-litert` is required to create this metadata but neither package is installed.")
-    if not isinstance(interpreter, tuple(allowed_types)):
-        raise ValueError(f"Expected `tensorflow.lite.Interpreter` instance but got `{type(interpreter).__qualname__}`")
-    return interpreter
 
 class TFLiteInterpreterMetadata(
     BaseModel,
@@ -42,7 +24,7 @@ class TFLiteInterpreterMetadata(
         targets (list | None): Compile targets where this metadata applies.
     """
     kind: Literal["meta.inference.tflite"] = Field("meta.inference.tflite", init=False)
-    interpreter: Annotated[object, BeforeValidator(_validate_tflite_interpreter)] = Field(
+    interpreter: object = Field(
         description="TensorFlow Lite interpreter to apply metadata to.",
         exclude=True
     )

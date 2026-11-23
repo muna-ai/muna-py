@@ -3,12 +3,10 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
-from typing import Annotated, Literal
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Literal
 
-from ._diffusers import validate_diffusers_pipeline
 from ._speculative import SpeculativeDecodingConfig
-from ._torch import validate_torch_module
 from .tensorrt import CudaArchitecture
 
 HipArchitecture = Literal[
@@ -57,7 +55,7 @@ class TorchToSGLangInferenceMetadata(
         disaggregation (SGLangDisaggregationConfig): Disaggregated inference configuration.
     """
     kind: Literal["meta.inference.sglang"] = Field("meta.inference.sglang", init=False)
-    model: Annotated[object, BeforeValidator(validate_torch_module)] = Field(
+    model: object = Field(
         description="Large language model to compile.",
         exclude=True
     )
@@ -107,11 +105,11 @@ class DiffusersToSGLangInferenceMetadata(
     Metadata to compile a diffusion pipeline for inference with SGLang.
 
     Members:
-        pipeline (diffusers.DiffusionPipeline): Diffusion pipeline.
+        pipeline (object): Diffusers pipeline or supported external Idol SDK pipeline.
     """
     kind: Literal["meta.inference.sglang_diffusion"] = Field("meta.inference.sglang_diffusion", init=False)
-    pipeline: Annotated[object, BeforeValidator(validate_diffusers_pipeline)] = Field(
-        description="Diffusers pipeline to compile.",
+    pipeline: object = Field(
+        description="Diffusers pipeline or supported external Idol SDK pipeline to compile.",
         exclude=True
     )
     compute_architecture: SGLangComputeArchitecture = Field(

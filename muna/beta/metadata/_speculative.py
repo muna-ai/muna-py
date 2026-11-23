@@ -3,10 +3,7 @@
 #   Copyright © 2026 NatML Inc. All Rights Reserved.
 #
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
-from typing import Annotated
-
-from ._torch import validate_torch_module
+from pydantic import BaseModel, ConfigDict, Field
 
 class SpeculativeDecodingConfig(
     BaseModel,
@@ -15,9 +12,7 @@ class SpeculativeDecodingConfig(
     """
     Speculative decoding configuration for large language models.
     """
-    draft_model: Annotated[object, BeforeValidator(validate_torch_module)] = Field(
-        description="Draft model."
-    )
+    draft_model: object = Field(description="Draft model.")
     num_draft_tokens: int | None = Field(
         default=None,
         description="Number of speculative tokens drafted per verify step.",

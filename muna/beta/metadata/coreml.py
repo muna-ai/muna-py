@@ -43,7 +43,10 @@ class _CoreMLInferenceMetadataBase(
 
     @model_validator(mode="after")
     def _validate_deployment_target(self):
-        if self.ios_deployment_target is not None and self.macos_deployment_target is not None:
+        if (
+            self.ios_deployment_target is not None and
+            self.macos_deployment_target is not None
+        ):
             raise ValueError("Specify either `ios_deployment_target` or `macos_deployment_target`, not both.")
         return self
 
